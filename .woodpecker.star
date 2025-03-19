@@ -2251,18 +2251,12 @@ def skipIfUnchanged(ctx, type):
         return []
 
     base = [
-        ".github/**",
-        ".vscode/**",
-        "changelog/**",
-        "docs/**",
-        "deployments/**",
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "LICENSE",
         "README.md",
     ]
     unit = [
-        "**/*_test.go",
     ]
     acceptance = [
         "tests/acceptance/**",
