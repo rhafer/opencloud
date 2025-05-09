@@ -303,35 +303,19 @@ func (a *ActivitylogService) storeActivity(resourceID string, eventID string, de
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	records, err := a.store.Read(resourceID)
-	if err != nil && err != microstore.ErrNotFound {
-		return err
-	}
-
-	var activities []RawActivity
-	if len(records) > 0 {
-		if err := json.Unmarshal(records[0].Value, &activities); err != nil {
-			return err
-		}
-	}
-
-	if l := len(activities); l >= _maxActivities {
-		activities = activities[l-_maxActivities+1:]
-	}
-
-	activities = append(activities, RawActivity{
+	activity := RawActivity{
 		EventID:   eventID,
 		Depth:     depth,
 		Timestamp: timestamp,
-	})
+	}
 
-	b, err := json.Marshal(activities)
+	b, err := json.Marshal(activity)
 	if err != nil {
 		return err
 	}
 
 	return a.store.Write(&microstore.Record{
-		Key:   resourceID,
+		Key:   resourceID + "." + eventID,
 		Value: b,
 	})
 }
