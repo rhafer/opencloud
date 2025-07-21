@@ -1223,6 +1223,7 @@ def e2eTestPipeline(ctx):
         "OC_SHOW_USER_EMAIL_IN_RESULTS": True,
         # Needed for enabling all roles
         "GRAPH_AVAILABLE_ROLES": "%s" % GRAPH_AVAILABLE_ROLES,
+        "PROXY_LOG_LEVEL": "debug",
     }
 
     e2e_trigger = [
