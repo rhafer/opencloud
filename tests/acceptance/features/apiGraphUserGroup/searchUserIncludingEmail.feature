@@ -1,4 +1,4 @@
-@env-config
+# @env-config
 Feature: edit/search user including email
 
   Background:
@@ -9,7 +9,7 @@ Feature: edit/search user including email
       | displayName | Brian Murphy      |
       | email       | brian@example.com |
       | password    | 1234              |
-    And the config "OC_SHOW_USER_EMAIL_IN_RESULTS" has been set to "true"
+    # And the config "OC_SHOW_USER_EMAIL_IN_RESULTS" has been set to "true"
 
 
   Scenario Outline: admin user can edit another user's email
@@ -274,6 +274,7 @@ Feature: edit/search user including email
               "required": [
                 "displayName",
                 "id",
+                "onPremisesSamAccountName",
                 "mail",
                 "userType"
               ],
@@ -284,6 +285,9 @@ Feature: edit/search user including email
                 "id": {
                   "type": "string",
                   "pattern": "^%user_id_pattern%$"
+                },
+                "onPremisesSamAccountName": {
+                  "const": "Alice"
                 },
                 "mail": {
                   "const": "alice@example.org"
@@ -366,6 +370,7 @@ Feature: edit/search user including email
               "required": [
                 "displayName",
                 "id",
+                "onPremisesSamAccountName",
                 "mail",
                 "userType"
               ],
@@ -376,6 +381,9 @@ Feature: edit/search user including email
                 "id": {
                   "type": "string",
                   "pattern": "^%user_id_pattern%$"
+                },
+                "onPremisesSamAccountName": {
+                  "const": "Alice"
                 },
                 "mail": {
                   "const": "alice@example.org"
@@ -417,6 +425,7 @@ Feature: edit/search user including email
                   "required": [
                     "displayName",
                     "id",
+                    "onPremisesSamAccountName",
                     "mail",
                     "userType"
                   ],
@@ -427,6 +436,9 @@ Feature: edit/search user including email
                     "id": {
                       "type": "string",
                       "pattern": "^%user_id_pattern%$"
+                    },
+                    "onPremisesSamAccountName": {
+                      "const": "Alice"
                     },
                     "mail": {
                       "const": "alice@example.org"
@@ -451,6 +463,9 @@ Feature: edit/search user including email
                     "id": {
                       "type": "string",
                       "pattern": "^%user_id_pattern%$"
+                    },
+                    "onPremisesSamAccountName": {
+                      "const": "another-alice"
                     },
                     "mail": {
                       "const": "another-alice@example.org"
