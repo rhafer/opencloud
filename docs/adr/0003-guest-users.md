@@ -12,7 +12,7 @@ Reference: https://github.com/opencloud-eu/opencloud/issues/2111
 
 To allow collaboration with external Users (Users that don't yet have an
 account in the IDP, and might be external to the organization), it should
-be possible to invite "Guest Users" into and OpenCloud instance.
+be possible to invite "Guest Users" into an OpenCloud instance.
 
 ## Requirements
 
@@ -24,10 +24,33 @@ be possible to invite "Guest Users" into and OpenCloud instance.
   accessing the shared resource (including the possibility to use 2FA)
 - the ability to invite external users is tied to a separate permission
   (e.g. "can invite guest users")
-- make it work with all (most) of the user-management configurations we support
+- make it work with all (most) of the user-management configurations we support.
+  The built-in IDP (lico) does not need to be supported.
 - avoid creating "Shadow IT" Infrastructure, e.g. we don't want to
   create/maintain a separate IDP instance just for Guest User that would
   allow bypassing corporate rules for Identity Management
+- the process of inviting a guest must can be asynchrounous, i.e. the user
+  account of the guest user might not be created at the moment of
+  creating the share/sending the invitaion as the whole process crosses
+  multiple systems (OpenCloud, Identity Management System, Email) and might
+  even require manual steps.
+- It should be possible to "convert" a guest user into a "normal" user without
+  the user loosing their shares.
+- Guest user invitations should have an expiration date, after which they can
+  no longer be accepted.
+
+
+### Privileges of guest users
+
+- guest users can not share or invite other users to a space or create public
+  links. (primary focus of the feature is to provide a simple way to grant
+  external, authorized access. anything else like resharing would undermine
+  regular user accounts).
+- guestusers can use the desktop and mobile client to access their shares or spaces
+
+
+- all "normal" users are able to share with guest users, just as if they where "normal" users.
+
 
 ## Questions still to be answered
 
@@ -36,14 +59,6 @@ be possible to invite "Guest Users" into and OpenCloud instance.
   - Do guest users expire after a certain time?
   - Do we need to keep track of who invited whom and when? (not just in
     the audit log?)
-- who can see the list of guest users?
-- once a guest user is created, is everyone in the organization able to
-  share with that guest user?
-- what are guest user allowed to do? (are they able to share, lookup
-  other users?)
-- should this be really tied just to creating shares? Or should we have
-  a more generic "invite user" feature that can be used in other
-  contexts as well?
 - What if the user already exists but used a different mail address in
   his account (e.g. sub-addressing?).
 
@@ -57,14 +72,13 @@ be possible to invite "Guest Users" into and OpenCloud instance.
   resources (storage provider)
 - When an external IDP is used the generation of that userid is usually
   not in control of OpenCloud (exception User-Autoprovisioning, or when
-  the Provisioning/Education API is used), but where taking the userid
-  from some LDAP Attribute maintained in the external system
+  the Provisioning/Education API is used). In that case, the userid is
+  taken from a LDAP Attribute maintained in the external system
 
 ### Lots of identity management options
 
 - OpenCloud provides many different ways to consume user-accounts. Guest
   users are supposed to be working with all/most of them:
-  - Internal IDP, with internal LDAP service
   - External IDP, with external LDAP service
   - External IDP, with manual provisioning via the
     Education/Provisioning APIs (to a local OpenCloud specific LDAP
@@ -172,11 +186,10 @@ be possible to invite "Guest Users" into and OpenCloud instance.
 
 If OpenCloud were responsible for allocating the UserIDs of all users
 the solution sketch above would likely loose some of its complexity. We
-would "roll" the userid for the invited user already when creating the
-invite. And could skip the step of creating a "pending" Share with an
-invitation assigned. As we have an ID already we could just create a
-"normal" share an even populated the grants on the filesystem for that
-share (or space)
+would "roll" the userid for the invited user already when creating the invite.
+That would allow to skip the step of creating a "pending" Share with an
+invitation assigned. As we have an ID already, we could just create a "normal"
+share and even populate the grants on the filesystem for that share (or space)
 
 We've been pondering on the idea of making OpenCloud manage all UserIDs
 for quite a while as it would have some additional benefits for the
