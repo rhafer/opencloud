@@ -1,12 +1,19 @@
 ---
-title: "Guest users in OpenCloud"
+title: "Inviting Guest users as fully integrated user in OpenCloud"
 ---
 
-* Status: pending
+* Status: postponed
 * Deciders: []
 * Date: 2026-01-20
 
 Reference: https://github.com/opencloud-eu/opencloud/issues/2111
+
+## Important Disclaimer
+
+The approach discussed here has been postponed (as of March, 2026) in favor
+of a different solution that does not require full-blown user-accounts in
+OpenCloud. That approach is currently tracked here:
+https://github.com/opencloud-eu/opencloud/issues/2513
 
 ## Context and Problem statement
 
