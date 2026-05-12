@@ -216,8 +216,8 @@ only to indexes created after the proposal lands.
 - OpenSearch `Tags` and `Favorites` change from dynamic `keyword`
   to `text + lowercaseKeyword`, matching the bleve mapping. The
   analyzer is registered in the new index settings.
-- OpenSearch facet sub-strings (`audio.*`, `photo.*`, `image.*`)
-  change from the dynamic `text + keyword` multi-field to
+- OpenSearch facet sub-strings (`audio.*`, `photo.*`, `image.*`,
+  `location.*`) change from the dynamic `text + keyword` multi-field to
   `keyword`-only, implementing the principle above. As noted in
   the context section, the tokenized leg is not actually reachable
   from user queries today, so no working path regresses.
