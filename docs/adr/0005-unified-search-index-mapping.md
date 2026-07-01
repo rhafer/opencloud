@@ -41,7 +41,16 @@ The current implementation has four concrete problems:
    declared. The inferred shapes differ: bleve produces keyword-
    analyzed text, OpenSearch produces a `text + keyword` multi-field
    with auto-detected dates. Nobody has written down which behavior
-   is the intended one.
+   is the intended one. Two concrete instances surfaced while building
+   #2659:
+   - **mtime** is stored as an RFC3339 string. OpenSearch's dynamic
+     mapping auto-detects it as `date`; bleve leaves it `keyword`. So
+     `mtime:>...` is a chronological range on OpenSearch but a
+     lexicographic string compare on bleve.
+   - **name/tags**: bleve indexes a single lowercase token (exact or
+     wildcard match only); OpenSearch word-tokenizes, so a bare
+     `name:report` matches "My Report.txt" on OpenSearch but not on
+     bleve.
 2. **The indexed facet metadata is effectively unreachable.** The
    audio, image, photo and location sub-fields go into the index and
    take up space, but no caller of the search service can actually
