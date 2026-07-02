@@ -3,51 +3,38 @@ package opensearch
 import (
 	"bytes"
 	"context"
-	"embed"
 	"errors"
 	"fmt"
-	"path"
+	"maps"
 	"reflect"
-	"strings"
 
 	"github.com/go-jose/go-jose/v3/json"
 	opensearchgoAPI "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"github.com/tidwall/gjson"
+
+	searchmapping "github.com/opencloud-eu/opencloud/services/search/pkg/mapping"
+	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
 var (
 	ErrManualActionRequired                  = errors.New("manual action required")
-	IndexManagerLatest                       = IndexIndexManagerResourceV3
-	IndexIndexManagerResourceV3 IndexManager = "resource_v3.json"
+	IndexManagerLatest                       = IndexIndexManagerResourceV2
+	IndexIndexManagerResourceV2 IndexManager = "resource_v2"
 )
-
-//go:embed internal/indexes/*.json
-var indexes embed.FS
 
 type IndexManager string
 
-// Version is the part of the definition file name that says which generation it
-// is, resource_v3.json carries v3.
-func (m IndexManager) Version() string {
-	name := strings.TrimSuffix(string(m), path.Ext(string(m)))
-	_, version, found := strings.Cut(name, "_")
-	if !found {
-		return ""
-	}
-
-	return version
+// IndexName puts the schema generation behind the configured name, so a new
+// generation starts on an index of its own instead of refusing to work with
+// the one that is there. Interim: derived from a constant here, from the
+// shared SchemaVersion later in this series.
+func IndexName(name string) string {
+	return name + "-v2"
 }
 
-// IndexName puts the generation of the definition behind the configured name,
-// so a new one starts on an index of its own instead of refusing to work with
-// the one that is there.
-func IndexName(name string) string {
-	version := IndexManagerLatest.Version()
-	if version == "" {
-		return name
-	}
-
-	return name + "-" + version
+// indexGenerators dispatches each IndexManager variant to its builder.
+var indexGenerators = map[IndexManager]func() ([]byte, error){
+	IndexIndexManagerResourceV2: buildResourceV2Mapping,
 }
 
 func (m IndexManager) String() string {
@@ -60,16 +47,56 @@ func (m IndexManager) String() string {
 }
 
 func (m IndexManager) MarshalJSON() ([]byte, error) {
-	filePath := string(m)
-	body, err := indexes.ReadFile(path.Join("./internal/indexes", filePath))
-	switch {
-	case err != nil:
-		return nil, fmt.Errorf("failed to read index file %s: %w", filePath, err)
-	case len(body) <= 0:
-		return nil, fmt.Errorf("index file %s is empty", filePath)
+	gen, ok := indexGenerators[m]
+	if !ok {
+		return nil, fmt.Errorf("unknown index manager %q", string(m))
+	}
+	return gen()
+}
+
+// buildResourceV2Mapping renders the OpenSearch index template for a
+// search.Resource from the shared SearchFieldOverrides. OpenSearch-specific
+// tweaks (wildcard MimeType, path_hierarchy Path) are applied on top.
+func buildResourceV2Mapping() ([]byte, error) {
+	resourceType := reflect.TypeFor[search.Resource]()
+	overrides := maps.Clone(search.Resource{}.SearchFieldOverrides())
+	overrides["MimeType"] = searchmapping.FieldOpts{Type: searchmapping.TypeWildcard}
+	overrides["Path"] = searchmapping.FieldOpts{Type: searchmapping.TypePath}
+	if err := searchmapping.Validate(resourceType, overrides); err != nil {
+		return nil, err
+	}
+	props, err := searchmapping.OpenSearchBuildMapping(resourceType, overrides)
+	if err != nil {
+		return nil, err
 	}
 
-	return body, nil
+	index := map[string]any{
+		"settings": map[string]any{
+			"number_of_shards":   "1",
+			"number_of_replicas": "1",
+			"analysis": map[string]any{
+				"analyzer": map[string]any{
+					"path_hierarchy": map[string]any{
+						"type":      "custom",
+						"tokenizer": "path_hierarchy",
+						"filter":    []string{"lowercase"},
+					},
+					"lowercaseKeyword": map[string]any{
+						"type":      "custom",
+						"tokenizer": "keyword",
+						"filter":    []string{"lowercase"},
+					},
+				},
+				"tokenizer": map[string]any{
+					"path_hierarchy": map[string]any{"type": "path_hierarchy"},
+				},
+			},
+		},
+		"mappings": map[string]any{
+			"properties": props,
+		},
+	}
+	return json.Marshal(index)
 }
 
 func coveredAt(declared, index gjson.Result, declaredPath, indexPath string) (string, string, bool) {
@@ -163,8 +190,11 @@ func (m IndexManager) Apply(ctx context.Context, name string, client *opensearch
 
 		if errs != nil {
 			return fmt.Errorf(
-				"index %s already exists and is different from the requested version, %w: %w",
-				name,
+				"index %s already exists with a different mapping than the requested version. "+
+					"There is no in-place migration today: drop the index in OpenSearch (DELETE /%s) "+
+					"and restart the search service. The index will be recreated with the new mapping. "+
+					"%w: %w",
+				name, name,
 				ErrManualActionRequired,
 				errors.Join(errs...),
 			)
