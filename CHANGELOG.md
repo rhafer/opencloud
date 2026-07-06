@@ -1,5 +1,19 @@
 # Changelog
 
+## [7.2.1](https://github.com/opencloud-eu/opencloud/releases/tag/v7.2.1) - 2026-07-06
+
+### ❤️ Thanks to all contributors! ❤️
+
+@JammingBen, @v-scharf
+
+### 🐛 Bug Fixes
+
+- Fix warming up the id cache for the user storage [[#3072](https://github.com/opencloud-eu/opencloud/pull/3072)]
+
+### 📦️ Dependencies
+
+- [full-ci] chore: bump web to v7.1.3 [[#3052](https://github.com/opencloud-eu/opencloud/pull/3052)]
+
 ## [7.2.0](https://github.com/opencloud-eu/opencloud/releases/tag/v7.2.0) - 2026-06-24
 
 ### ❤️ Thanks to all contributors! ❤️
