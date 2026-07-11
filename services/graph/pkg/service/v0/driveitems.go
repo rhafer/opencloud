@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	gateway "github.com/cs3org/go-cs3apis/cs3/gateway/v1beta1"
@@ -456,6 +457,7 @@ func cs3ResourceToDriveItem(logger *log.Logger, publicBaseURL *url.URL, res *sto
 		driveItem.Image = metadataToFacet[libregraph.Image](metadata, "image")
 		driveItem.Location = metadataToFacet[libregraph.GeoCoordinates](metadata, "location")
 		driveItem.Photo = metadataToFacet[libregraph.Photo](metadata, "photo")
+		driveItem.LibreGraphMeFollowing = libregraph.PtrBool(metadata[_favoriteMetadataKey] == "1")
 	}
 
 	return driveItem, nil
