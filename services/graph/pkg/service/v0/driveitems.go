@@ -23,6 +23,7 @@ import (
 
 	revactx "github.com/opencloud-eu/reva/v2/pkg/ctx"
 	"github.com/opencloud-eu/reva/v2/pkg/storagespace"
+	"github.com/opencloud-eu/reva/v2/pkg/tags"
 	"github.com/opencloud-eu/reva/v2/pkg/utils"
 
 	"github.com/opencloud-eu/opencloud/pkg/log"
@@ -458,6 +459,9 @@ func cs3ResourceToDriveItem(logger *log.Logger, publicBaseURL *url.URL, res *sto
 		driveItem.Location = metadataToFacet[libregraph.GeoCoordinates](metadata, "location")
 		driveItem.Photo = metadataToFacet[libregraph.Photo](metadata, "photo")
 		driveItem.LibreGraphMeFollowing = libregraph.PtrBool(metadata[_favoriteMetadataKey] == "1")
+		if t := metadata["tags"]; t != "" {
+			driveItem.LibreGraphTags = tags.New(t).AsSlice()
+		}
 	}
 
 	return driveItem, nil
