@@ -35,7 +35,7 @@ type Backend struct {
 
 // NewBackend creates a backend on the versioned generation of the named index.
 func NewBackend(name string, client *opensearchgoAPI.Client) (*Backend, error) {
-	index := IndexName(name)
+	index := VersionedIndexName(name)
 
 	pingResp, err := client.Ping(context.TODO(), &opensearchgoAPI.PingReq{})
 	switch {

@@ -2,6 +2,7 @@ package bleve
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"path/filepath"
 	"reflect"
@@ -26,12 +27,8 @@ const (
 	indexVersion   = "v2"
 )
 
-func indexPath(root string) string {
-	return filepath.Join(root, "bleve-"+indexVersion)
-}
-
 func NewIndex(root string) (bleve.Index, error) {
-	destination := indexPath(root)
+	destination := filepath.Join(root, fmt.Sprintf("bleve-v%d", search.SchemaVersion))
 	index, err := bleve.Open(destination)
 	if errors.Is(err, bleve.ErrorIndexPathDoesNotExist) {
 		indexMapping, err := NewMapping()
