@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"time"
 
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 )
@@ -25,7 +26,22 @@ type Config struct {
 	TokenManager *TokenManager `yaml:"token_manager"`
 
 	GatewayAddress string          `yaml:"gateway_addr" env:"WEB_GATEWAY_GRPC_ADDR" desc:"The bind address of the GRPC service." introductionVersion:"1.0.0"`
+	Store          Store           `yaml:"store"`
 	Context        context.Context `yaml:"-"`
+}
+
+// Store configures the persistent store used to keep runtime managed web settings, e.g. the announcement banner.
+type Store struct {
+	Store                string        `yaml:"store" env:"OC_PERSISTENT_STORE;WEB_STORE" desc:"The type of the store. Supported values are: 'memory', 'nats-js-kv', 'redis-sentinel', 'noop'. See the text description for details." introductionVersion:"%%NEXT%%"`
+	Nodes                []string      `yaml:"nodes" env:"OC_PERSISTENT_STORE_NODES;WEB_STORE_NODES" desc:"A list of nodes to access the configured store. This has no effect when 'memory' store is configured. Note that the behaviour how nodes are used is dependent on the library of the configured store. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
+	Database             string        `yaml:"database" env:"WEB_STORE_DATABASE" desc:"The database name the configured store should use." introductionVersion:"%%NEXT%%"`
+	Table                string        `yaml:"table" env:"WEB_STORE_TABLE" desc:"The database table the store should use." introductionVersion:"%%NEXT%%"`
+	TTL                  time.Duration `yaml:"ttl" env:"OC_PERSISTENT_STORE_TTL;WEB_STORE_TTL" desc:"Time to live for entries in the store. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
+	AuthUsername         string        `yaml:"username" env:"OC_PERSISTENT_STORE_AUTH_USERNAME;WEB_STORE_AUTH_USERNAME" desc:"The username to authenticate with the store. Only applies when store type 'nats-js-kv' is configured." introductionVersion:"%%NEXT%%"`
+	AuthPassword         string        `yaml:"password" env:"OC_PERSISTENT_STORE_AUTH_PASSWORD;WEB_STORE_AUTH_PASSWORD" desc:"The password to authenticate with the store. Only applies when store type 'nats-js-kv' is configured." introductionVersion:"%%NEXT%%"`
+	EnableTLS            bool          `yaml:"enable_tls" env:"OC_PERSISTENT_STORE_ENABLE_TLS;WEB_STORE_ENABLE_TLS" desc:"Enable TLS for the connection to the store. Only applies when store type 'nats-js-kv' is configured." introductionVersion:"%%NEXT%%"`
+	TLSInsecure          bool          `yaml:"tls_insecure" env:"OC_INSECURE;OC_PERSISTENT_STORE_TLS_INSECURE;WEB_STORE_TLS_INSECURE" desc:"Whether to verify the server TLS certificates." introductionVersion:"%%NEXT%%"`
+	TLSRootCACertificate string        `yaml:"tls_root_ca_certificate" env:"OC_PERSISTENT_STORE_TLS_ROOT_CA_CERTIFICATE;WEB_STORE_TLS_ROOT_CA_CERTIFICATE" desc:"The root CA certificate used to validate the server's TLS certificate. If provided WEB_STORE_TLS_INSECURE will be seen as false." introductionVersion:"%%NEXT%%"`
 }
 
 // Asset defines the available asset configuration.

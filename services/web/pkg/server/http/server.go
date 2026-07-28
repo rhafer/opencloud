@@ -6,7 +6,9 @@ import (
 
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
+	"github.com/opencloud-eu/reva/v2/pkg/store"
 	"go-micro.dev/v4"
+	microstore "go-micro.dev/v4/store"
 
 	"github.com/opencloud-eu/opencloud/pkg/cors"
 	"github.com/opencloud-eu/opencloud/pkg/middleware"
@@ -15,6 +17,7 @@ import (
 	"github.com/opencloud-eu/opencloud/pkg/version"
 	"github.com/opencloud-eu/opencloud/pkg/x/io/fsx"
 	"github.com/opencloud-eu/opencloud/services/web"
+	"github.com/opencloud-eu/opencloud/services/web/pkg/announcement"
 	"github.com/opencloud-eu/opencloud/services/web/pkg/apps"
 	svc "github.com/opencloud-eu/opencloud/services/web/pkg/service/v0"
 )
@@ -76,11 +79,25 @@ func Server(opts ...Option) (http.Service, error) {
 		fsx.NewBasePathFs(fsx.FromIOFS(web.Assets), "assets/themes"),
 	)
 
+	// persistent store for runtime managed web settings, e.g. the announcement banner
+	announcementStore := announcement.NewStore(store.Create(
+		store.Store(options.Config.Store.Store),
+		store.TTL(options.Config.Store.TTL),
+		microstore.Nodes(options.Config.Store.Nodes...),
+		microstore.Database(options.Config.Store.Database),
+		microstore.Table(options.Config.Store.Table),
+		store.Authentication(options.Config.Store.AuthUsername, options.Config.Store.AuthPassword),
+		store.TLSEnabled(options.Config.Store.EnableTLS),
+		store.TLSInsecure(options.Config.Store.TLSInsecure),
+		store.TLSRootCA(options.Config.Store.TLSRootCACertificate),
+	))
+
 	handle, err := svc.NewService(
 		svc.Logger(options.Logger),
 		svc.CoreFS(coreFS.IOFS()),
 		svc.AppFS(appsFS.IOFS()),
 		svc.ThemeFS(themeFS),
+		svc.AnnouncementStore(announcementStore),
 		svc.AppsHTTPEndpoint(_customAppsEndpoint),
 		svc.Config(options.Config),
 		svc.GatewaySelector(gatewaySelector),

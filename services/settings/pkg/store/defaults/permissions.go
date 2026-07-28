@@ -29,6 +29,25 @@ func AccountManagementPermission(c settingsmsg.Permission_Constraint) *settingsm
 	}
 }
 
+// AnnouncementWritePermission is the permission to manage the web announcement banner
+func AnnouncementWritePermission(c settingsmsg.Permission_Constraint) *settingsmsg.Setting {
+	return &settingsmsg.Setting{
+		Id:          "52b1994b-1bdb-4c8d-a887-1967dbe8cb11",
+		Name:        "Announcement.Write",
+		DisplayName: "Manage announcement",
+		Description: "This permission permits to manage the announcement banner shown to all users.",
+		Resource: &settingsmsg.Resource{
+			Type: settingsmsg.Resource_TYPE_SYSTEM,
+		},
+		Value: &settingsmsg.Setting_PermissionValue{
+			PermissionValue: &settingsmsg.Permission{
+				Operation:  settingsmsg.Permission_OPERATION_WRITE,
+				Constraint: c,
+			},
+		},
+	}
+}
+
 // AutoAcceptSharesPermission is the permission to enable share auto-accept
 func AutoAcceptSharesPermission(c settingsmsg.Permission_Constraint) *settingsmsg.Setting {
 	return &settingsmsg.Setting{
