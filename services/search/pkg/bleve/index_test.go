@@ -24,7 +24,7 @@ var _ = Describe("Index", func() {
 		It("puts the index into a directory of its own generation", func() {
 			root := GinkgoT().TempDir()
 
-			index, err := bleve.NewIndex(root)
+			index, _, err := bleve.NewIndex(root)
 			Expect(err).ToNot(HaveOccurred())
 			DeferCleanup(index.Close)
 
@@ -35,11 +35,11 @@ var _ = Describe("Index", func() {
 		It("opens the index that is already there", func() {
 			root := GinkgoT().TempDir()
 
-			index, err := bleve.NewIndex(root)
+			index, _, err := bleve.NewIndex(root)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(index.Close()).To(Succeed())
 
-			reopened, err := bleve.NewIndex(root)
+			reopened, _, err := bleve.NewIndex(root)
 			Expect(err).ToNot(HaveOccurred())
 			DeferCleanup(reopened.Close)
 
