@@ -143,6 +143,11 @@ func (s Service) Set(w http.ResponseWriter, r *http.Request) {
 
 	var body Announcement
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, _maxBodySize)).Decode(&body); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

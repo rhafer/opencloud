@@ -170,7 +170,7 @@ var _ = Describe("Service", func() {
 			s := newStore()
 			newService(s, true).Set(resp, req)
 
-			Expect(resp.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.Code).To(Equal(http.StatusRequestEntityTooLarge))
 			got, _ := s.Get()
 			Expect(got.BannerText).To(BeEmpty())
 		})
