@@ -14,11 +14,11 @@ import (
 	"github.com/opencloud-eu/reva/v2/pkg/utils"
 
 	"github.com/opencloud-eu/opencloud/pkg/conversions"
+	"github.com/opencloud-eu/opencloud/pkg/kql"
 	searchMessage "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/search/v0"
 	searchService "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/convert"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/osu"
-	searchQuery "github.com/opencloud-eu/opencloud/services/search/pkg/query"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
@@ -74,7 +74,7 @@ func NewBackend(name string, client *opensearchgoAPI.Client) (*Backend, error) {
 func (b *Backend) Search(ctx context.Context, sir *searchService.SearchIndexRequest) (*searchService.SearchIndexResponse, error) {
 	boolQuery, err := convert.KQLToOpenSearchBoolQuery(sir.Query)
 	switch {
-	case searchQuery.IsValidationError(err):
+	case kql.IsValidationError(err):
 		return nil, errtypes.BadRequest(err.Error())
 	case err != nil:
 		return nil, fmt.Errorf("failed to convert KQL query to OpenSearch bool query: %w", err)
