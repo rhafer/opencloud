@@ -156,31 +156,43 @@ func (p Web) getPayload() (payload []byte, err error) {
 	// ensure that the server url has a trailing slash
 	webConfig.Server = strings.TrimRight(webConfig.Server, "/") + "/"
 
-	// the runtime store is authoritative for the announcement banner: expose it when live,
-	// clear it otherwise
-	webConfig.Options.Announcement = p.currentAnnouncement()
+	// the runtime store is authoritative once it manages an announcement (enabled or explicitly
+	// disabled); only when it holds nothing do we keep a statically configured one
+	// (web.config.options.announcement)
+	if a, managed := p.managedAnnouncement(); managed {
+		webConfig.Options.Announcement = a
+	}
 
 	return json.Marshal(webConfig)
 }
 
-// currentAnnouncement returns the stored announcement for config.json, or nil if unset or unavailable.
-func (p Web) currentAnnouncement() *config.Announcement {
+// managedAnnouncement returns the announcement the runtime store manages for config.json. The
+// bool reports whether the store manages one at all: when true, the returned value (nil for an
+// explicitly disabled announcement) overrides any static config; when false, the store holds
+// nothing and a statically configured announcement is kept.
+func (p Web) managedAnnouncement() (*config.Announcement, bool) {
 	if p.announcementStore == nil {
-		return nil
+		return nil, false
 	}
 
 	a, err := p.announcementStore.Get()
 	if err != nil {
 		p.logger.Error().Err(err).Msg("could not read announcement from store")
-		return nil
+		return nil, false
 	}
 
-	// only live (enabled) announcements with a banner line are exposed in the public config.json
-	if !a.Enabled || a.BannerText == "" {
-		return nil
+	// an announcement without a banner line is nothing to manage (empty/removed store)
+	if a.BannerText == "" {
+		return nil, false
 	}
 
-	return &config.Announcement{BannerText: a.BannerText, InfoText: a.InfoText}
+	// managed but disabled: hide it, overriding any static config
+	if !a.Enabled {
+		return nil, true
+	}
+
+	// only live (enabled) announcements are exposed in the public config.json
+	return &config.Announcement{BannerText: a.BannerText, InfoText: a.InfoText}, true
 }
 
 // Config implements the Service interface.
