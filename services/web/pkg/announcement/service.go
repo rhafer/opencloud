@@ -13,8 +13,8 @@ import (
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
 )
 
-// _writePermission is the settings permission required to manage the announcement.
-const _writePermission = "Announcement.Write"
+// _permission is the settings permission required to read and manage the announcement.
+const _permission = "Announcement.ReadWrite"
 
 // _maxBodySize caps the announcement request body. The info text is Markdown and ends up in
 // the public config.json that every client loads on bootstrap, so it must stay small.
@@ -83,7 +83,7 @@ func (s Service) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rsp, err := gatewayClient.CheckPermission(r.Context(), &permissionsapi.CheckPermissionRequest{
-		Permission: _writePermission,
+		Permission: _permission,
 		SubjectRef: &permissionsapi.SubjectReference{
 			Spec: &permissionsapi.SubjectReference_UserId{
 				UserId: user.GetId(),
@@ -125,7 +125,7 @@ func (s Service) Set(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rsp, err := gatewayClient.CheckPermission(r.Context(), &permissionsapi.CheckPermissionRequest{
-		Permission: _writePermission,
+		Permission: _permission,
 		SubjectRef: &permissionsapi.SubjectReference{
 			Spec: &permissionsapi.SubjectReference_UserId{
 				UserId: user.GetId(),
