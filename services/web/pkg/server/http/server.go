@@ -6,9 +6,8 @@ import (
 
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
-	"github.com/opencloud-eu/reva/v2/pkg/store"
+	"github.com/opencloud-eu/reva/v2/pkg/storage/cache"
 	"go-micro.dev/v4"
-	microstore "go-micro.dev/v4/store"
 
 	"github.com/opencloud-eu/opencloud/pkg/cors"
 	"github.com/opencloud-eu/opencloud/pkg/middleware"
@@ -79,18 +78,20 @@ func Server(opts ...Option) (http.Service, error) {
 		fsx.NewBasePathFs(fsx.FromIOFS(web.Assets), "assets/themes"),
 	)
 
-	// persistent store for runtime managed web settings, e.g. the announcement banner
-	announcementStore := announcement.NewStore(store.Create(
-		store.Store(options.Config.Store.Store),
-		store.TTL(options.Config.Store.TTL),
-		microstore.Nodes(options.Config.Store.Nodes...),
-		microstore.Database(options.Config.Store.Database),
-		microstore.Table(options.Config.Store.Table),
-		store.Authentication(options.Config.Store.AuthUsername, options.Config.Store.AuthPassword),
-		store.TLSEnabled(options.Config.Store.EnableTLS),
-		store.TLSInsecure(options.Config.Store.TLSInsecure),
-		store.TLSRootCA(options.Config.Store.TLSRootCACertificate),
-	))
+	// NATS JetStream key-value store for runtime managed web settings, e.g. the announcement banner
+	kv, err := cache.NewNatsKeyValue(cache.Config{
+		Nodes:                options.Config.Store.Nodes,
+		Database:             options.Config.Store.Database,
+		AuthUsername:         options.Config.Store.AuthUsername,
+		AuthPassword:         options.Config.Store.AuthPassword,
+		TLSEnabled:           options.Config.Store.EnableTLS,
+		TLSInsecure:          options.Config.Store.TLSInsecure,
+		TLSRootCACertificate: options.Config.Store.TLSRootCACertificate,
+	}, &options.Logger.Logger)
+	if err != nil {
+		return http.Service{}, fmt.Errorf("could not initialize announcement store: %w", err)
+	}
+	announcementStore := announcement.NewStore(kv)
 
 	handle, err := svc.NewService(
 		svc.Logger(options.Logger),

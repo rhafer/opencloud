@@ -118,7 +118,7 @@ func (s Service) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := s.store.Get()
+	a, err := s.store.Get(r.Context())
 	if err != nil {
 		s.logError(r, err, "could not read announcement from store")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -177,12 +177,12 @@ func (s Service) Set(w http.ResponseWriter, r *http.Request) {
 
 	// an announcement without a banner text is nothing to show, so remove it entirely
 	if body.BannerText == "" {
-		if err := s.store.Delete(); err != nil {
+		if err := s.store.Delete(r.Context()); err != nil {
 			s.logError(r, err, "could not delete announcement from store")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	} else if err := s.store.Set(body); err != nil {
+	} else if err := s.store.Set(r.Context(), body); err != nil {
 		s.logError(r, err, "could not write announcement to store")
 		w.WriteHeader(http.StatusInternalServerError)
 		return

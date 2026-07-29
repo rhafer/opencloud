@@ -86,11 +86,8 @@ func DefaultConfig() *config.Config {
 		},
 		GatewayAddress: "eu.opencloud.api.gateway",
 		Store: config.Store{
-			Store:    "nats-js-kv",
 			Nodes:    []string{"127.0.0.1:9233"},
 			Database: "web",
-			Table:    "",
-			TTL:      0,
 		},
 		Web: config.Web{
 			ThemeServer: "https://localhost:9200",

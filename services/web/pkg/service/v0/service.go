@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"net/http"
@@ -136,7 +137,7 @@ func (p Web) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.mux.ServeHTTP(w, r)
 }
 
-func (p Web) getPayload() (payload []byte, err error) {
+func (p Web) getPayload(ctx context.Context) (payload []byte, err error) {
 	// render dynamically using a copy of the config, so per-request values (e.g. the
 	// announcement) are not written into the shared config concurrently.
 	webConfig := p.config.Web.Config
@@ -160,7 +161,7 @@ func (p Web) getPayload() (payload []byte, err error) {
 	// the runtime store is authoritative once it manages an announcement (enabled or explicitly
 	// disabled); only when it holds nothing do we keep a statically configured one
 	// (web.config.options.announcement)
-	if a, managed := p.managedAnnouncement(); managed {
+	if a, managed := p.managedAnnouncement(ctx); managed {
 		webConfig.Options.Announcement = a
 	}
 
@@ -171,12 +172,12 @@ func (p Web) getPayload() (payload []byte, err error) {
 // bool reports whether the store manages one at all: when true, the returned value (nil for an
 // explicitly disabled announcement) overrides any static config; when false, the store holds
 // nothing and a statically configured announcement is kept.
-func (p Web) managedAnnouncement() (*config.Announcement, bool) {
+func (p Web) managedAnnouncement(ctx context.Context) (*config.Announcement, bool) {
 	if p.announcementStore == nil {
 		return nil, false
 	}
 
-	a, err := p.announcementStore.Get()
+	a, err := p.announcementStore.Get(ctx)
 	if err != nil {
 		p.logger.Error().Err(err).Msg("could not read announcement from store")
 		return nil, false
@@ -197,8 +198,8 @@ func (p Web) managedAnnouncement() (*config.Announcement, bool) {
 }
 
 // Config implements the Service interface.
-func (p Web) Config(w http.ResponseWriter, _ *http.Request) {
-	payload, err := p.getPayload()
+func (p Web) Config(w http.ResponseWriter, r *http.Request) {
+	payload, err := p.getPayload(r.Context())
 	if err != nil {
 		http.Error(w, ErrConfigInvalid, http.StatusUnprocessableEntity)
 		return

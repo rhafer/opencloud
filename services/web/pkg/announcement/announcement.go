@@ -2,10 +2,11 @@
 package announcement
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
-	microstore "go-micro.dev/v4/store"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 // _storeKey is the single key under which the announcement is persisted.
@@ -19,33 +20,29 @@ type Announcement struct {
 	InfoText   string `json:"infoText"`
 }
 
-// Store persists a single announcement in a key-value store.
+// Store persists a single announcement in a NATS JetStream key-value bucket.
 type Store struct {
-	store microstore.Store
+	kv jetstream.KeyValue
 }
 
-// NewStore returns a new announcement Store backed by the given key-value store.
-func NewStore(s microstore.Store) *Store {
-	return &Store{store: s}
+// NewStore returns a new announcement Store backed by the given key-value bucket.
+func NewStore(kv jetstream.KeyValue) *Store {
+	return &Store{kv: kv}
 }
 
 // Get returns the currently stored announcement. An unset announcement is returned as the zero value.
-func (s *Store) Get() (Announcement, error) {
+func (s *Store) Get(ctx context.Context) (Announcement, error) {
 	var a Announcement
 
-	records, err := s.store.Read(_storeKey)
+	entry, err := s.kv.Get(ctx, _storeKey)
 	if err != nil {
-		if errors.Is(err, microstore.ErrNotFound) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return a, nil
 		}
 		return a, err
 	}
 
-	if len(records) == 0 {
-		return a, nil
-	}
-
-	if err := json.Unmarshal(records[0].Value, &a); err != nil {
+	if err := json.Unmarshal(entry.Value(), &a); err != nil {
 		return a, err
 	}
 
@@ -53,21 +50,19 @@ func (s *Store) Get() (Announcement, error) {
 }
 
 // Set persists the given announcement, overwriting any existing one.
-func (s *Store) Set(a Announcement) error {
+func (s *Store) Set(ctx context.Context, a Announcement) error {
 	value, err := json.Marshal(a)
 	if err != nil {
 		return err
 	}
 
-	return s.store.Write(&microstore.Record{
-		Key:   _storeKey,
-		Value: value,
-	})
+	_, err = s.kv.Put(ctx, _storeKey, value)
+	return err
 }
 
 // Delete removes the stored announcement. Deleting a missing announcement is a no-op.
-func (s *Store) Delete() error {
-	if err := s.store.Delete(_storeKey); err != nil && !errors.Is(err, microstore.ErrNotFound) {
+func (s *Store) Delete(ctx context.Context) error {
+	if err := s.kv.Delete(ctx, _storeKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return err
 	}
 	return nil

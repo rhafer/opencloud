@@ -1,6 +1,7 @@
 package announcement_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,21 +11,19 @@ import (
 	userpb "github.com/cs3org/go-cs3apis/cs3/identity/user/v1beta1"
 	cs3permissions "github.com/cs3org/go-cs3apis/cs3/permissions/v1beta1"
 	cs3rpc "github.com/cs3org/go-cs3apis/cs3/rpc/v1beta1"
+	"github.com/nats-io/nats.go/jetstream"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	revactx "github.com/opencloud-eu/reva/v2/pkg/ctx"
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
-	"github.com/opencloud-eu/reva/v2/pkg/store"
 	cs3mocks "github.com/opencloud-eu/reva/v2/tests/cs3mocks/mocks"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
+	"github.com/opencloud-eu/opencloud/services/web/mocks"
 	"github.com/opencloud-eu/opencloud/services/web/pkg/announcement"
 )
-
-func newStore() *announcement.Store {
-	return announcement.NewStore(store.Create(store.Store("memory")))
-}
 
 func newGatewaySelector(allowed bool) pool.Selectable[gateway.GatewayAPIClient] {
 	code := cs3rpc.Code_CODE_OK
@@ -54,6 +53,7 @@ func withUser(r *http.Request) *http.Request {
 
 func newService(store *announcement.Store, allowed bool) announcement.Service {
 	svc, err := announcement.NewService(announcement.ServiceOptions{}.
+		WithLogger(log.NopLogger()).
 		WithStore(store).
 		WithGatewaySelector(newGatewaySelector(allowed)))
 	Expect(err).ToNot(HaveOccurred())
@@ -61,28 +61,47 @@ func newService(store *announcement.Store, allowed bool) announcement.Service {
 }
 
 var _ = Describe("Store", func() {
-	It("gets, sets and deletes the announcement", func() {
-		s := newStore()
+	It("reads the stored announcement", func() {
+		entry := mocks.NewKeyValueEntry(GinkgoT())
+		entry.EXPECT().Value().Return([]byte(`{"enabled":true,"bannerText":"hello","infoText":"world"}`))
+		kv := mocks.NewKeyValue(GinkgoT())
+		kv.EXPECT().Get(mock.Anything, "announcement").Return(entry, nil)
 
-		got, err := s.Get()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(got.BannerText).To(BeEmpty())
-
-		Expect(s.Set(announcement.Announcement{Enabled: true, BannerText: "hello", InfoText: "world"})).To(Succeed())
-		got, err = s.Get()
+		got, err := announcement.NewStore(kv).Get(context.Background())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.Enabled).To(BeTrue())
 		Expect(got.BannerText).To(Equal("hello"))
 		Expect(got.InfoText).To(Equal("world"))
+	})
 
-		Expect(s.Delete()).To(Succeed())
-		got, err = s.Get()
+	It("returns the zero value when unset", func() {
+		kv := mocks.NewKeyValue(GinkgoT())
+		kv.EXPECT().Get(mock.Anything, "announcement").Return(nil, jetstream.ErrKeyNotFound)
+
+		got, err := announcement.NewStore(kv).Get(context.Background())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(got.BannerText).To(BeEmpty())
 	})
 
+	It("writes the announcement", func() {
+		kv := mocks.NewKeyValue(GinkgoT())
+		kv.EXPECT().Put(mock.Anything, "announcement", mock.Anything).Return(uint64(1), nil)
+
+		Expect(announcement.NewStore(kv).Set(context.Background(), announcement.Announcement{BannerText: "hello"})).To(Succeed())
+	})
+
+	It("deletes the announcement", func() {
+		kv := mocks.NewKeyValue(GinkgoT())
+		kv.EXPECT().Delete(mock.Anything, "announcement").Return(nil)
+
+		Expect(announcement.NewStore(kv).Delete(context.Background())).To(Succeed())
+	})
+
 	It("treats deleting a missing announcement as a no-op", func() {
-		Expect(newStore().Delete()).To(Succeed())
+		kv := mocks.NewKeyValue(GinkgoT())
+		kv.EXPECT().Delete(mock.Anything, "announcement").Return(jetstream.ErrKeyNotFound)
+
+		Expect(announcement.NewStore(kv).Delete(context.Background())).To(Succeed())
 	})
 })
 
@@ -95,7 +114,7 @@ var _ = Describe("Service", func() {
 
 		It("succeeds when options are valid", func() {
 			_, err := announcement.NewService(announcement.ServiceOptions{}.
-				WithStore(newStore()).
+				WithStore(announcement.NewStore(mocks.NewKeyValue(GinkgoT()))).
 				WithGatewaySelector(newGatewaySelector(true)))
 			Expect(err).ToNot(HaveOccurred())
 		})
@@ -103,12 +122,15 @@ var _ = Describe("Service", func() {
 
 	Describe("Get", func() {
 		It("returns the full stored announcement when permitted", func() {
-			s := newStore()
-			Expect(s.Set(announcement.Announcement{Enabled: true, BannerText: "hello", InfoText: "world"})).To(Succeed())
+			entry := mocks.NewKeyValueEntry(GinkgoT())
+			entry.EXPECT().Value().Return([]byte(`{"enabled":true,"bannerText":"hello","infoText":"world"}`))
+			kv := mocks.NewKeyValue(GinkgoT())
+			kv.EXPECT().Get(mock.Anything, "announcement").Return(entry, nil)
+
 			req := withUser(httptest.NewRequest(http.MethodGet, "/announcement", nil))
 			resp := httptest.NewRecorder()
 
-			newService(s, true).Get(resp, req)
+			newService(announcement.NewStore(kv), true).Get(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusOK))
 			var got announcement.Announcement
@@ -122,7 +144,7 @@ var _ = Describe("Service", func() {
 			req := withUser(httptest.NewRequest(http.MethodGet, "/announcement", nil))
 			resp := httptest.NewRecorder()
 
-			newService(newStore(), false).Get(resp, req)
+			newService(announcement.NewStore(mocks.NewKeyValue(GinkgoT())), false).Get(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusForbidden))
 		})
@@ -130,34 +152,31 @@ var _ = Describe("Service", func() {
 
 	Describe("Set", func() {
 		It("persists the message when permitted", func() {
-			s := newStore()
+			kv := mocks.NewKeyValue(GinkgoT())
+			kv.EXPECT().Put(mock.Anything, "announcement", mock.Anything).Return(uint64(1), nil)
+
 			req := withUser(httptest.NewRequest(http.MethodPut, "/announcement", strings.NewReader(`{"bannerText":"hello"}`)))
 			resp := httptest.NewRecorder()
 
-			newService(s, true).Set(resp, req)
+			newService(announcement.NewStore(kv), true).Set(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusNoContent))
-			got, _ := s.Get()
-			Expect(got.BannerText).To(Equal("hello"))
 		})
 
 		It("is forbidden without permission", func() {
-			s := newStore()
 			req := withUser(httptest.NewRequest(http.MethodPut, "/announcement", strings.NewReader(`{"bannerText":"hello"}`)))
 			resp := httptest.NewRecorder()
 
-			newService(s, false).Set(resp, req)
+			newService(announcement.NewStore(mocks.NewKeyValue(GinkgoT())), false).Set(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusForbidden))
-			got, _ := s.Get()
-			Expect(got.BannerText).To(BeEmpty())
 		})
 
 		It("rejects an invalid body", func() {
 			req := withUser(httptest.NewRequest(http.MethodPut, "/announcement", strings.NewReader(`not json`)))
 			resp := httptest.NewRecorder()
 
-			newService(newStore(), true).Set(resp, req)
+			newService(announcement.NewStore(mocks.NewKeyValue(GinkgoT())), true).Set(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusBadRequest))
 		})
@@ -167,27 +186,22 @@ var _ = Describe("Service", func() {
 			req := withUser(httptest.NewRequest(http.MethodPut, "/announcement", strings.NewReader(body)))
 			resp := httptest.NewRecorder()
 
-			s := newStore()
-			newService(s, true).Set(resp, req)
+			newService(announcement.NewStore(mocks.NewKeyValue(GinkgoT())), true).Set(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusRequestEntityTooLarge))
-			got, _ := s.Get()
-			Expect(got.BannerText).To(BeEmpty())
 		})
 	})
 
 	Describe("Set with an empty banner text", func() {
 		It("removes the stored announcement", func() {
-			s := newStore()
-			Expect(s.Set(announcement.Announcement{Enabled: true, BannerText: "hello"})).To(Succeed())
+			kv := mocks.NewKeyValue(GinkgoT())
+			kv.EXPECT().Delete(mock.Anything, "announcement").Return(nil)
 
 			req := withUser(httptest.NewRequest(http.MethodPut, "/announcement", strings.NewReader(`{"enabled":false,"bannerText":"","infoText":""}`)))
 			resp := httptest.NewRecorder()
-			newService(s, true).Set(resp, req)
+			newService(announcement.NewStore(kv), true).Set(resp, req)
 
 			Expect(resp.Code).To(Equal(http.StatusNoContent))
-			got, _ := s.Get()
-			Expect(got.BannerText).To(BeEmpty())
 		})
 	})
 })
