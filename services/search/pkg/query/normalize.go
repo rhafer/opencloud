@@ -42,6 +42,9 @@ func normalizeNodes(nodes []ast.Node, resolve func(string) string, defaultKey st
 		case *ast.BooleanNode:
 			node.Key = resolveKey(node.Key)
 			out = append(out, node)
+		case *ast.NumberNode:
+			node.Key = resolveKey(node.Key)
+			out = append(out, node)
 		case *ast.GroupNode:
 			groupKey := defaultKey
 			if node.Key != "" {

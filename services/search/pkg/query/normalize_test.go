@@ -19,9 +19,9 @@ func norm(nodes ...ast.Node) []ast.Node {
 }
 
 func TestResolveField(t *testing.T) {
-	require.Equal(t, "Name", query.ResolveField(""))          // empty -> free-text default
-	require.Equal(t, "Name", query.ResolveField("NAME"))      // case-insensitive
-	require.Equal(t, "Tags", query.ResolveField("tag"))       // singular alias
+	require.Equal(t, "Name", query.ResolveField(""))                             // empty -> free-text default
+	require.Equal(t, "Name", query.ResolveField("NAME"))                         // case-insensitive
+	require.Equal(t, "Tags", query.ResolveField("tag"))                          // singular alias
 	require.Equal(t, "MimeType", query.ResolveField("mimetype"))                 // real field, case-insensitive
 	require.Equal(t, "photo.cameraMake", query.ResolveField("photo.CAMERAMAKE")) // facet, case-insensitive
 	require.Equal(t, "unknown.field", query.ResolveField("unknown.field"))       // unknown key: unchanged, becomes a dead query
@@ -36,6 +36,8 @@ func TestNormalize_ResolvesFieldsAndExpandsMediatype(t *testing.T) {
 		&ast.StringNode{Key: "photo.cameramake", Value: "canon"},
 		&ast.OperatorNode{Value: "AND"},
 		&ast.StringNode{Key: "mediatype", Value: "file"},
+		&ast.OperatorNode{Value: "AND"},
+		ast.NumberNode{Key: "size", Value: 100},
 	)
 	require.Equal(t, []ast.Node{
 		&ast.StringNode{Key: "Name", Value: "free"},
@@ -46,6 +48,8 @@ func TestNormalize_ResolvesFieldsAndExpandsMediatype(t *testing.T) {
 		&ast.OperatorNode{Value: "AND"},
 		&ast.OperatorNode{Value: "NOT"},
 		&ast.StringNode{Key: "MimeType", Value: "httpd/unix-directory"},
+		&ast.OperatorNode{Value: "AND"},
+		&ast.NumberNode{Key: "Size", Value: 100},
 	}, got)
 }
 
