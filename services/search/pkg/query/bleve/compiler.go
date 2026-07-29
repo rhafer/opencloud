@@ -95,9 +95,11 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 	for i := offset; i < len(nodes); i++ {
 		switch n := nodes[i].(type) {
 		case *ast.StringNode:
-			k := getField(n.Key)
+			// keys are resolved and media-type expanded by normalize; MimeType
+			// values are literal MIME types, so they skip the escaper.
+			k := n.Key
 			v := n.Value
-			if k != "ID" && k != "Size" {
+			if k != "ID" && k != "Size" && k != "MimeType" {
 				v = bleveEscaper.Replace(n.Value)
 			}
 
@@ -105,46 +107,7 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 				v = strings.ToLower(v)
 			}
 
-			if k == "Type" {
-				v = resourceType(v)
-			}
-
-			var q bleveQuery.Query
-			var group bool
-			switch {
-			case k == "Hidden":
-				value, err := strconv.ParseBool(v)
-				if err != nil {
-					q = bleveQuery.NewMatchNoneQuery()
-					break
-				}
-
-				bq := bleveQuery.NewBoolFieldQuery(value)
-				bq.SetField(k)
-				q = bq
-			case k == "MimeType":
-				q, group = mimeType(k, v)
-				if prev == nil {
-					isGroup = group
-				}
-			case slices.Contains([]string{"Name", "Title"}, k) && strings.ContainsAny(n.Value, "*?"):
-				patterns := []bleveQuery.Query{bleveQuery.NewQueryStringQuery(k + ".wildcard:" + v)}
-				if !strings.HasSuffix(v, "*") {
-					patterns = append(patterns, bleveQuery.NewQueryStringQuery(k+".wildcard:"+v+".*"))
-				}
-
-				q = closed(bleveQuery.NewDisjunctionQuery(patterns))
-			case n.Exact && !strings.ContainsAny(n.Value, "*?") && slices.Contains([]string{"Name", "Title"}, k):
-				q = bleveQuery.NewQueryStringQuery(k + ".wildcard:" + v)
-			case k == "Path" && !strings.ContainsAny(n.Value, "*?"):
-				q = pathAndBelow(k, n.Value)
-			case slices.Contains([]string{"Name", "Title", "Content"}, k) && !strings.ContainsAny(n.Value, "*?"):
-				q = phrase(k, n.Value)
-			case strings.Contains(n.Value, " ") && !strings.ContainsAny(n.Value, "*?"):
-				q = phrase(k, n.Value)
-			default:
-				q = bleveQuery.NewQueryStringQuery(k + ":" + v)
-			}
+			q := bleveQuery.NewQueryStringQuery(k + ":" + v)
 
 			if prev == nil {
 				prev = q
@@ -157,7 +120,7 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 				End:            bleveQuery.BleveQueryTime{},
 				InclusiveStart: nil,
 				InclusiveEnd:   nil,
-				FieldVal:       getField(n.Key),
+				FieldVal:       n.Key,
 			}
 
 			if n.Operator == nil {
@@ -187,7 +150,14 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 				next = q
 			}
 		case *ast.NumberNode:
-			q := numberRange(getField(n.Key), n.Operator, n.Value)
+			var q bleveQuery.Query
+			if field := getField(n.Key); slices.Contains([]string{"Size", "Type"}, field) {
+				q = numberRange(field, n.Operator, n.Value)
+			} else {
+				// same answer as the OpenSearch backend: unknown numeric keys
+				// match nothing instead of querying an arbitrary field
+				q = bleveQuery.NewMatchNoneQuery()
+			}
 			if q == nil {
 				continue
 			}
@@ -206,9 +176,7 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 				next = q
 			}
 		case *ast.GroupNode:
-			if n.Key != "" {
-				n = normalizeGroupingProperty(n)
-			}
+			// keys resolved and grouping property propagated in normalize
 			q, _, err := walk(0, n.Nodes)
 			if err != nil {
 				return nil, 0, err

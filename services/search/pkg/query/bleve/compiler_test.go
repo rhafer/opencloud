@@ -7,6 +7,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/opencloud-eu/opencloud/pkg/ast"
+	searchquery "github.com/opencloud-eu/opencloud/services/search/pkg/query"
 	tAssert "github.com/stretchr/testify/assert"
 )
 
@@ -590,7 +591,7 @@ func Test_compile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := compile(tt.args)
+			got, err := compile(searchquery.Normalize(tt.args, searchquery.ResolveField))
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("compile() error = %v, wantErr %v", err, tt.wantErr)
