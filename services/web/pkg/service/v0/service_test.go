@@ -14,7 +14,7 @@ import (
 	"github.com/opencloud-eu/opencloud/services/web/pkg/config"
 )
 
-func TestManagedAnnouncement(t *testing.T) {
+func TestCurrentAnnouncement(t *testing.T) {
 	newWeb := func(store *announcement.Store) Web {
 		return Web{logger: log.NopLogger(), announcementStore: store}
 	}
@@ -33,36 +33,26 @@ func TestManagedAnnouncement(t *testing.T) {
 		return announcement.NewStore(kv)
 	}
 
-	t.Run("not managed when there is no store, so a static config is kept", func(t *testing.T) {
-		a, managed := newWeb(nil).managedAnnouncement(context.Background())
-		require.Nil(t, a)
-		require.False(t, managed)
+	t.Run("nil when there is no store", func(t *testing.T) {
+		require.Nil(t, newWeb(nil).currentAnnouncement(context.Background()))
 	})
 
-	t.Run("not managed when the store is empty, so a static config is kept", func(t *testing.T) {
-		a, managed := newWeb(emptyStore(t)).managedAnnouncement(context.Background())
-		require.Nil(t, a)
-		require.False(t, managed)
+	t.Run("nil when the store is empty", func(t *testing.T) {
+		require.Nil(t, newWeb(emptyStore(t)).currentAnnouncement(context.Background()))
 	})
 
-	t.Run("managed but nil when disabled, so a static config is cleared", func(t *testing.T) {
+	t.Run("nil when disabled", func(t *testing.T) {
 		s := storeReturning(t, `{"enabled":false,"bannerText":"hi","infoText":"info"}`)
-		a, managed := newWeb(s).managedAnnouncement(context.Background())
-		require.Nil(t, a)
-		require.True(t, managed)
+		require.Nil(t, newWeb(s).currentAnnouncement(context.Background()))
 	})
 
-	t.Run("not managed when enabled but the banner text is empty", func(t *testing.T) {
+	t.Run("nil when enabled but the banner text is empty", func(t *testing.T) {
 		s := storeReturning(t, `{"enabled":true,"bannerText":"","infoText":"info"}`)
-		a, managed := newWeb(s).managedAnnouncement(context.Background())
-		require.Nil(t, a)
-		require.False(t, managed)
+		require.Nil(t, newWeb(s).currentAnnouncement(context.Background()))
 	})
 
-	t.Run("managed with banner and info text when enabled with a banner text", func(t *testing.T) {
+	t.Run("returns banner and info text when enabled with a banner text", func(t *testing.T) {
 		s := storeReturning(t, `{"enabled":true,"bannerText":"hi","infoText":"info"}`)
-		a, managed := newWeb(s).managedAnnouncement(context.Background())
-		require.Equal(t, &config.Announcement{BannerText: "hi", InfoText: "info"}, a)
-		require.True(t, managed)
+		require.Equal(t, &config.Announcement{BannerText: "hi", InfoText: "info"}, newWeb(s).currentAnnouncement(context.Background()))
 	})
 }

@@ -24,7 +24,9 @@ type Options struct {
 	OxAppSuite             *OxAppSuite         `json:"oxAppSuite,omitempty" yaml:"oxAppSuite"`
 }
 
-// Announcement is a banner message shown above the top bar to all users.
+// Announcement is a banner message shown above the top bar to all users. It is managed at runtime
+// (via the web service's store and the admin settings UI) and injected into config.json here; a
+// value configured statically is ignored.
 type Announcement struct {
 	// BannerText is the short line shown in the banner.
 	BannerText string `json:"bannerText,omitempty" yaml:"bannerText"`
