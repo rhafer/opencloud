@@ -69,6 +69,7 @@ func NewService(opts ...Option) (Service, error) {
 
 	announcementService, err := announcement.NewService(
 		announcement.ServiceOptions{}.
+			WithLogger(options.Logger).
 			WithStore(options.AnnouncementStore).
 			WithGatewaySelector(options.GatewaySelector),
 	)

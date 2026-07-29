@@ -11,6 +11,8 @@ import (
 
 	revactx "github.com/opencloud-eu/reva/v2/pkg/ctx"
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
+
+	"github.com/opencloud-eu/opencloud/pkg/log"
 )
 
 // _permission is the settings permission required to read and manage the announcement.
@@ -22,8 +24,15 @@ const _maxBodySize = 50 << 10 // 50 KiB
 
 // ServiceOptions defines the options to configure the Service.
 type ServiceOptions struct {
+	logger          log.Logger
 	store           *Store
 	gatewaySelector pool.Selectable[gateway.GatewayAPIClient]
+}
+
+// WithLogger sets the logger.
+func (o ServiceOptions) WithLogger(l log.Logger) ServiceOptions {
+	o.logger = l
+	return o
 }
 
 // WithStore sets the announcement store.
@@ -53,6 +62,7 @@ func (o ServiceOptions) validate() error {
 
 // Service exposes the http handlers to manage the announcement.
 type Service struct {
+	logger          log.Logger
 	store           *Store
 	gatewaySelector pool.Selectable[gateway.GatewayAPIClient]
 }
@@ -64,15 +74,23 @@ func NewService(options ServiceOptions) (Service, error) {
 	}
 
 	return Service{
+		logger:          options.logger,
 		store:           options.store,
 		gatewaySelector: options.gatewaySelector,
 	}, nil
+}
+
+// logError logs a server-side error together with the request id, so it can be correlated with
+// the request log line emitted by the logging middleware.
+func (s Service) logError(r *http.Request, err error, msg string) {
+	s.logger.Error().Err(err).Str(log.RequestIDString, r.Header.Get("X-Request-ID")).Msg(msg)
 }
 
 // Get returns the full stored announcement (including disabled ones) for management.
 func (s Service) Get(w http.ResponseWriter, r *http.Request) {
 	gatewayClient, err := s.gatewaySelector.Next()
 	if err != nil {
+		s.logError(r, err, "could not select next gateway client")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -91,6 +109,7 @@ func (s Service) Get(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
+		s.logError(r, err, "could not check permission")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -101,12 +120,14 @@ func (s Service) Get(w http.ResponseWriter, r *http.Request) {
 
 	a, err := s.store.Get()
 	if err != nil {
+		s.logError(r, err, "could not read announcement from store")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(a); err != nil {
+		s.logError(r, err, "could not encode announcement")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
@@ -115,6 +136,7 @@ func (s Service) Get(w http.ResponseWriter, r *http.Request) {
 func (s Service) Set(w http.ResponseWriter, r *http.Request) {
 	gatewayClient, err := s.gatewaySelector.Next()
 	if err != nil {
+		s.logError(r, err, "could not select next gateway client")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -133,6 +155,7 @@ func (s Service) Set(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
+		s.logError(r, err, "could not check permission")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -155,10 +178,12 @@ func (s Service) Set(w http.ResponseWriter, r *http.Request) {
 	// an announcement without a banner text is nothing to show, so remove it entirely
 	if body.BannerText == "" {
 		if err := s.store.Delete(); err != nil {
+			s.logError(r, err, "could not delete announcement from store")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else if err := s.store.Set(body); err != nil {
+		s.logError(r, err, "could not write announcement to store")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
