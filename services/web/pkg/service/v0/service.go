@@ -156,11 +156,9 @@ func (p Web) getPayload() (payload []byte, err error) {
 	// ensure that the server url has a trailing slash
 	webConfig.Server = strings.TrimRight(webConfig.Server, "/") + "/"
 
-	// inject the runtime managed announcement banner; keep a statically configured one
-	// (web.config.options.announcement) when nothing is stored
-	if a := p.currentAnnouncement(); a != nil {
-		webConfig.Options.Announcement = a
-	}
+	// the runtime store is authoritative for the announcement banner: expose it when live,
+	// clear it otherwise
+	webConfig.Options.Announcement = p.currentAnnouncement()
 
 	return json.Marshal(webConfig)
 }
