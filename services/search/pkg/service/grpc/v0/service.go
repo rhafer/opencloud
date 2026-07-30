@@ -148,25 +148,21 @@ func (s Service) IndexSpace(_ context.Context, in *searchsvc.IndexSpaceRequest, 
 	// Index all spaces concurrently, limited to a configurable number of spaces
 	// being reindexed at the same time.
 	concurrency := max(s.cfg.ReindexConcurrency, 1)
-
-	g, gctx := errgroup.WithContext(ctx)
+	var g errgroup.Group
 	g.SetLimit(concurrency)
 
 	for _, space := range resp.GetStorageSpaces() {
-		// stop scheduling new work once one of the goroutines failed
-		if gctx.Err() != nil {
-			break
-		}
-
 		g.Go(func() error {
 			s.log.Info().Str("space_id", space.GetId().GetOpaqueId()).Msg("indexing space")
+
 			err := s.searcher.IndexSpace(space.GetId(), in.GetForceReindex())
 			if err != nil {
 				s.log.Error().Err(err).Str("space_id", space.GetId().GetOpaqueId()).Msg("failed to index space")
 			} else {
 				s.log.Info().Str("space_id", space.GetId().GetOpaqueId()).Msg("finished indexing space")
 			}
-			return err
+
+			return nil
 		})
 	}
 
