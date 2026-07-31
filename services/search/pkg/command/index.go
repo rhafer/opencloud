@@ -37,8 +37,13 @@ func Index(cfg *config.Config) *cobra.Command {
 			forceRescanFlag, _ := cmd.Flags().GetBool("force-rescan")
 			endpointFlag, _ := cmd.Flags().GetString("endpoint")
 			insecureFlag, _ := cmd.Flags().GetBool("insecure")
+			concurrencyFlag, _ := cmd.Flags().GetInt("concurrency")
+
 			if spaceFlag == "" && !allSpacesFlag {
 				return errors.New("either --space or --all-spaces is required")
+			}
+			if int(concurrencyFlag) > cfg.ReindexMaxConcurrency {
+				return fmt.Errorf("concurrency %d exceeds max allowed %d", concurrencyFlag, cfg.ReindexMaxConcurrency)
 			}
 
 			var dialOpts []grpc.DialOption
@@ -69,6 +74,7 @@ func Index(cfg *config.Config) *cobra.Command {
 			stream, err := c.IndexSpace(ctx, &searchsvc.IndexSpaceRequest{
 				SpaceId:      spaceFlag,
 				ForceReindex: forceRescanFlag,
+				Concurrency:  int32(concurrencyFlag),
 			})
 			if err != nil {
 				return err
@@ -126,6 +132,11 @@ func Index(cfg *config.Config) *cobra.Command {
 		"insecure",
 		false,
 		"disable TLS for the gRPC connection.",
+	)
+	indexCmd.Flags().Int(
+		"concurrency",
+		3,
+		"the number of concurrent indexing operations.",
 	)
 
 	return indexCmd

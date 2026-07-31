@@ -342,6 +342,10 @@
         },
         "forceReindex": {
           "type": "boolean"
+        },
+        "concurrency": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

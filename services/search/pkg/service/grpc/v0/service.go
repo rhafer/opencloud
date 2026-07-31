@@ -172,6 +172,8 @@ func (s Service) IndexSpace(_ context.Context, in *searchsvc.IndexSpaceRequest, 
 	// soon as the client goes away or a stream send fails, so the remaining
 	// goroutines stop indexing early.
 	concurrency := max(s.cfg.ReindexMaxConcurrency, 1)
+	concurrency = min(concurrency, int(in.GetConcurrency()))
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(concurrency)
 

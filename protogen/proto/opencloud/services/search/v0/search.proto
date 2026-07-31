@@ -108,6 +108,7 @@ message IndexSpaceRequest {
   string space_id = 1;
   string user_id = 2;
   bool force_reindex = 3;
+  int32 concurrency = 4 [(google.api.field_behavior) = OPTIONAL];
 }
 
 message IndexSpaceResponse {
