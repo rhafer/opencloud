@@ -28,9 +28,6 @@ func Index(cfg *config.Config) *cobra.Command {
 		Use:     "index",
 		Short:   "index the files for one one more users",
 		Aliases: []string{"i"},
-		// Don't print the usage on runtime errors (e.g. a cancelled request);
-		// usage is only helpful for flag/argument errors.
-		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return configlog.ReturnFatal(parser.ParseConfig(cfg))
 		},
