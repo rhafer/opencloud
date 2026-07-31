@@ -147,7 +147,7 @@ func (s Service) IndexSpace(_ context.Context, in *searchsvc.IndexSpaceRequest, 
 
 	// Index all spaces concurrently, limited to a configurable number of spaces
 	// being reindexed at the same time.
-	concurrency := max(s.cfg.ReindexConcurrency, 1)
+	concurrency := max(s.cfg.ReindexMaxConcurrency, 1)
 	var g errgroup.Group
 	g.SetLimit(concurrency)
 
