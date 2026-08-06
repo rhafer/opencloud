@@ -22,6 +22,7 @@ type Options struct {
 	ConcurrentRequests     *ConcurrentRequests `json:"concurrentRequests,omitempty" yaml:"concurrentRequests"`
 	DefaultAppID           string              `json:"defaultAppId,omitempty" yaml:"defaultAppId" env:"WEB_OPTION_DEFAULT_APP_ID" desc:"Defines the entrypoint for the web ui." introductionVersion:"4.0.0"`
 	OxAppSuite             *OxAppSuite         `json:"oxAppSuite,omitempty" yaml:"oxAppSuite"`
+	YjsServerUrl           string              `json:"yjsServerUrl,omitempty" yaml:"yjsServerUrl" env:"WEB_OPTION_YJS_SERVER_URL" desc:"The URL of the Yjs server used for collaborative editing. This feature is disabled as long as no URL is given." introductionVersion:"7.5.0"`
 }
 
 // Announcement is a banner message shown above the top bar to all users. It is managed at runtime
