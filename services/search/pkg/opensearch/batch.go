@@ -64,27 +64,45 @@ func (b *Batch) Upsert(id string, r search.Resource) error {
 	})
 }
 
-func (b *Batch) Move(id string, parentID string, targetPath string) error {
+func (b *Batch) Move(id string, parentID string, location string) error {
 	return b.withSizeLimit(func() error {
 		op := func() error {
 			return updateSelfAndDescendants(context.Background(), b.client, b.index, id, func(rootResource search.Resource) *osu.BodyParamScript {
+				newPath := utils.MakeRelativePath(location)
+				newName := path.Base(newPath)
 				return &osu.BodyParamScript{
-					Source: `
-					if (ctx._source.ID == params.id ) { ctx._source.Name = params.newName; ctx._source.ParentID = params.parentID; }
-					ctx._source.Path = ctx._source.Path.replace(params.oldPath, params.newPath);
-					boolean hidden = false;
-					for (String name : ctx._source.Path.splitOnToken('/')) {
-						if (!name.equals('.') && !name.equals('..') && name.startsWith('.')) { hidden = true; break; }
-					}
-					ctx._source.Hidden = hidden;
-				`,
+					// Keep the case-preserved base fields and their lowercased
+					// search siblings in sync: swap the moved prefix in both. The
+					// lowercased new values come from Go's strings.ToLower via
+					// params, so the sibling stays byte-identical to what
+					// PrepareForIndex writes on upsert (painless toLowerCase would
+					// lowercase differently than Go).
+					Source: fmt.Sprintf(`
+						if (ctx._source.ID == params.id) {
+							ctx._source.Name = params.newName;
+							ctx._source.ParentID = params.parentID;
+							if (ctx._source.Name%[1]s != null) { ctx._source.Name%[1]s = params.newNameLower; }
+						}
+						ctx._source.Path = ctx._source.Path.replace(params.oldPath, params.newPath);
+						if (ctx._source.Path%[1]s != null) {
+							ctx._source.Path%[1]s = ctx._source.Path%[1]s.replace(params.oldPathLower, params.newPathLower);
+						}
+						boolean hidden = false;
+						for (String name : ctx._source.Path.splitOnToken('/')) {
+							if (!name.equals('.') && !name.equals('..') && name.startsWith('.')) { hidden = true; break; }
+						}
+						ctx._source.Hidden = hidden;
+					`, mapping.LowercaseSuffix),
 					Lang: "painless",
 					Params: map[string]any{
-						"id":       id,
-						"parentID": parentID,
-						"oldPath":  rootResource.Path,
-						"newPath":  utils.MakeRelativePath(targetPath),
-						"newName":  path.Base(utils.MakeRelativePath(targetPath)),
+						"id":           id,
+						"parentID":     parentID,
+						"oldPath":      rootResource.Path,
+						"newPath":      newPath,
+						"newName":      newName,
+						"oldPathLower": strings.ToLower(rootResource.Path),
+						"newPathLower": strings.ToLower(newPath),
+						"newNameLower": strings.ToLower(newName),
 					},
 				}
 			})

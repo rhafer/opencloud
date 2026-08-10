@@ -12,30 +12,9 @@ import (
 	bleveQuery "github.com/blevesearch/bleve/v2/search/query"
 	"github.com/opencloud-eu/opencloud/pkg/ast"
 	"github.com/opencloud-eu/opencloud/pkg/kql"
-	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
+	"github.com/opencloud-eu/opencloud/services/search/pkg/mapping"
+	searchQuery "github.com/opencloud-eu/opencloud/services/search/pkg/query"
 )
-
-// lowercaseFields holds the fields whose query-side value is pre-lowercased so
-// it matches the index-time lowercasing analyzer. Shared with the OpenSearch
-// backend via search.LowercaseValueFields; every other field keeps its casing.
-var lowercaseFields = search.LowercaseValueFields()
-
-var _fields = map[string]string{
-	"rootid":    "RootID",
-	"path":      "Path",
-	"id":        "ID",
-	"name":      "Name",
-	"size":      "Size",
-	"mtime":     "Mtime",
-	"mediatype": "MimeType",
-	"type":      "Type",
-	"tag":       "Tags",
-	"tags":      "Tags",
-	"content":   "Content",
-	"title":     "Title",
-	"hidden":    "Hidden",
-	"favorite":  "Favorites",
-}
 
 // The following quoted string enumerates the characters which may be escaped: "+-=&|><!(){}[]^\"~*?:\\/ "
 // based on bleve docs https://blevesearch.com/docs/Query-String-Query/
@@ -102,12 +81,21 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 			if k != "ID" && k != "Size" && k != "MimeType" {
 				v = bleveEscaper.Replace(n.Value)
 			}
-
-			if _, ok := lowercaseFields[k]; ok {
+			if n.CaseInsensitive {
+				k += mapping.LowercaseSuffix
 				v = strings.ToLower(v)
 			}
 
-			q := bleveQuery.NewQueryStringQuery(k + ":" + v)
+			var q bleveQuery.Query = bleveQuery.NewQueryStringQuery(k + ":" + v)
+			if searchQuery.FieldIsPath(n.Key) {
+				// bleve has no path hierarchy analyzer, unlike OpenSearch: match
+				// the folder itself and its descendants (`\/*`, a trailing
+				// wildcard on the value).
+				q = bleveQuery.NewDisjunctionQuery([]bleveQuery.Query{
+					q,
+					bleveQuery.NewQueryStringQuery(k + ":" + v + `\/*`),
+				})
+			}
 
 			if prev == nil {
 				prev = q
@@ -151,7 +139,7 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 			}
 		case *ast.NumberNode:
 			var q bleveQuery.Query
-			if field := getField(n.Key); slices.Contains([]string{"Size", "Type"}, field) {
+			if field := n.Key; slices.Contains([]string{"Size", "Type"}, field) {
 				q = numberRange(field, n.Operator, n.Value)
 			} else {
 				// same answer as the OpenSearch backend: unknown numeric keys
@@ -169,7 +157,7 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 			}
 		case *ast.BooleanNode:
 			q := bleveQuery.NewBoolFieldQuery(n.Value)
-			q.SetField(getField(n.Key))
+			q.SetField(n.Key)
 			if prev == nil {
 				prev = q
 			} else {
@@ -338,16 +326,6 @@ func phrase(field, value string) bleveQuery.Query {
 	q.SetField(field)
 
 	return q
-}
-
-func getField(name string) string {
-	if name == "" {
-		return "Name"
-	}
-	if _, ok := _fields[strings.ToLower(name)]; ok {
-		return _fields[strings.ToLower(name)]
-	}
-	return name
 }
 
 func normalizeGroupingProperty(group *ast.GroupNode) *ast.GroupNode {

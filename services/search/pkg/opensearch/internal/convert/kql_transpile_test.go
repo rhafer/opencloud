@@ -16,13 +16,31 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 	tests := []opensearchtest.TableTest[*ast.Ast, osu.Builder]{
 		// kql to os dsl - type tests
 		{
-			Name: "match phrase query - string node on an analyzed field",
+			Name: "term query - string node",
 			Got: &ast.Ast{
 				Nodes: []ast.Node{
 					&ast.StringNode{Key: "Name", Value: "openCloud"},
 				},
 			},
-			Want: osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+			Want: osu.NewTermQuery[string]("Name").Value("openCloud"),
+		},
+		{
+			Name: "case-insensitive term routes to the lowercased sibling",
+			Got: &ast.Ast{
+				Nodes: []ast.Node{
+					&ast.StringNode{Key: "Name", Value: "openCloud", CaseInsensitive: true},
+				},
+			},
+			Want: osu.NewTermQuery[string]("Name_lowercase").Value("opencloud"),
+		},
+		{
+			Name: "case-insensitive wildcard routes to the lowercased sibling",
+			Got: &ast.Ast{
+				Nodes: []ast.Node{
+					&ast.StringNode{Key: "Name", Value: "Open*", CaseInsensitive: true},
+				},
+			},
+			Want: osu.NewWildcardQuery("Name_lowercase").Value("open*"),
 		},
 		{
 			Name: "term query - boolean node - true",
@@ -58,16 +76,10 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 					&ast.StringNode{Key: "Name", Value: "open*"},
 				},
 			},
-			Want: osu.NewBoolQuery().
-				Params(&osu.BoolQueryParams{MinimumShouldMatch: 1}).
-				Should(
-					osu.NewWildcardQuery("Name.wildcard").
-						Value("open*").
-						Params(&osu.WildcardQueryParams{CaseInsensitive: true}),
-				),
+			Want: osu.NewWildcardQuery("Name").Value("open*"),
 		},
 		{
-			Name: "wildcard query - string node without an unanalyzed sub field",
+			Name: "wildcard query - fulltext field",
 			Got: &ast.Ast{
 				Nodes: []ast.Node{
 					&ast.StringNode{Key: "Content", Value: "open*"},
@@ -142,8 +154,8 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 				},
 			},
 			Want: osu.NewBoolQuery().Must(
-				osu.NewMatchPhraseQuery("Name").Query("a"),
-				osu.NewMatchPhraseQuery("Name").Query("b"),
+				osu.NewTermQuery[string]("Name").Value("a"),
+				osu.NewTermQuery[string]("Name").Value("b"),
 			),
 		},
 		{
@@ -155,7 +167,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 					}},
 				},
 			},
-			Want: osu.NewMatchPhraseQuery("Name").Query("any"),
+			Want: osu.NewTermQuery[string]("Name").Value("any"),
 		},
 		{
 			Name: "range query >",
@@ -217,7 +229,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 					&ast.StringNode{Key: "Name", Value: "openCloud"},
 				},
 			},
-			Want: osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+			Want: osu.NewTermQuery[string]("Name").Value("openCloud"),
 		},
 		{
 			Name: "[* *]",
@@ -229,7 +241,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 			},
 			Want: osu.NewBoolQuery().
 				Must(
-					osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+					osu.NewTermQuery[string]("Name").Value("openCloud"),
 					osu.NewTermQuery[string]("age").Value("32"),
 				),
 		},
@@ -244,7 +256,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 			},
 			Want: osu.NewBoolQuery().
 				Must(
-					osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+					osu.NewTermQuery[string]("Name").Value("openCloud"),
 					osu.NewTermQuery[string]("age").Value("32"),
 				),
 		},
@@ -260,7 +272,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 			Want: osu.NewBoolQuery().
 				Params(&osu.BoolQueryParams{MinimumShouldMatch: 1}).
 				Should(
-					osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+					osu.NewTermQuery[string]("Name").Value("openCloud"),
 					osu.NewTermQuery[string]("age").Value("32"),
 				),
 		},
@@ -288,7 +300,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 			},
 			Want: osu.NewBoolQuery().
 				Must(
-					osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+					osu.NewTermQuery[string]("Name").Value("openCloud"),
 				).
 				MustNot(
 					osu.NewTermQuery[string]("age").Value("32"),
@@ -308,7 +320,7 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 			Want: osu.NewBoolQuery().
 				Params(&osu.BoolQueryParams{MinimumShouldMatch: 1}).
 				Should(
-					osu.NewMatchPhraseQuery("Name").Query("openCloud"),
+					osu.NewTermQuery[string]("Name").Value("openCloud"),
 					osu.NewTermQuery[string]("age").Value("32"),
 					osu.NewTermQuery[string]("age").Value("44"),
 				),

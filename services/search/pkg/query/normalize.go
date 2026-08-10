@@ -2,6 +2,7 @@ package query
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/opencloud-eu/opencloud/pkg/ast"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/query/mimetype"
@@ -31,10 +32,14 @@ func normalizeNodes(nodes []ast.Node, resolve func(string) string, defaultKey st
 		switch node := n.(type) {
 		case *ast.StringNode:
 			node.Key = resolveKey(node.Key)
+			if FieldValueIsNormalized(node.Key) {
+				node.Value = strings.ToLower(node.Value)
+			}
 			if exp := mimetype.Expand(node.Key, node.Value); exp != nil {
 				out = append(out, normalizeNodes(exp, resolve, defaultKey)...)
 				continue
 			}
+			node.CaseInsensitive = FieldIsCaseInsensitive(node.Key)
 			out = append(out, node)
 		case *ast.DateTimeNode:
 			node.Key = resolveKey(node.Key)
