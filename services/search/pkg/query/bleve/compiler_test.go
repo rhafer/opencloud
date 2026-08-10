@@ -321,8 +321,8 @@ func Test_compile(t *testing.T) {
 			},
 			want: query.NewConjunctionQuery([]query.Query{
 				query.NewQueryStringQuery(`Name_lowercase:john\ smith`),
-				query.NewQueryStringQuery(`Hidden:T`),
-				query.NewQueryStringQuery(`Hidden:T`),
+				query.NewQueryStringQuery(`Hidden:t`),
+				query.NewQueryStringQuery(`Hidden:t`),
 			}),
 			wantErr: false,
 		},
