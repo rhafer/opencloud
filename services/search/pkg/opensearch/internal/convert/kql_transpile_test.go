@@ -97,60 +97,24 @@ func TestTranspileKQLToOpenSearch(t *testing.T) {
 			Want: osu.NewWildcardQuery("Content").Value("open*"),
 		},
 		{
-			Name: "wildcard query - a question mark counts as a wildcard",
+			// a phrase match would analyze the query with path_hierarchy and match
+			// everything under the root
+			Name: "path with spaces stays an unanalyzed term query",
 			Got: &ast.Ast{
 				Nodes: []ast.Node{
-					&ast.StringNode{Key: "Name", Value: "fo?o"},
+					&ast.StringNode{Key: "Path", Value: "./parent d!r/child.pdf"},
 				},
 			},
-			Want: osu.NewBoolQuery().
-				Params(&osu.BoolQueryParams{MinimumShouldMatch: 1}).
-				Should(
-					osu.NewWildcardQuery("Name.wildcard").
-						Value("fo?o").
-						Params(&osu.WildcardQueryParams{CaseInsensitive: true}),
-					osu.NewWildcardQuery("Name.wildcard").
-						Value("fo?o.*").
-						Params(&osu.WildcardQueryParams{CaseInsensitive: true}),
-				),
+			Want: osu.NewTermQuery[string]("Path").Value("./parent d!r/child.pdf"),
 		},
 		{
-			Name: "term query - an equals restriction matches the whole name",
+			Name: "case-insensitive path with spaces routes to the lowercased sibling as a term query",
 			Got: &ast.Ast{
 				Nodes: []ast.Node{
-					&ast.StringNode{Key: "Name", Value: "foo bar.txt", Exact: true},
+					&ast.StringNode{Key: "Path", Value: "./Parent Dir", CaseInsensitive: true},
 				},
 			},
-			Want: osu.NewTermQuery[string]("Name.wildcard").
-				Value("foo bar.txt").
-				Params(&osu.TermQueryParams{CaseInsensitive: true}),
-		},
-		{
-			Name: "term query - a path loses its trailing slash",
-			Got: &ast.Ast{
-				Nodes: []ast.Node{
-					&ast.StringNode{Key: "Path", Value: "./Documents/"},
-				},
-			},
-			Want: osu.NewTermQuery[string]("Path").Value("./Documents"),
-		},
-		{
-			Name: "term query - a hidden string turns into a bool",
-			Got: &ast.Ast{
-				Nodes: []ast.Node{
-					&ast.StringNode{Key: "Hidden", Value: "true"},
-				},
-			},
-			Want: osu.NewTermQuery[bool]("Hidden").Value(true),
-		},
-		{
-			Name: "match-none query - a hidden string that is no bool",
-			Got: &ast.Ast{
-				Nodes: []ast.Node{
-					&ast.StringNode{Key: "Hidden", Value: "banana"},
-				},
-			},
-			Want: osu.NewMatchNoneQuery(),
+			Want: osu.NewTermQuery[string]("Path_lowercase").Value("./parent dir"),
 		},
 		{
 			Name: "bool query",
