@@ -100,6 +100,37 @@ var _ = Describe("EventHistoryService", func() {
 		Expect(gotIDs[0]).To(Equal(expectedIDs[0]))
 		Expect(gotIDs[1]).To(Equal(expectedIDs[1]))
 	})
+
+	It("Starts without consumer and reads events from shared store", func() {
+		ehNilConsumer, err := service.NewEventHistoryService(cfg, nil, sto, log.Logger{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ehNilConsumer).ToNot(BeNil())
+
+		// We assume that the event was consumed and stored by the original instance, so the nil-consumer
+		// instance (gRPC-only mode) can still find it in the shared store.
+		id := bus.Publish(events.UploadReady{})
+		time.Sleep(500 * time.Millisecond)
+
+		resp := &ehsvc.GetEventsResponse{}
+		err = ehNilConsumer.GetEvents(context.Background(), &ehsvc.GetEventsRequest{Ids: []string{id}}, resp)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(resp.Events)).To(Equal(1))
+		Expect(resp.Events[0].Id).To(Equal(id))
+	})
+
+	It("Stores events and verifies them in the store directly (consumer-only mode)", func() {
+		id := bus.Publish(events.UploadReady{})
+		time.Sleep(500 * time.Millisecond)
+
+		records, err := sto.Read(id)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(records)).To(Equal(1))
+
+		var stored service.StoreEvent
+		err = json.Unmarshal(records[0].Value, &stored)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(stored.ID).To(Equal(id))
+	})
 })
 
 type testBus chan events.Event

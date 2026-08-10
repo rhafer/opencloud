@@ -32,17 +32,17 @@ type EventHistoryService struct {
 
 // NewEventHistoryService returns an EventHistory service
 func NewEventHistoryService(cfg *config.Config, consumer events.Consumer, store store.Store, log log.Logger) (*EventHistoryService, error) {
-	if consumer == nil || store == nil {
-		return nil, fmt.Errorf("need non nil consumer (%v) and store (%v) to work properly", consumer, store)
-	}
+	eh := &EventHistoryService{store: store, cfg: cfg, log: log}
 
-	ch, err := events.ConsumeAll(consumer, "evhistory")
-	if err != nil {
-		return nil, err
-	}
+	if consumer != nil {
+		ch, err := events.ConsumeAll(consumer, "evhistory")
+		if err != nil {
+			return nil, err
+		}
 
-	eh := &EventHistoryService{ch: ch, store: store, cfg: cfg, log: log}
-	go eh.StoreEvents()
+		eh.ch = ch
+		go eh.StoreEvents()
+	}
 
 	return eh, nil
 }
