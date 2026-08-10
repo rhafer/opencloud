@@ -59,7 +59,7 @@ func Server(cfg *config.Config) *cobra.Command {
 
 			gr := runner.NewGroup()
 
-			var consumer events.Consumer
+			var consumer events.Stream
 			if !cfg.Events.Disabled {
 				connName := generators.GenerateConnectionName(cfg.Service.Name, generators.NTypeBus)
 				consumer, err = stream.NatsFromConfig(connName, false, stream.NatsConfig{
