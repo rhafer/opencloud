@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	occfg "github.com/opencloud-eu/opencloud/pkg/config"
+	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/eventhistory/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/eventhistory/pkg/config/defaults"
 
@@ -34,11 +35,8 @@ func ParseConfig(cfg *config.Config) error {
 
 // Validate validates the config
 func Validate(cfg *config.Config) error {
-	// this need to be discussed, I put it here for now because I belive we need to ensure that the service is doing
-	// at least something, if we have events and grpc disabled that means that the service is doing actually nothing
-	// which can be a siletlly ignorred and cause issues in the future
 	if cfg.Events.Disabled && cfg.GRPC.Disabled {
-		return errors.New("both events and gRPC are disabled; at least one must be enabled")
+		return shared.AllComponentsDisabledError(cfg.Service.Name)
 	}
 
 	return nil

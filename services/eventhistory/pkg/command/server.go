@@ -109,21 +109,17 @@ func Server(cfg *config.Config) *cobra.Command {
 				logger.Info().Msg("gRPC server disabled, not starting gRPC service")
 			}
 
-			if !cfg.Debug.Disabled {
-				debugServer, err := debug.Server(
-					debug.Logger(logger),
-					debug.Context(ctx),
-					debug.Config(cfg),
-				)
-				if err != nil {
-					logger.Info().Err(err).Str("server", "debug").Msg("Failed to initialize server")
-					return err
-				}
-
-				gr.Add(runner.NewGolangHttpServerRunner(cfg.Service.Name+".debug", debugServer))
-			} else {
-				logger.Info().Msg("debug server disabled")
+			debugServer, err := debug.Server(
+				debug.Logger(logger),
+				debug.Context(ctx),
+				debug.Config(cfg),
+			)
+			if err != nil {
+				logger.Info().Err(err).Str("server", "debug").Msg("Failed to initialize server")
+				return err
 			}
+
+			gr.Add(runner.NewGolangHttpServerRunner(cfg.Service.Name+".debug", debugServer))
 
 			grResults := gr.Run(ctx)
 
