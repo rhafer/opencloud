@@ -43,6 +43,7 @@ func DefaultConfig() *config.Config {
 			Token: "",
 		},
 		HTTP: config.HTTP{
+			Disabled:  false,
 			Addr:      "127.0.0.1:9120",
 			Namespace: "eu.opencloud.web",
 			Root:      "/graph",
@@ -118,9 +119,10 @@ func DefaultConfig() *config.Config {
 			TTL:      time.Hour * 24,
 		},
 		Events: config.Events{
-			Endpoint:  "127.0.0.1:9233",
-			Cluster:   "opencloud-cluster",
-			EnableTLS: false,
+			DisabledConsumer: false,
+			Endpoint:         "127.0.0.1:9233",
+			Cluster:          "opencloud-cluster",
+			EnableTLS:        false,
 		},
 		MaxConcurrency: 20,
 		UnifiedRoles: config.UnifiedRoles{

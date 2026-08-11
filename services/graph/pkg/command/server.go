@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/opencloud-eu/opencloud/pkg/config/configlog"
+	"github.com/opencloud-eu/opencloud/pkg/generators"
 	"github.com/opencloud-eu/opencloud/pkg/log"
 	natspkg "github.com/opencloud-eu/opencloud/pkg/nats"
 	"github.com/opencloud-eu/opencloud/pkg/runner"
@@ -14,9 +15,14 @@ import (
 	"github.com/opencloud-eu/opencloud/pkg/version"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config/parser"
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/identity"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/server/debug"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/server/http"
+	evc "github.com/opencloud-eu/opencloud/services/graph/pkg/service/events"
+	"github.com/opencloud-eu/reva/v2/pkg/events"
+	"github.com/opencloud-eu/reva/v2/pkg/events/stream"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -46,7 +52,7 @@ func Server(cfg *config.Config) *cobra.Command {
 			}
 			ctx := cfg.Context
 
-			mtrcs := metrics.New()
+			mtrcs := metrics.New(prometheus.DefaultRegisterer)
 			mtrcs.BuildInfo.WithLabelValues(version.GetString()).Set(1)
 
 			var kv jetstream.KeyValue
@@ -78,9 +84,37 @@ func Server(cfg *config.Config) *cobra.Command {
 				}
 			}
 
+			identityBackend, eduBackend, err := identity.CreateIdentityBackends(
+				cfg.Identity.Backend,
+				cfg,
+				&logger,
+				traceProvider,
+			)
+			if err != nil {
+				logger.Error().Err(err).Msg("Error initializing the identity backend")
+				return fmt.Errorf("could not initialize identity backend: %w", err)
+			}
+
+			var eventsStream events.Stream
+			if cfg.Events.Endpoint != "" {
+				var err error
+				connName := generators.GenerateConnectionName(cfg.Service.Name, generators.NTypeBus)
+				eventsStream, err = stream.NatsFromConfig(connName, false, cfg.Events.ToNatsConfig())
+				if err != nil {
+					logger.Error().Err(err).Msg("Error initializing events publisher")
+					return fmt.Errorf("could not initialize events publisher: %w", err)
+				}
+			}
+
 			gr := runner.NewGroup()
-			{
+
+			if !cfg.HTTP.Disabled {
+				mtrcs.HttpEnabled.Set(1)
+
 				server, err := http.Server(
+					identityBackend,
+					eduBackend,
+					eventsStream,
 					http.Logger(logger),
 					http.Context(ctx),
 					http.Config(cfg),
@@ -92,8 +126,37 @@ func Server(cfg *config.Config) *cobra.Command {
 					logger.Error().Err(err).Str("transport", "http").Msg("Failed to initialize server")
 					return err
 				}
-
 				gr.Add(runner.NewGoMicroHttpServerRunner(cfg.Service.Name+".http", server))
+			} else {
+				mtrcs.HttpEnabled.Set(0)
+				logger.Info().Str("transport", "http").Msg("HTTP server is disabled")
+			}
+
+			if !cfg.Events.DisabledConsumer {
+				mtrcs.EventsEnabled.Set(1)
+
+				// even if events are enabled, we still need to differentiate between whether this process
+				// show be consuming events or not (and even when that is disabled, we still need to be
+				// able to produce events), which is why this is a separate setting;
+				// for context, see https://github.com/opencloud-eu/opencloud/issues/1312
+
+				logger := &log.Logger{Logger: logger.With().Str("transport", "events").Logger()}
+				eventConsumer, err := evc.NewService(cfg.Context, eventsStream, identityBackend, mtrcs, logger)
+				if err != nil {
+					return fmt.Errorf("could not initialize events consumer: %w", err)
+				}
+
+				gr.Add(runner.New(cfg.Service.Name+".svc", func() error {
+					return eventConsumer.Start()
+				}, func() {
+					err := eventConsumer.Close()
+					if err != nil {
+						logger.Error().Err(err).Msg("failed to stop event consumer")
+					}
+				}))
+			} else {
+				mtrcs.EventsEnabled.Set(0)
+				logger.Info().Str("transport", "events").Msg("event consumer is disabled")
 			}
 
 			{

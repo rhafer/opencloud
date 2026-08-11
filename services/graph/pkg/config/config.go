@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/opencloud-eu/opencloud/pkg/shared"
+	"github.com/opencloud-eu/reva/v2/pkg/events/stream"
 )
 
 // Config combines all available configuration parts.
@@ -129,6 +130,7 @@ type API struct {
 
 // Events combines the configuration options for the event bus.
 type Events struct {
+	DisabledConsumer     bool   `yaml:"disabled_consumer" env:"GRAPH_EVENTS_DISABLE_CONSUMER" desc:"Disables consuming events. Set this to true if the service should only handle HTTP requests." introductionVersion:"%NEXT%"`
 	Endpoint             string `yaml:"endpoint" env:"OC_EVENTS_ENDPOINT;GRAPH_EVENTS_ENDPOINT" desc:"The address of the event system. The event system is the message queuing service. It is used as message broker for the microservice architecture. Set to a empty string to disable emitting events." introductionVersion:"1.0.0"`
 	Cluster              string `yaml:"cluster" env:"OC_EVENTS_CLUSTER;GRAPH_EVENTS_CLUSTER" desc:"The clusterID of the event system. The event system is the message queuing service. It is used as message broker for the microservice architecture." introductionVersion:"1.0.0"`
 	TLSInsecure          bool   `yaml:"tls_insecure" env:"OC_INSECURE;OC_EVENTS_TLS_INSECURE;GRAPH_EVENTS_TLS_INSECURE" desc:"Whether to verify the server TLS certificates." introductionVersion:"1.0.0"`
@@ -136,6 +138,18 @@ type Events struct {
 	EnableTLS            bool   `yaml:"enable_tls" env:"OC_EVENTS_ENABLE_TLS;GRAPH_EVENTS_ENABLE_TLS" desc:"Enable TLS for the connection to the events broker. The events broker is the OpenCloud service which receives and delivers events between the services." introductionVersion:"1.0.0"`
 	AuthUsername         string `yaml:"username" env:"OC_EVENTS_AUTH_USERNAME;GRAPH_EVENTS_AUTH_USERNAME" desc:"The username to authenticate with the events broker. The events broker is the OpenCloud service which receives and delivers events between the services." introductionVersion:"1.0.0"`
 	AuthPassword         string `yaml:"password" env:"OC_EVENTS_AUTH_PASSWORD;GRAPH_EVENTS_AUTH_PASSWORD" desc:"The password to authenticate with the events broker. The events broker is the OpenCloud service which receives and delivers events between the services." introductionVersion:"1.0.0"`
+}
+
+func (e Events) ToNatsConfig() stream.NatsConfig {
+	return stream.NatsConfig{
+		Endpoint:             e.Endpoint,
+		Cluster:              e.Cluster,
+		TLSInsecure:          e.TLSInsecure,
+		TLSRootCACertificate: e.TLSRootCACertificate,
+		EnableTLS:            e.EnableTLS,
+		AuthUsername:         e.AuthUsername,
+		AuthPassword:         e.AuthPassword,
+	}
 }
 
 // CORS defines the available cors configuration.

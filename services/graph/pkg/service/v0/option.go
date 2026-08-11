@@ -39,7 +39,6 @@ type Options struct {
 	ValueService             settingssvc.ValueService
 	RoleManager              *roles.Manager
 	EventsPublisher          events.Publisher
-	EventsConsumer           events.Consumer
 	SearchService            searchsvc.SearchProviderService
 	KeycloakClient           keycloak.Client
 	EventHistoryClient       ehsvc.EventHistoryService
@@ -160,13 +159,6 @@ func RoleManager(val *roles.Manager) Option {
 func EventsPublisher(val events.Publisher) Option {
 	return func(o *Options) {
 		o.EventsPublisher = val
-	}
-}
-
-// EventsConsumer provides a function to set the EventsConsumer option.
-func EventsConsumer(val events.Consumer) Option {
-	return func(o *Options) {
-		o.EventsConsumer = val
 	}
 }
 

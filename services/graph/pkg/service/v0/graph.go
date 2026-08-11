@@ -63,7 +63,6 @@ type Graph struct {
 	valueService             settingssvc.ValueService
 	specialDriveItemsCache   *ttlcache.Cache[string, any]
 	eventsPublisher          events.Publisher
-	eventsConsumer           events.Consumer
 	searchService            searchsvc.SearchProviderService
 	keycloakClient           keycloak.Client
 	historyClient            ehsvc.EventHistoryService

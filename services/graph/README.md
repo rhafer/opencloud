@@ -168,7 +168,7 @@ The output of this command includes the following information for each role:
 * `Condition`
 * `Allowed resource actions`
 
-**Example output (shortned)**
+**Example output (shortened)**
 
 ```bash
 +--------------------------------------+----------+--------------------------------+--------------------------------+------------------------------------------+
@@ -184,3 +184,22 @@ The output of this command includes the following information for each role:
 +--------------------------------------+----------+--------------------------------+--------------------------------+------------------------------------------+
 ```
 
+## API Handlers
+
+To specialize `graph` service instances in order to scale them independently, it is possible to disable its API handlers:
+
+* `GRAPH_HTTP_DISABLE`: when set to `true`, the service does not listen on HTTP and only consumes events (defaults to `false`)
+* `GRAPH_EVENTS_DISABLE_CONSUMER`: when set to `true`, the service does not consome events and only listens on HTTP (defaults to `false`)
+
+## Metrics
+
+The `graph` service provides the following metrics:
+
+| Name | Description |
+| ---- | ----------- |
+| `opencloud_graph_build_info{version=...}` | Contains a label `version` that is set to the current version of the service, and always has a value of `1` |
+| `opencloud_graph_events_enabled` | Is set to `1` if the Events API handler is enabled, or `0` if not |
+| `opencloud_graph_http_enabled` | Is set to `1` if the HTTP API handler is enabled, or `0` if not |
+| `opencloud_graph_events{event=...,result=...}` | Counts the number of events that have been consumed, with a `event` label that contains the name of the event, and a `result` label that is set to `success` or `failure` |
+| `opencloud_graph_events_invalid` | Counts the number of invalid events that are malformed or are missing required data |
+| `opencloud_graph_events_unsupported` | Counts the numbef of consumed events that cannot be processes by this service, should always be `0` |

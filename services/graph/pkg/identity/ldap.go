@@ -703,7 +703,7 @@ func (i *LDAP) usersFromLDAPEntries(entries []*ldap.Entry, exp []string) ([]*lib
 func (i *LDAP) UpdateLastSignInDate(ctx context.Context, userID string, timestamp time.Time) error {
 	if !i.writeEnabled {
 		i.logger.Debug().Str("backend", "ldap").Msg("The LDAP Server is readonly. Skipping update of last sign in date")
-		return nil
+		return nil // TODO: do we really want to just silently do nothing here, rather than returning an error?
 	}
 	e, err := i.getLDAPUserByID(userID)
 	switch {

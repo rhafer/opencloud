@@ -1,39 +1,25 @@
 package svc
 
 import (
-	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	ldapv3 "github.com/go-ldap/ldap/v3"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/identity/cache"
 	"github.com/riandyrn/otelchi"
 	microstore "go-micro.dev/v4/store"
 
-	"github.com/opencloud-eu/reva/v2/pkg/events"
-	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
 	"github.com/opencloud-eu/reva/v2/pkg/store"
-	"github.com/opencloud-eu/reva/v2/pkg/utils"
-	"github.com/opencloud-eu/reva/v2/pkg/utils/ldap"
 
-	ocldap "github.com/opencloud-eu/opencloud/pkg/ldap"
-	"github.com/opencloud-eu/opencloud/pkg/log"
-	"github.com/opencloud-eu/opencloud/pkg/registry"
 	"github.com/opencloud-eu/opencloud/pkg/roles"
 	"github.com/opencloud-eu/opencloud/pkg/service/grpc"
 	"github.com/opencloud-eu/opencloud/pkg/tracing"
 	settingssvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
-	"github.com/opencloud-eu/opencloud/services/graph/pkg/identity"
 	graphm "github.com/opencloud-eu/opencloud/services/graph/pkg/middleware"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/unifiedrole"
 )
@@ -199,18 +185,14 @@ func NewService(opts ...Option) (Graph, error) { //nolint:maintidx
 		mux:                      m,
 		specialDriveItemsCache:   spacePropertiesCache,
 		eventsPublisher:          options.EventsPublisher,
-		eventsConsumer:           options.EventsConsumer,
 		searchService:            options.SearchService,
+		identityBackend:          options.IdentityBackend,
 		identityEducationBackend: options.IdentityEducationBackend,
 		keycloakClient:           options.KeycloakClient,
 		historyClient:            options.EventHistoryClient,
 		traceProvider:            options.TraceProvider,
 		valueService:             options.ValueService,
 		natskv:                   options.NatsKeyValue,
-	}
-
-	if err := setIdentityBackends(options, &svc); err != nil {
-		return svc, err
 	}
 
 	if options.PermissionService == nil {
@@ -448,164 +430,6 @@ func NewService(opts ...Option) (Graph, error) { //nolint:maintidx
 	})
 
 	return svc, nil
-}
-
-func setIdentityBackends(options Options, svc *Graph) error {
-	if options.IdentityBackend == nil {
-		switch options.Config.Identity.Backend {
-		case "cs3":
-			gatewaySelector, err := pool.GatewaySelector(
-				options.Config.Reva.Address,
-				append(
-					options.Config.Reva.GetRevaOptions(),
-					pool.WithRegistry(registry.GetRegistry()),
-					pool.WithTracerProvider(options.TraceProvider),
-				)...,
-			)
-			if err != nil {
-				return err
-			}
-
-			svc.identityBackend = &identity.CS3{
-				Config:          options.Config.Reva,
-				Logger:          &options.Logger,
-				GatewaySelector: gatewaySelector,
-			}
-		case "ldap":
-			var err error
-
-			var tlsConf *tls.Config
-			if options.Config.Identity.LDAP.Insecure {
-
-				// When insecure is set to true then we don't need a certificate.
-				options.Config.Identity.LDAP.CACert = ""
-				tlsConf = &tls.Config{
-					MinVersion: tls.VersionTLS12,
-
-					//nolint:gosec // We need the ability to run with "insecure" (dev/testing)
-					InsecureSkipVerify: options.Config.Identity.LDAP.Insecure,
-				}
-			}
-
-			if options.Config.Identity.LDAP.CACert != "" {
-				if err := ocldap.WaitForCA(options.Logger,
-					options.Config.Identity.LDAP.Insecure,
-					options.Config.Identity.LDAP.CACert); err != nil {
-					options.Logger.Fatal().Err(err).Msg("The configured LDAP CA cert does not exist")
-				}
-				if tlsConf == nil {
-					tlsConf = &tls.Config{
-						MinVersion: tls.VersionTLS12,
-					}
-				}
-				certs := x509.NewCertPool()
-				pemData, err := os.ReadFile(options.Config.Identity.LDAP.CACert)
-				if err != nil {
-					options.Logger.Error().Err(err).Msg("Error initializing LDAP Backend")
-					return err
-				}
-				if !certs.AppendCertsFromPEM(pemData) {
-					options.Logger.Error().Msg("Error initializing LDAP Backend. Adding CA cert failed")
-					return err
-				}
-				tlsConf.RootCAs = certs
-			}
-
-			conn := ldap.NewLDAPWithReconnect(
-				ldap.Config{
-					URI:          options.Config.Identity.LDAP.URI,
-					BindDN:       options.Config.Identity.LDAP.BindDN,
-					BindPassword: options.Config.Identity.LDAP.BindPassword,
-					TLSConfig:    tlsConf,
-				},
-			)
-			conn.SetLogger(&options.Logger.Logger)
-			lb, err := identity.NewLDAPBackend(conn, options.Config.Identity.LDAP, &options.Logger)
-			if err != nil {
-				options.Logger.Error().Err(err).Msg("Error initializing LDAP Backend")
-				return err
-			}
-			svc.identityBackend = lb
-			if options.IdentityEducationBackend == nil {
-				if options.Config.Identity.LDAP.EducationResourcesEnabled {
-					svc.identityEducationBackend = lb
-				} else {
-					errEduBackend := &identity.ErrEducationBackend{}
-					svc.identityEducationBackend = errEduBackend
-				}
-			}
-
-			disableMechanismType, err := identity.ParseDisableMechanismType(options.Config.Identity.LDAP.DisableUserMechanism)
-			if err != nil {
-				options.Logger.Error().Err(err).Msg("Error initializing LDAP Backend")
-				return err
-			}
-
-			if disableMechanismType == identity.DisableMechanismGroup {
-				options.Logger.Info().Msg("LocalUserDisable is true, will create group if not exists")
-				err := lb.CreateLDAPGroupByDN(options.Config.Identity.LDAP.LdapDisabledUsersGroupDN)
-				if err != nil {
-					isAnError := false
-					var lerr *ldapv3.Error
-					if errors.As(err, &lerr) {
-						if lerr.ResultCode != ldapv3.LDAPResultEntryAlreadyExists {
-							isAnError = true
-						}
-					} else {
-						isAnError = true
-					}
-
-					if isAnError {
-						msg := "error adding group for disabling users"
-						options.Logger.Error().Err(err).Str("local_user_disable", options.Config.Identity.LDAP.LdapDisabledUsersGroupDN).Msg(msg)
-						return err
-					}
-				}
-			}
-
-		default:
-			err := fmt.Errorf("unknown identity backend: '%s'", options.Config.Identity.Backend)
-			options.Logger.Err(err)
-			return err
-		}
-	} else {
-		svc.identityBackend = options.IdentityBackend
-	}
-
-	return svc.StartListenForLogonEvents(options.Context, options.Logger)
-}
-
-func (g *Graph) StartListenForLogonEvents(ctx context.Context, l log.Logger) error {
-	if g.eventsConsumer == nil {
-		return nil
-	}
-	var _registeredEvents = []events.Unmarshaller{
-		events.UserSignedIn{},
-	}
-	evChannel, err := events.Consume(g.eventsConsumer, "graph", _registeredEvents...)
-	if err != nil {
-		l.Error().Err(err).Msg("cannot consume from nats")
-		return err
-	}
-	go func() {
-		for loop := true; loop; {
-			select {
-			case e := <-evChannel:
-				switch ev := e.Event.(type) {
-				default:
-					l.Error().Interface("event", e).Msg("unhandled event")
-				case events.UserSignedIn:
-					if err := g.identityBackend.UpdateLastSignInDate(ctx, ev.Executant.OpaqueId, utils.TSToTime(ev.Timestamp)); err != nil {
-						l.Error().Err(err).Str("userid", ev.Executant.OpaqueId).Msg("Error updating last sign in date")
-					}
-				}
-			case <-ctx.Done():
-				l.Info().Msg("context cancelled")
-				loop = false
-			}
-		}
-	}()
-	return nil
 }
 
 // parseHeaderPurge parses the 'Purge' header.
