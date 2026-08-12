@@ -64,19 +64,19 @@ func (b *Batch) Upsert(id string, r search.Resource) error {
 	})
 }
 
-func (b *Batch) Move(id string, parentID string, location string) error {
+func (b *Batch) Move(id, parentID, location string) error {
 	return b.withSizeLimit(func() error {
 		op := func() error {
 			return updateSelfAndDescendants(context.Background(), b.client, b.index, id, func(rootResource search.Resource) *osu.BodyParamScript {
 				newPath := utils.MakeRelativePath(location)
 				newName := path.Base(newPath)
 				return &osu.BodyParamScript{
-					// Keep the case-preserved base fields and their lowercased
-					// search siblings in sync: swap the moved prefix in both. Only
-					// the leading oldPath is replaced (startsWith + substring, not
+					// Keep Name and its lowercased search sibling in sync; Path has
+					// no sibling (case-sensitive by design). Only the leading
+					// oldPath is replaced (startsWith + substring, not
 					// String.replace, which would also rewrite a repeated segment
 					// deeper in a descendant's path, e.g. /Music/Music.m3u). The
-					// lowercased new values come from Go's strings.ToLower via
+					// lowercased new name comes from Go's strings.ToLower via
 					// params, so the sibling stays byte-identical to what
 					// PrepareForIndex writes on upsert (painless toLowerCase would
 					// lowercase differently than Go).
@@ -88,9 +88,6 @@ func (b *Batch) Move(id string, parentID string, location string) error {
 						}
 						if (ctx._source.Path != null && ctx._source.Path.startsWith(params.oldPath)) {
 							ctx._source.Path = params.newPath + ctx._source.Path.substring(params.oldPath.length());
-						}
-						if (ctx._source.Path%[1]s != null && ctx._source.Path%[1]s.startsWith(params.oldPathLower)) {
-							ctx._source.Path%[1]s = params.newPathLower + ctx._source.Path%[1]s.substring(params.oldPathLower.length());
 						}
 						boolean hidden = false;
 						for (String name : ctx._source.Path.splitOnToken('/')) {
@@ -105,8 +102,6 @@ func (b *Batch) Move(id string, parentID string, location string) error {
 						"oldPath":      rootResource.Path,
 						"newPath":      newPath,
 						"newName":      newName,
-						"oldPathLower": strings.ToLower(rootResource.Path),
-						"newPathLower": strings.ToLower(newPath),
 						"newNameLower": strings.ToLower(newName),
 					},
 				}
