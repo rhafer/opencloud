@@ -1,7 +1,6 @@
 package notification
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -69,13 +68,15 @@ func NewService(options ServiceOptions) (Service, error) {
 }
 
 func (s Service) HandleNotification(w http.ResponseWriter, r *http.Request) {
+	ctx := metadata.AppendToOutgoingContext(r.Context(), revactx.TokenHeader, r.Header.Get(revactx.TokenHeader))
+
 	gatewayClient, err := s.gatewaySelector.Next()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	requestUser, canManage, err := collaboration.CheckPermissions(gatewayClient, r.Context(), collaboration.PermissionCollaborationPublishNotification)
+	requestUser, canManage, err := collaboration.CheckPermissions(gatewayClient, ctx, collaboration.PermissionCollaborationPublishNotification)
 	switch {
 	case err != nil:
 		w.WriteHeader(http.StatusInternalServerError)
@@ -88,60 +89,81 @@ func (s Service) HandleNotification(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	var data = struct {
-		Type    string   `json:"type" validate:"required"`
-		UserIDs []string `json:"userIDs" validate:"required"`
+		UserIDs []string `json:"userIDs" validate:"required,min=1"`
 		FileID  string   `json:"fileID" validate:"required"`
 	}{}
 	if err := json.Unmarshal(body, &data); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if err := validate.Struct(data); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	resourceID, err := storagespace.ParseID(data.FileID)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ref := &storageprovider.Reference{ResourceId: &resourceID}
+
+	// accept the mention only if the requester can see the file himself
+	statResponse, err := gatewayClient.Stat(ctx, &storageprovider.StatRequest{Ref: ref})
+	switch {
+	case err != nil:
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	case statResponse.GetStatus().GetCode() != rpcv1beta1.Code_CODE_OK:
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	event := ocEvents.ResourceMention{
 		Executant: requestUser.GetId(),
+		Ref:       &storageprovider.Reference{ResourceId: statResponse.GetInfo().GetId()},
 		Timestamp: time.Now(),
 	}
 
+	seen := make(map[string]struct{}, len(data.UserIDs))
 	for _, userID := range data.UserIDs {
-		authResponse, err := gatewayClient.Authenticate(context.Background(), &gateway.AuthenticateRequest{
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+
+		authResponse, err := gatewayClient.Authenticate(r.Context(), &gateway.AuthenticateRequest{
 			Type:         "machine",
 			ClientId:     "userid:" + userID,
 			ClientSecret: s.machineAuthAPIKey,
 		})
-		if err != nil || authResponse.Status.Code != rpcv1beta1.Code_CODE_OK {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		resourceID, err := storagespace.ParseID(data.FileID)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if err != nil || authResponse.GetStatus().GetCode() != rpcv1beta1.Code_CODE_OK {
+			s.log.Debug().Str("userID", userID).Msg("could not authenticate the mentioned user, skipping")
+			continue
 		}
 
 		statResponse, err := gatewayClient.Stat(
-			metadata.AppendToOutgoingContext(context.Background(), revactx.TokenHeader, authResponse.GetToken()),
-			&storageprovider.StatRequest{Ref: &storageprovider.Reference{ResourceId: &resourceID}},
+			metadata.AppendToOutgoingContext(r.Context(), revactx.TokenHeader, authResponse.GetToken()),
+			&storageprovider.StatRequest{Ref: ref},
 		)
-		if err != nil || statResponse.Status.Code != rpcv1beta1.Code_CODE_OK {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if err != nil || statResponse.GetStatus().GetCode() != rpcv1beta1.Code_CODE_OK {
+			s.log.Debug().Str("userID", userID).Msg("mentioned user has no access to the resource, skipping")
+			continue
 		}
 
-		event.UserIDs = append(event.UserIDs, authResponse.User.GetId())
-		event.Ref = &storageprovider.Reference{
-			ResourceId: statResponse.GetInfo().GetId(),
-		}
+		event.UserIDs = append(event.UserIDs, authResponse.GetUser().GetId())
+	}
+
+	if len(event.UserIDs) == 0 {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 
 	if err := events.Publish(r.Context(), s.eventPublisher, event); err != nil {
