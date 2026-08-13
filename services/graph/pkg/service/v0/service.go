@@ -190,6 +190,7 @@ func NewService(opts ...Option) (Graph, error) { //nolint:maintidx
 		identityEducationBackend: options.IdentityEducationBackend,
 		keycloakClient:           options.KeycloakClient,
 		historyClient:            options.EventHistoryClient,
+		metrics:                  options.Metrics,
 		traceProvider:            options.TraceProvider,
 		valueService:             options.ValueService,
 		natskv:                   options.NatsKeyValue,
@@ -430,6 +431,33 @@ func NewService(opts ...Option) (Graph, error) { //nolint:maintidx
 	})
 
 	return svc, nil
+}
+
+// this function receives the request URI path chi pattern, split cleanly on '/'
+// and is tasked with returning a value for the Graph API version,
+// as well as a value for the Graph API resource
+//
+// e.g. for
+//
+//	'/graph/v1.0/users/{userid}'
+//	-> receive ['graph', 'v1.0', 'users', '{userid}']
+//	<- return ('v1.0', 'users')
+func DecomposeGraphApiRequestPattern(pieces []string) (string, string) {
+	// we keep this function close to the chi routes to improve our changes of
+	// changing this implementation whenever we change the routes
+	version := ""
+	resource := ""
+	if len(pieces) >= 2 {
+		// first path element is the /graph prefix, ignore that
+		// followed by the version (v1.0)
+		version = pieces[1]
+		if len(pieces) >= 3 {
+			// and the resource
+			resource = pieces[2]
+		}
+	}
+	return version, resource
+
 }
 
 // parseHeaderPurge parses the 'Purge' header.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	stdhttp "net/http"
+	"sync/atomic"
 
 	gateway "github.com/cs3org/go-cs3apis/cs3/gateway/v1beta1"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -26,6 +27,7 @@ import (
 	searchsvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
 	settingssvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/identity"
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	graphMiddleware "github.com/opencloud-eu/opencloud/services/graph/pkg/middleware"
 	svc "github.com/opencloud-eu/opencloud/services/graph/pkg/service/v0"
 )
@@ -62,6 +64,15 @@ func Server(identityBackend identity.Backend, eduBackend identity.EducationBacke
 		middleware.Logger(
 			options.Logger,
 		),
+	}
+
+	if !options.Config.HTTP.Metrics.Disabled {
+		var inFlight atomic.Int64
+		middlewares = append(middlewares, metrics.HTTPMetrics(&inFlight, options.Metrics.RecordHTTPDuration))
+		options.Metrics.InitHttpInFlightGauge(&inFlight)
+	}
+
+	middlewares = append(middlewares,
 		middleware.Cors(
 			cors.Logger(options.Logger),
 			cors.AllowedOrigins(options.Config.HTTP.CORS.AllowedOrigins),
@@ -69,7 +80,8 @@ func Server(identityBackend identity.Backend, eduBackend identity.EducationBacke
 			cors.AllowedHeaders(options.Config.HTTP.CORS.AllowedHeaders),
 			cors.AllowCredentials(options.Config.HTTP.CORS.AllowCredentials),
 		),
-	}
+	)
+
 	// how do we secure the api?
 	var requireAdminMiddleware func(stdhttp.Handler) stdhttp.Handler
 	var roleService svc.RoleService
@@ -152,6 +164,7 @@ func Server(identityBackend identity.Backend, eduBackend identity.EducationBacke
 		svc.UserProfilePhotoService(userProfilePhotoService),
 		svc.Logger(options.Logger),
 		svc.Config(options.Config),
+		svc.Metrics(options.Metrics),
 		svc.Middleware(middlewares...),
 		svc.EventsPublisher(eventsStream), // is required even when event consumption is disabled
 		svc.WithRoleService(roleService),

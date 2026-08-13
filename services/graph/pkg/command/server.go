@@ -20,6 +20,7 @@ import (
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/server/debug"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/server/http"
 	evc "github.com/opencloud-eu/opencloud/services/graph/pkg/service/events"
+	svc "github.com/opencloud-eu/opencloud/services/graph/pkg/service/v0"
 	"github.com/opencloud-eu/reva/v2/pkg/events"
 	"github.com/opencloud-eu/reva/v2/pkg/events/stream"
 	"github.com/prometheus/client_golang/prometheus"
@@ -52,7 +53,14 @@ func Server(cfg *config.Config) *cobra.Command {
 			}
 			ctx := cfg.Context
 
-			mtrcs := metrics.New(prometheus.DefaultRegisterer)
+			prom := prometheus.DefaultRegisterer
+
+			// note that the function we pass here is tasked with decomposing Graph HTTP API
+			// request URL patterns into information that is then used for labels in metrics
+			// to track HTTP request processing durations, and it is located there to be close
+			// to the HTTP API route definitions, to improve chances of adapting it accordingly
+			// whenever those routes should change in the future
+			mtrcs := metrics.New(prom, svc.DecomposeGraphApiRequestPattern)
 			mtrcs.BuildInfo.WithLabelValues(version.GetString()).Set(1)
 
 			var kv jetstream.KeyValue
@@ -84,12 +92,20 @@ func Server(cfg *config.Config) *cobra.Command {
 				}
 			}
 
+			identityBackendName := cfg.Identity.Backend // contains the name of the backend implementation to use
+
+			// since the identity backend in use is of prime importance to understand issues through logs, every
+			// log entry should contain a 'backend' entry with the name of the backend in use from here on:
+			logger = log.Logger{Logger: logger.With().Str("backend", identityBackendName).Logger()}
+
 			identityBackend, eduBackend, err := identity.CreateIdentityBackends(
-				cfg.Identity.Backend,
+				identityBackendName,
 				cfg,
 				&logger,
+				prom,
 				traceProvider,
 			)
+
 			if err != nil {
 				logger.Error().Err(err).Msg("Error initializing the identity backend")
 				return fmt.Errorf("could not initialize identity backend: %w", err)

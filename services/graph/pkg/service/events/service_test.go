@@ -42,7 +42,7 @@ func TestSuccessfulCall(t *testing.T) {
 	})
 
 	reg := prometheus.NewRegistry()
-	m := metrics.New(reg)
+	m := metrics.New(reg, func(_ []string) (string, string) { return "", "" })
 
 	logger := log.NewLogger()
 
@@ -92,7 +92,7 @@ func TestBackendReturningAnError(t *testing.T) {
 	})
 
 	reg := prometheus.NewRegistry()
-	m := metrics.New(reg)
+	m := metrics.New(reg, func(_ []string) (string, string) { return "", "" })
 
 	logger := log.NewLogger()
 

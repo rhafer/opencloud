@@ -21,6 +21,7 @@ import (
 	"github.com/opencloud-eu/reva/v2/pkg/storagespace"
 	"github.com/opencloud-eu/reva/v2/pkg/utils"
 	cs3mocks "github.com/opencloud-eu/reva/v2/tests/cs3mocks/mocks"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 	"github.com/tidwall/gjson"
 	"google.golang.org/grpc"
@@ -33,6 +34,7 @@ import (
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config/defaults"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/errorcode"
 	identitymocks "github.com/opencloud-eu/opencloud/services/graph/pkg/identity/mocks"
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	service "github.com/opencloud-eu/opencloud/services/graph/pkg/service/v0"
 	// "github.com/opencloud-eu/opencloud/services/graph/pkg/unifiedrole"
 )
@@ -60,6 +62,7 @@ var _ = Describe("SharedWithMe", func() {
 		)
 
 		identityBackend = &identitymocks.Backend{}
+		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
 
 		tape = httptest.NewRecorder()
 		ctx = context.Background()
@@ -73,6 +76,7 @@ var _ = Describe("SharedWithMe", func() {
 		var err error
 		svc, err = service.NewService(
 			service.Config(cfg),
+			service.Metrics(metrics),
 			service.WithGatewaySelector(gatewaySelector),
 			service.WithIdentityBackend(identityBackend),
 		)

@@ -53,6 +53,11 @@ func DefaultConfig() *config.Config {
 				AllowedHeaders:   []string{"Authorization", "Origin", "Content-Type", "Accept", "X-Requested-With", "X-Request-Id", "Purge", "Restore"},
 				AllowCredentials: true,
 			},
+			Metrics: config.HTTPMetrics{
+				// disabling inbound HTTP metrics collection by default for now, since the runtime performance impact is currently unclear;
+				// it is most likely to be negligible, but has not been measured yet to confirm
+				Disabled: true,
+			},
 		},
 		Service: config.Service{
 			Name: "graph",
@@ -81,6 +86,12 @@ func DefaultConfig() *config.Config {
 		},
 		Identity: config.Identity{
 			Backend: "ldap",
+			Metrics: config.IdentityMetrics{
+				// disabling identity backend opcall metrics collection by default for now, since
+				// the runtime performance impact is currently unclear;
+				// it is most likely to be negligible, but has not been measured yet to confirm
+				Disabled: true,
+			},
 			LDAP: config.LDAP{
 				URI:                      "ldap://localhost:9236",
 				Insecure:                 false,
@@ -110,6 +121,11 @@ func DefaultConfig() *config.Config {
 				GroupMemberAttribute:      "member",
 				GroupIDAttribute:          "openCloudUUID",
 				EducationResourcesEnabled: false,
+				Metrics: config.LDAPMetrics{
+					// disabling inbound HTTP metrics collection by default for now, since the runtime performance impact is currently unclear;
+					// it is most likely to be negligible, but has not been measured yet to confirm
+					Disabled: true,
+				},
 			},
 		},
 		Cache: &config.Cache{

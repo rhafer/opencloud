@@ -24,10 +24,12 @@ import (
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/status"
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
 	cs3mocks "github.com/opencloud-eu/reva/v2/tests/cs3mocks/mocks"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 	"go-micro.dev/v4/client"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/userstate"
 
 	"github.com/opencloud-eu/opencloud/pkg/shared"
@@ -57,6 +59,7 @@ var _ = Describe("Users", func() {
 		valueService      *settingsmocks.ValueService
 		permissionService *mocks.Permissions
 		identityBackend   *identitymocks.Backend
+		mtrics            *metrics.Metrics
 		natsKeyValueMock  *mocks.KeyValue
 
 		rr *httptest.ResponseRecorder
@@ -86,6 +89,7 @@ var _ = Describe("Users", func() {
 		natsKeyValueMock = &mocks.KeyValue{}
 		valueService = &settingsmocks.ValueService{}
 		permissionService = &mocks.Permissions{}
+		mtrics = metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
 
 		rr = httptest.NewRecorder()
 		ctx = context.Background()
@@ -104,6 +108,7 @@ var _ = Describe("Users", func() {
 			var err error
 			svc, err = service.NewService(
 				service.Config(cfg),
+				service.Metrics(mtrics),
 				service.WithGatewaySelector(gatewaySelector),
 				service.EventsPublisher(&eventsPublisher),
 				service.WithIdentityBackend(identityBackend),
@@ -916,6 +921,7 @@ var _ = Describe("Users", func() {
 
 						localSvc, err := service.NewService(
 							service.Config(localCfg),
+							service.Metrics(mtrics),
 							service.WithGatewaySelector(gatewaySelector),
 							service.EventsPublisher(&eventsPublisher),
 							service.WithIdentityBackend(identityBackend),
@@ -1091,7 +1097,7 @@ var _ = Describe("Users", func() {
 				lu := libregraph.User{}
 				lu.SetId(otheruser.Id.OpaqueId)
 				identityBackend.On("GetUser", mock.Anything, mock.Anything, mock.Anything).Return(&lu, nil)
-				//identityBackend.On("DeleteUser", mock.Anything, mock.Anything).Return(nil)
+				//identityBackend.On("DeleteUser", mock.Anything, mock.Anything).Return(IsFound, nil)
 				identityBackend.On("UpdateUser", mock.Anything, mock.Anything, mock.Anything).Return(&lu, nil)
 				gatewayClient.On("DeleteStorageSpace", mock.Anything, mock.Anything).Return(&provider.DeleteStorageSpaceResponse{
 					Status: status.NewOK(ctx),
@@ -1315,6 +1321,7 @@ var _ = Describe("Users", func() {
 			var err error
 			svc, err = service.NewService(
 				service.Config(cfg),
+				service.Metrics(mtrics),
 				service.WithGatewaySelector(gatewaySelector),
 				service.EventsPublisher(&eventsPublisher),
 				service.WithIdentityBackend(identityBackend),

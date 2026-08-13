@@ -60,6 +60,10 @@ type Spaces struct {
 	TranslationPath                 string `yaml:"translation_path" env:"OC_TRANSLATION_PATH;GRAPH_TRANSLATION_PATH" desc:"(optional) Set this to a path with custom translations to overwrite the builtin translations. Note that file and folder naming rules apply, see the documentation for more details." introductionVersion:"1.0.0"`
 }
 
+type LDAPMetrics struct {
+	Disabled bool `yaml:"disabled" env:"GRAPH_LDAP_METRICS_DISABLE" desc:"Disables the metrics for outbound LDAP operations." introductionVersion:"%NEXT%"`
+}
+
 type LDAP struct {
 	URI                string `yaml:"uri" env:"OC_LDAP_URI;GRAPH_LDAP_URI" desc:"URI of the LDAP Server to connect to. Supported URI schemes are 'ldaps://' and 'ldap://'" introductionVersion:"1.0.0"`
 	CACert             string `yaml:"cacert" env:"OC_LDAP_CACERT;GRAPH_LDAP_CACERT" desc:"Path/File name for the root CA certificate (in PEM format) used to validate TLS server certificates of the LDAP service. If not defined, the root directory derives from $OC_BASE_DATA_PATH/idm." introductionVersion:"1.0.0"`
@@ -97,6 +101,8 @@ type LDAP struct {
 
 	EducationResourcesEnabled bool `yaml:"education_resources_enabled" env:"GRAPH_LDAP_EDUCATION_RESOURCES_ENABLED" desc:"Enable LDAP support for managing education related resources." introductionVersion:"1.0.0"`
 	EducationConfig           LDAPEducationConfig
+
+	Metrics LDAPMetrics `yaml:"metrics"`
 }
 
 // LDAPEducationConfig represents the LDAP configuration for education related resources
@@ -114,9 +120,14 @@ type LDAPEducationConfig struct {
 	SchoolTerminationGraceDays int `yaml:"school_termination_min_grace_days" env:"GRAPH_LDAP_SCHOOL_TERMINATION_MIN_GRACE_DAYS" desc:"When setting a 'terminationDate' for a school, require the date to be at least this number of days in the future." introductionVersion:"1.0.0"`
 }
 
+type IdentityMetrics struct {
+	Disabled bool `yaml:"disabled" env:"GRAPH_IDENTITY_BACKEND_METRICS_DISABLE" desc:"Disables the metrics for inbound identity backend operations." introductionVersion:"%NEXT%"`
+}
+
 type Identity struct {
-	Backend string `yaml:"backend" env:"GRAPH_IDENTITY_BACKEND" desc:"The user identity backend to use. Supported backend types are 'ldap' and 'cs3'." introductionVersion:"1.0.0"`
-	LDAP    LDAP   `yaml:"ldap"`
+	Backend string          `yaml:"backend" env:"GRAPH_IDENTITY_BACKEND" desc:"The user identity backend to use. Supported backend types are 'ldap' and 'cs3'." introductionVersion:"1.0.0"`
+	LDAP    LDAP            `yaml:"ldap"`
+	Metrics IdentityMetrics `yaml:"metrics"`
 }
 
 // API represents API configuration parameters.

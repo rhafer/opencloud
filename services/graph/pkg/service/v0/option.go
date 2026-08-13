@@ -18,6 +18,7 @@ import (
 	settingssvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/identity"
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 )
 
 // Option defines a single option function.
@@ -28,6 +29,7 @@ type Options struct {
 	Context                  context.Context
 	Logger                   log.Logger
 	Config                   *config.Config
+	Metrics                  *metrics.Metrics
 	Middleware               []func(http.Handler) http.Handler
 	RequireAdminMiddleware   func(http.Handler) http.Handler
 	GatewaySelector          pool.Selectable[gateway.GatewayAPIClient]
@@ -75,6 +77,13 @@ func Logger(val log.Logger) Option {
 func Config(val *config.Config) Option {
 	return func(o *Options) {
 		o.Config = val
+	}
+}
+
+// Context provides a function to set the context option.
+func Metrics(m *metrics.Metrics) Option {
+	return func(o *Options) {
+		o.Metrics = m
 	}
 }
 

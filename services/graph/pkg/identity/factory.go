@@ -6,20 +6,30 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	ldapv3 "github.com/go-ldap/ldap/v3"
 	ocldap "github.com/opencloud-eu/opencloud/pkg/ldap"
 	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/registry"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	"github.com/opencloud-eu/reva/v2/pkg/rgrpc/todo/pool"
 	"github.com/opencloud-eu/reva/v2/pkg/utils/ldap"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func CreateIdentityBackends(name string, cfg *config.Config, logger *log.Logger, traceProvider trace.TracerProvider) (Backend, EducationBackend, error) {
+const (
+	cs3Backend  = "cs3"
+	ldapBackend = "ldap"
+)
+
+var supportedBackends = []string{cs3Backend, ldapBackend}
+
+func CreateIdentityBackends(name string, cfg *config.Config, logger *log.Logger, registrer prometheus.Registerer, traceProvider trace.TracerProvider) (Backend, EducationBackend, error) {
 	switch name {
-	case "cs3":
+	case cs3Backend:
 		gatewaySelector, err := pool.GatewaySelector(
 			cfg.Reva.Address,
 			append(
@@ -32,12 +42,12 @@ func CreateIdentityBackends(name string, cfg *config.Config, logger *log.Logger,
 			return nil, nil, err
 		}
 
-		return &CS3{
-			Config:          cfg.Reva,
-			Logger:          logger,
-			GatewaySelector: gatewaySelector,
-		}, nil, nil
-	case "ldap":
+		if cs3, err := NewCS3Backend(cfg.Reva, gatewaySelector, logger); err != nil {
+			return nil, nil, err
+		} else {
+			return cs3, nil, nil
+		}
+	case ldapBackend:
 		var err error
 
 		var tlsConf *tls.Config
@@ -76,25 +86,54 @@ func CreateIdentityBackends(name string, cfg *config.Config, logger *log.Logger,
 			tlsConf.RootCAs = certs
 		}
 
-		conn := ldap.NewLDAPWithReconnect(
-			ldap.Config{
-				URI:          cfg.Identity.LDAP.URI,
-				BindDN:       cfg.Identity.LDAP.BindDN,
-				BindPassword: cfg.Identity.LDAP.BindPassword,
-				TLSConfig:    tlsConf,
-			},
-		)
+		ldapConfig := ldap.Config{
+			URI:          cfg.Identity.LDAP.URI,
+			BindDN:       cfg.Identity.LDAP.BindDN,
+			BindPassword: cfg.Identity.LDAP.BindPassword,
+			TLSConfig:    tlsConf,
+		}
+
+		logger = &log.Logger{Logger: logger.With().
+			Str("ldap-uri", ldapConfig.URI).
+			Logger(),
+		}
+
+		conn := ldap.NewLDAPWithReconnect(ldapConfig)
 		conn.SetLogger(&logger.Logger)
-		lb, err := NewLDAPBackend(conn, cfg.Identity.LDAP, logger)
+		lb, err := NewLDAPBackend(conn, cfg.Identity.LDAP, logger, metrics.Namespace, metrics.Subsystem, registrer)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error initializing LDAP Backend")
 			return nil, nil, err
 		}
 
-		identityBackend := lb
+		var identityBackend Backend = lb
 		var eduBackend EducationBackend = lb
 
+		if !cfg.Identity.Metrics.Disabled && registrer != nil {
+			backendApiOperationDuration := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Namespace: metrics.Namespace,
+				Subsystem: metrics.Subsystem,
+				Name:      "identity_backend_api_duration_seconds",
+				Help:      "Duration of API operations performed by the Graph service identity backend in seconds.",
+				Buckets:   prometheus.DefBuckets,
+				ConstLabels: prometheus.Labels{
+					MetricLabelType: name,
+				},
+			}, []string{MetricLabelOperation, metrics.LabelResult})
+
+			if err := registrer.Register(backendApiOperationDuration); err != nil {
+				logger.Warn().Err(err).Msg("failed to register backend API operation duration metric")
+			}
+
+			identityBackend = NewPrometheusBackend(identityBackend, backendApiOperationDuration)
+			eduBackend = NewPrometheusEducationBackend(eduBackend, backendApiOperationDuration)
+		}
+
 		if !cfg.Identity.LDAP.EducationResourcesEnabled {
+			// in this case, simply bury the previous eduBackend, no need to wrap or anything: if we had
+			// a previous implementation in there that wrapped with metrics or such, we don't want to
+			// have any cross-cutting concerns running here, just use this implementation that returns
+			// errors on purpose and that's it:
 			eduBackend = &ErrEducationBackend{}
 		}
 
@@ -121,7 +160,7 @@ func CreateIdentityBackends(name string, cfg *config.Config, logger *log.Logger,
 				if isAnError {
 					msg := "error adding group for disabling users"
 					logger.Error().Err(err).Str("local_user_disable", cfg.Identity.LDAP.LdapDisabledUsersGroupDN).Msg(msg)
-					return nil, nil, err
+					return nil, nil, fmt.Errorf("%s: %w", msg, err)
 				}
 			}
 		}
@@ -129,8 +168,8 @@ func CreateIdentityBackends(name string, cfg *config.Config, logger *log.Logger,
 		return identityBackend, eduBackend, nil
 
 	default:
-		err := fmt.Errorf("unknown identity backend: '%s'", name)
-		logger.Err(err)
+		err := fmt.Errorf("unknown identity backend: %q, must be one of [%s]", name, strings.Join(supportedBackends, ", "))
+		logger.Error().Err(err).Msgf("failed to create identity backend %q", name)
 		return nil, nil, err
 	}
 }

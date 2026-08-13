@@ -44,7 +44,7 @@ func Validate(cfg *config.Config) error {
 		// as the process wouldn't be able to serve either API and would thus be
 		// completely useless -- in that case, just don't start this service
 		// in the first place (especially since it's optional)
-		return errors.New("both HTTP and events consumption APIs are disabled by configuration; at least one must be enabled")
+		return shared.AllComponentsDisabledError("graph")
 	}
 
 	if cfg.TokenManager.JWTSecret == "" {

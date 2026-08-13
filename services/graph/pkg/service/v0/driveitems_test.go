@@ -16,6 +16,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	libregraph "github.com/opencloud-eu/libre-graph-api-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config/defaults"
 	identitymocks "github.com/opencloud-eu/opencloud/services/graph/pkg/identity/mocks"
+	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	service "github.com/opencloud-eu/opencloud/services/graph/pkg/service/v0"
 )
 
@@ -72,6 +74,7 @@ var _ = Describe("Driveitems", func() {
 		)
 
 		identityBackend = &identitymocks.Backend{}
+		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
 		newGroup = libregraph.NewGroup()
 		newGroup.SetMembersodataBind([]string{"/users/user1"})
 		newGroup.SetId("group1")
@@ -88,6 +91,7 @@ var _ = Describe("Driveitems", func() {
 		var err error
 		svc, err = service.NewService(
 			service.Config(cfg),
+			service.Metrics(metrics),
 			service.WithGatewaySelector(gatewaySelector),
 			service.EventsPublisher(&eventsPublisher),
 			service.WithIdentityBackend(identityBackend),
