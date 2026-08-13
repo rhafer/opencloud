@@ -311,11 +311,6 @@ func DefaultPolicies() []config.Policy {
 					// Method: "POST" // toDo: fails with method, WHY???
 				},
 				{
-					Endpoint: "/collaboration/notify",
-					Service:  "eu.opencloud.web.collaboration",
-					// Method: "POST" // toDo: fails with method, WHY???
-				},
-				{
 					Endpoint:    "/collaboration",
 					Service:     "eu.opencloud.web.collaboration",
 					Unprotected: true,
