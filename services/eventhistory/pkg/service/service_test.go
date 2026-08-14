@@ -42,14 +42,13 @@ var _ = Describe("EventHistoryService", func() {
 	Context("with event consumer", func() {
 		BeforeEach(func() {
 			bus = testBus(make(chan events.Event))
-			evConsumer, err := consumer.NewConsumer(
+			_, err := consumer.NewConsumer(
 				consumer.Logger(log.Logger{}),
 				consumer.Config(cfg),
 				consumer.Persistence(sto),
 				consumer.Stream(bus),
 			)
 			Expect(err).ToNot(HaveOccurred())
-			go evConsumer.StoreEvents()
 		})
 
 		AfterEach(func() {
@@ -134,14 +133,13 @@ var _ = Describe("EventHistoryService", func() {
 		// consumer-less instance (gRPC-only mode), which can still find them.
 		bus = testBus(make(chan events.Event))
 		defer close(bus)
-		evConsumer, err := consumer.NewConsumer(
+		_, err := consumer.NewConsumer(
 			consumer.Logger(log.Logger{}),
 			consumer.Config(cfg),
 			consumer.Persistence(sto),
 			consumer.Stream(bus),
 		)
 		Expect(err).ToNot(HaveOccurred())
-		go evConsumer.StoreEvents()
 
 		id := bus.Publish(events.UploadReady{})
 		time.Sleep(500 * time.Millisecond)

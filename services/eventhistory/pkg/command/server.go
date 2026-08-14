@@ -72,7 +72,7 @@ func Server(cfg *config.Config) *cobra.Command {
 			)
 
 			if !cfg.Events.Disabled {
-				evConsumer, err := consumer.NewConsumer(
+				_, err = consumer.NewConsumer(
 					consumer.Logger(logger),
 					consumer.Config(cfg),
 					consumer.Persistence(st),
@@ -80,8 +80,6 @@ func Server(cfg *config.Config) *cobra.Command {
 				if err != nil {
 					return err
 				}
-
-				go evConsumer.StoreEvents()
 			} else {
 				logger.Info().Msg("event listening disabled, not starting event consumer")
 			}

@@ -20,7 +20,7 @@ type Consumer struct {
 	log   log.Logger
 }
 
-// NewConsumer initializes the event consumer
+// NewConsumer initializes the event consumer and starts storing events
 func NewConsumer(opts ...Option) (*Consumer, error) {
 	options := newOptions(opts...)
 
@@ -47,7 +47,10 @@ func NewConsumer(opts ...Option) (*Consumer, error) {
 		return nil, err
 	}
 
-	return &Consumer{ch: ch, store: options.Persistence, cfg: options.Config, log: options.Logger}, nil
+	c := &Consumer{ch: ch, store: options.Persistence, cfg: options.Config, log: options.Logger}
+	go c.StoreEvents()
+
+	return c, nil
 }
 
 // StoreEvents consumes all events and stores them in the store. Will block
