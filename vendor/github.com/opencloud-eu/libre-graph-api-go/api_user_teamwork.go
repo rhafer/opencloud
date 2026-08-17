@@ -16,67 +16,74 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 
-// MeDriveRootApiService MeDriveRootApi service
-type MeDriveRootApiService service
+// UserTeamworkApiService UserTeamworkApi service
+type UserTeamworkApiService service
 
-type ApiHomeGetRootRequest struct {
+type ApiSendActivityNotificationRequest struct {
 	ctx context.Context
-	ApiService *MeDriveRootApiService
-	select_ *[]string
+	ApiService *UserTeamworkApiService
+	userId string
+	activityNotification *ActivityNotification
 }
 
-// Select additional properties to be returned.
-func (r ApiHomeGetRootRequest) Select_(select_ []string) ApiHomeGetRootRequest {
-	r.select_ = &select_
+// The activity the user is notified about.
+func (r ApiSendActivityNotificationRequest) ActivityNotification(activityNotification ActivityNotification) ApiSendActivityNotificationRequest {
+	r.activityNotification = &activityNotification
 	return r
 }
 
-func (r ApiHomeGetRootRequest) Execute() (*DriveItem, *http.Response, error) {
-	return r.ApiService.HomeGetRootExecute(r)
+func (r ApiSendActivityNotificationRequest) Execute() (*http.Response, error) {
+	return r.ApiService.SendActivityNotificationExecute(r)
 }
 
 /*
-HomeGetRoot Get root from personal space
+SendActivityNotification Send an activity notification to a user
+
+Sends a notification about an activity to a user. The sender is the caller, the recipient is
+the user in the path, `activityType` says what happened and `topic` says what it happened on.
+
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiHomeGetRootRequest
+ @param userId key: id or name of user
+ @return ApiSendActivityNotificationRequest
 */
-func (a *MeDriveRootApiService) HomeGetRoot(ctx context.Context) ApiHomeGetRootRequest {
-	return ApiHomeGetRootRequest{
+func (a *UserTeamworkApiService) SendActivityNotification(ctx context.Context, userId string) ApiSendActivityNotificationRequest {
+	return ApiSendActivityNotificationRequest{
 		ApiService: a,
 		ctx: ctx,
+		userId: userId,
 	}
 }
 
 // Execute executes the request
-//  @return DriveItem
-func (a *MeDriveRootApiService) HomeGetRootExecute(r ApiHomeGetRootRequest) (*DriveItem, *http.Response, error) {
+func (a *UserTeamworkApiService) SendActivityNotificationExecute(r ApiSendActivityNotificationRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
+		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *DriveItem
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MeDriveRootApiService.HomeGetRoot")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UserTeamworkApiService.SendActivityNotification")
 	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1.0/me/drive/root"
+	localVarPath := localBasePath + "/v1.0/users/{user-id}/teamwork/sendActivityNotification"
+	localVarPath = strings.Replace(localVarPath, "{"+"user-id"+"}", url.PathEscape(parameterValueToString(r.userId, "userId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-
-	if r.select_ != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "$select", r.select_, "form", "csv")
+	if r.activityNotification == nil {
+		return nil, reportError("activityNotification is required and must be specified")
 	}
+
 	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
+	localVarHTTPContentTypes := []string{"application/json"}
 
 	// set Content-Type header
 	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
@@ -92,21 +99,23 @@ func (a *MeDriveRootApiService) HomeGetRootExecute(r ApiHomeGetRootRequest) (*Dr
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	// body params
+	localVarPostBody = r.activityNotification
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return localVarReturnValue, nil, err
+		return nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
+		return localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
+		return localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -118,21 +127,12 @@ func (a *MeDriveRootApiService) HomeGetRootExecute(r ApiHomeGetRootRequest) (*Dr
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
+				return localVarHTTPResponse, newErr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
+		return localVarHTTPResponse, newErr
 	}
 
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
+	return localVarHTTPResponse, nil
 }
