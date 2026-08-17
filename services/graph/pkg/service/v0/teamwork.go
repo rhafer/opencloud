@@ -117,14 +117,15 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// answer with 202 to hide who is allowed to access the resource.
 	authResponse, err := gatewayClient.Authenticate(ctx, &gateway.AuthenticateRequest{
 		Type:         "machine",
 		ClientId:     "userid:" + userID,
 		ClientSecret: g.config.MachineAuthAPIKey,
 	})
 	if err != nil || authResponse.GetStatus().GetCode() != rpc.Code_CODE_OK {
-		g.logger.Debug().Str("userID", userID).Msg("could not authenticate the recipient")
-		errorcode.ItemNotFound.Render(w, r, http.StatusNotFound, "recipient not found")
+		g.logger.Debug().Str("userID", userID).Msg("mention dropped, could not authenticate the recipient")
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
@@ -133,8 +134,8 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		&storageprovider.StatRequest{Ref: ref},
 	)
 	if err != nil || recipientStat.GetStatus().GetCode() != rpc.Code_CODE_OK {
-		g.logger.Debug().Str("userID", userID).Msg("the recipient has no access to the item")
-		errorcode.AccessDenied.Render(w, r, http.StatusForbidden, "the recipient cannot access the item")
+		g.logger.Debug().Str("userID", userID).Msg("mention dropped, the recipient has no access to the item")
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 

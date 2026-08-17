@@ -204,23 +204,24 @@ var _ = Describe("SendActivityNotification", func() {
 		Expect(mentions()).To(BeEmpty())
 	})
 
-	It("refuses a recipient who cannot see the item", func() {
+	// recipient failures look like success so the sender cannot probe access
+	It("silently drops a mention for a recipient who cannot see the item", func() {
 		statAs("")
 
 		rr := httptest.NewRecorder()
 		svc.SendActivityNotification(rr, request("alice", mention))
 
-		Expect(rr.Code).To(Equal(http.StatusForbidden))
+		Expect(rr.Code).To(Equal(http.StatusAccepted))
 		Expect(mentions()).To(BeEmpty())
 	})
 
-	It("refuses a recipient that does not exist", func() {
+	It("drop a mention for a recipient that does not exist", func() {
 		statAs("", "alice-token")
 
 		rr := httptest.NewRecorder()
 		svc.SendActivityNotification(rr, request("nobody", mention))
 
-		Expect(rr.Code).To(Equal(http.StatusNotFound))
+		Expect(rr.Code).To(Equal(http.StatusAccepted))
 		Expect(mentions()).To(BeEmpty())
 	})
 
@@ -236,7 +237,6 @@ var _ = Describe("SendActivityNotification", func() {
 		},
 		Entry("no json", `not json`),
 		Entry("unknown field", `{"topic":{"source":"text","value":"storage$space!item"},"activityType":"mentioned","teamsAppId":"`+service.WebOfficeAppID+`","chainId":1}`),
-		// the ms graph api takes them from trusted clients, ours is the browser
 		Entry("template parameters", `{"topic":{"source":"text","value":"storage$space!item"},"activityType":"mentioned","teamsAppId":"`+service.WebOfficeAppID+`","templateParameters":[{"name":"actor","value":"someone else"}]}`),
 		Entry("no topic", `{"activityType":"mentioned","teamsAppId":"`+service.WebOfficeAppID+`"}`),
 		Entry("topic source entityUrl", `{"topic":{"source":"entityUrl","value":"https://cloud.opencloud.test/f/item"},"activityType":"mentioned","teamsAppId":"`+service.WebOfficeAppID+`"}`),
