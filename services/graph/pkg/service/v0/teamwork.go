@@ -56,14 +56,6 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if _, err := g.permissionsService.GetPermissionByID(ctx, &settingssvc.GetPermissionByIDRequest{
-		PermissionId: settingsServiceExt.CollaborationPublishNotificationPermission(0).Id,
-	}); err != nil {
-		g.logger.Debug().Err(err).Msg("user is not allowed to publish activity notifications")
-		errorcode.AccessDenied.Render(w, r, http.StatusForbidden, "not allowed to publish activity notifications")
-		return
-	}
-
 	userID, err := url.PathUnescape(chi.URLParam(r, "userID"))
 	if err != nil || userID == "" {
 		errorcode.InvalidRequest.Render(w, r, http.StatusBadRequest, "invalid user id")
@@ -93,6 +85,14 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 	if err != nil || itemID.GetStorageId() == "" || itemID.GetSpaceId() == "" || itemID.GetOpaqueId() == "" {
 		g.logger.Debug().Err(err).Msg("could not parse the topic value")
 		errorcode.InvalidRequest.Render(w, r, http.StatusBadRequest, "the topic value is no resource id")
+		return
+	}
+
+	if _, err := g.permissionsService.GetPermissionByID(ctx, &settingssvc.GetPermissionByIDRequest{
+		PermissionId: settingsServiceExt.CollaborationPublishNotificationPermission(0).Id,
+	}); err != nil {
+		g.logger.Debug().Err(err).Msg("user is not allowed to publish activity notifications")
+		errorcode.AccessDenied.Render(w, r, http.StatusForbidden, "not allowed to publish activity notifications")
 		return
 	}
 
