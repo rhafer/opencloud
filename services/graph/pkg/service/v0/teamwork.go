@@ -105,27 +105,39 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 
 	ref := &storageprovider.Reference{ResourceId: &itemID}
 
-	// the notification is valid if the caller can see the resource.
 	statResponse, err := gatewayClient.Stat(ctx, &storageprovider.StatRequest{Ref: ref})
 	switch {
 	case err != nil:
 		g.logger.Error().Err(err).Msg("could not stat item")
 		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not stat item")
 		return
-	case statResponse.GetStatus().GetCode() != rpc.Code_CODE_OK:
+	case statResponse.GetStatus().GetCode() == rpc.Code_CODE_NOT_FOUND,
+		statResponse.GetStatus().GetCode() == rpc.Code_CODE_PERMISSION_DENIED:
 		errorcode.ItemNotFound.Render(w, r, http.StatusNotFound, "item not found")
+		return
+	case statResponse.GetStatus().GetCode() != rpc.Code_CODE_OK:
+		g.logger.Error().Str("code", statResponse.GetStatus().GetCode().String()).Msg("could not stat item")
+		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not stat item")
 		return
 	}
 
-	// answer with 202 to hide who is allowed to access the resource.
 	authResponse, err := gatewayClient.Authenticate(ctx, &gateway.AuthenticateRequest{
 		Type:         "machine",
 		ClientId:     "userid:" + userID,
 		ClientSecret: g.config.MachineAuthAPIKey,
 	})
-	if err != nil || authResponse.GetStatus().GetCode() != rpc.Code_CODE_OK {
-		g.logger.Debug().Str("userID", userID).Msg("mention dropped, could not authenticate the recipient")
-		w.WriteHeader(http.StatusAccepted)
+	switch {
+	case err != nil:
+		g.logger.Error().Err(err).Msg("could not authenticate the recipient")
+		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not authenticate the recipient")
+		return
+	case authResponse.GetStatus().GetCode() == rpc.Code_CODE_NOT_FOUND:
+		g.logger.Debug().Str("userID", userID).Msg("the recipient does not exist")
+		errorcode.ItemNotFound.Render(w, r, http.StatusNotFound, "recipient not found")
+		return
+	case authResponse.GetStatus().GetCode() != rpc.Code_CODE_OK:
+		g.logger.Error().Str("userID", userID).Str("code", authResponse.GetStatus().GetCode().String()).Msg("could not authenticate the recipient")
+		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not authenticate the recipient")
 		return
 	}
 
@@ -133,9 +145,19 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		metadata.AppendToOutgoingContext(ctx, revactx.TokenHeader, authResponse.GetToken()),
 		&storageprovider.StatRequest{Ref: ref},
 	)
-	if err != nil || recipientStat.GetStatus().GetCode() != rpc.Code_CODE_OK {
+	switch {
+	case err != nil:
+		g.logger.Error().Err(err).Msg("could not stat the item as the recipient")
+		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not stat item")
+		return
+	case recipientStat.GetStatus().GetCode() == rpc.Code_CODE_NOT_FOUND,
+		recipientStat.GetStatus().GetCode() == rpc.Code_CODE_PERMISSION_DENIED:
 		g.logger.Debug().Str("userID", userID).Msg("mention dropped, the recipient has no access to the item")
 		w.WriteHeader(http.StatusAccepted)
+		return
+	case recipientStat.GetStatus().GetCode() != rpc.Code_CODE_OK:
+		g.logger.Error().Str("userID", userID).Str("code", recipientStat.GetStatus().GetCode().String()).Msg("could not stat the item as the recipient")
+		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not stat item")
 		return
 	}
 

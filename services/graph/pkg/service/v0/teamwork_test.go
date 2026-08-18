@@ -9,6 +9,7 @@ import (
 
 	gateway "github.com/cs3org/go-cs3apis/cs3/gateway/v1beta1"
 	userpb "github.com/cs3org/go-cs3apis/cs3/identity/user/v1beta1"
+	rpc "github.com/cs3org/go-cs3apis/cs3/rpc/v1beta1"
 	provider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
 	"github.com/go-chi/chi/v5"
 	. "github.com/onsi/ginkgo/v2"
@@ -69,12 +70,8 @@ var _ = Describe("SendActivityNotification", func() {
 		return mentions
 	}
 
-	statAs := func(tokens ...string) {
-		allowed := make(map[string]struct{}, len(tokens))
-		for _, token := range tokens {
-			allowed[token] = struct{}{}
-		}
-
+	// the stat answers with the status the callback picks for the token the call carries
+	statWith := func(statusFor func(ctx context.Context, token string) *rpc.Status) {
 		gatewayClient.On("Stat", mock.Anything, mock.Anything).Return(
 			func(ctx context.Context, _ *provider.StatRequest, _ ...grpc.CallOption) *provider.StatResponse {
 				var token string
@@ -82,17 +79,33 @@ var _ = Describe("SendActivityNotification", func() {
 					token = strings.Join(md.Get(revactx.TokenHeader), "")
 				}
 
-				if _, ok := allowed[token]; !ok {
-					return &provider.StatResponse{Status: status.NewNotFound(ctx, "not found")}
+				st := statusFor(ctx, token)
+				if st.GetCode() != rpc.Code_CODE_OK {
+					return &provider.StatResponse{Status: st}
 				}
 
 				return &provider.StatResponse{
-					Status: status.NewOK(ctx),
+					Status: st,
 					Info: &provider.ResourceInfo{
 						Id: &provider.ResourceId{StorageId: "storage", SpaceId: "space", OpaqueId: "item"},
 					},
 				}
 			}, nil)
+	}
+
+	statAs := func(tokens ...string) {
+		allowed := make(map[string]struct{}, len(tokens))
+		for _, token := range tokens {
+			allowed[token] = struct{}{}
+		}
+
+		statWith(func(ctx context.Context, token string) *rpc.Status {
+			if _, ok := allowed[token]; !ok {
+				return status.NewNotFound(ctx, "not found")
+			}
+
+			return status.NewOK(ctx)
+		})
 	}
 
 	BeforeEach(func() {
@@ -116,8 +129,11 @@ var _ = Describe("SendActivityNotification", func() {
 		gatewayClient.On("Authenticate", mock.Anything, mock.Anything).Return(
 			func(_ context.Context, req *gateway.AuthenticateRequest, _ ...grpc.CallOption) *gateway.AuthenticateResponse {
 				userID := strings.TrimPrefix(req.GetClientId(), "userid:")
-				if userID == "nobody" {
+				switch userID {
+				case "nobody":
 					return &gateway.AuthenticateResponse{Status: status.NewNotFound(context.Background(), "not found")}
+				case "broken":
+					return &gateway.AuthenticateResponse{Status: status.NewInternal(context.Background(), "auth failed")}
 				}
 
 				return &gateway.AuthenticateResponse{
@@ -204,7 +220,19 @@ var _ = Describe("SendActivityNotification", func() {
 		Expect(mentions()).To(BeEmpty())
 	})
 
-	// recipient failures look like success so the sender cannot probe access
+	It("fails when the item cannot be stated as the caller", func() {
+		statWith(func(ctx context.Context, _ string) *rpc.Status {
+			return status.NewInternal(ctx, "stat failed")
+		})
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("alice", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusInternalServerError))
+		Expect(mentions()).To(BeEmpty())
+	})
+
+	// a recipient without access looks like success, so the sender cannot probe who has it
 	It("silently drops a mention for a recipient who cannot see the item", func() {
 		statAs("")
 
@@ -215,13 +243,57 @@ var _ = Describe("SendActivityNotification", func() {
 		Expect(mentions()).To(BeEmpty())
 	})
 
-	It("drop a mention for a recipient that does not exist", func() {
+	It("silently drops a mention for a recipient who may not see the item", func() {
+		statWith(func(ctx context.Context, token string) *rpc.Status {
+			if token == "alice-token" {
+				return status.NewPermissionDenied(ctx, nil, "permission denied")
+			}
+
+			return status.NewOK(ctx)
+		})
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("alice", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusAccepted))
+		Expect(mentions()).To(BeEmpty())
+	})
+
+	// only a not found and a permission denied are the recipient's own, the rest is ours
+	It("fails when the item cannot be stated as the recipient", func() {
+		statWith(func(ctx context.Context, token string) *rpc.Status {
+			if token == "alice-token" {
+				return status.NewInternal(ctx, "stat failed")
+			}
+
+			return status.NewOK(ctx)
+		})
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("alice", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusInternalServerError))
+		Expect(mentions()).To(BeEmpty())
+	})
+
+	// a user id is no secret, other endpoints look users up as well
+	It("refuses a recipient that does not exist", func() {
 		statAs("", "alice-token")
 
 		rr := httptest.NewRecorder()
 		svc.SendActivityNotification(rr, request("nobody", mention))
 
-		Expect(rr.Code).To(Equal(http.StatusAccepted))
+		Expect(rr.Code).To(Equal(http.StatusNotFound))
+		Expect(mentions()).To(BeEmpty())
+	})
+
+	It("fails when the recipient cannot be authenticated", func() {
+		statAs("")
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("broken", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusInternalServerError))
 		Expect(mentions()).To(BeEmpty())
 	})
 
