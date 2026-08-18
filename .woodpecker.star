@@ -401,8 +401,7 @@ config = {
         "4": {
             "skip": False,
             "suites": [
-                # skip user-settings due to failing pagination test. see https://github.com/opencloud-eu/opencloud/pull/3324
-                #"user-settings/",
+                "user-settings/",
                 "fileaction/",
                 "embed",
             ],
