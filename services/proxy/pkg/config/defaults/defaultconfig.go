@@ -267,11 +267,6 @@ func DefaultPolicies() []config.Policy {
 					Service:  "eu.opencloud.web.frontend",
 				},
 				{
-					Endpoint:    "/data",
-					Service:     "eu.opencloud.web.frontend",
-					Unprotected: true,
-				},
-				{
 					Endpoint:    "/app/list",
 					Service:     "eu.opencloud.web.frontend",
 					Unprotected: true,

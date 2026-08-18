@@ -41,8 +41,8 @@ func NewDataGatewayMiddleware(secret string, timeout time.Duration) *DataGateway
 func (m *DataGatewayMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		// --- REQUEST PHASE: Handle tus PATCH /data requests ---
-		isTusPatchRequest := r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/data") && r.Header.Get("Tus-Resumable") == "1.0.0"
+		// --- REQUEST PHASE: Handle tus PATCH, DELETE and GET /data requests ---
+		isTusPatchRequest := strings.HasPrefix(r.URL.Path, "/data") && r.Header.Get("Tus-Resumable") == "1.0.0"
 
 		if isTusPatchRequest {
 			token := r.Header.Get(TokenTransportHeader)
