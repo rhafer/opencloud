@@ -11,7 +11,7 @@ import (
 
 	searchService "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch"
-	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/test"
+	opensearchtest "github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/test"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
@@ -279,5 +279,104 @@ func TestEngine_DocCount(t *testing.T) {
 		count, err = backend.DocCount()
 		require.NoError(t, err)
 		require.Equal(t, uint64(0), count)
+	})
+}
+
+// resourceByID fetches a single indexed resource by its document ID.
+func resourceByID(t *testing.T, tc *opensearchtest.TestClient, index, id string) search.Resource {
+	t.Helper()
+
+	body := opensearchtest.JSONMustMarshal(t, map[string]any{
+		"query": map[string]any{
+			"ids": map[string]any{
+				"values": []string{id},
+			},
+		},
+	})
+
+	resources := opensearchtest.SearchHitsMustBeConverted[search.Resource](t, tc.Require.Search(index, strings.NewReader(body)).Hits)
+	require.Len(t, resources, 1)
+	return resources[0]
+}
+
+// otherRoot returns a copy of the given resource that lives in a different root (space)
+// while keeping the same path, so it can be used to assert that cross-root updates do
+// not affect identically-named resources in other roots.
+func otherRoot(r search.Resource) search.Resource {
+	r.ID = "2$2!3"
+	r.RootID = "2$2!1"
+	r.ParentID = "2$2!2"
+	return r
+}
+
+// newRootScopeBackend resets the index, applies the resource mapping via NewBackend and
+// indexes the given resources. It is used by the root-scope tests below.
+func newRootScopeBackend(t *testing.T, indexName string, resources ...search.Resource) (*opensearch.Backend, *opensearchtest.TestClient) {
+	t.Helper()
+
+	tc := opensearchtest.NewDefaultTestClient(t, defaultConfig.Engine.OpenSearch.Client)
+	tc.Require.IndicesReset([]string{indexName})
+	tc.Require.IndicesCount([]string{indexName}, nil, 0)
+
+	backend, err := opensearch.NewBackend(indexName, tc.Client())
+	require.NoError(t, err)
+
+	for _, r := range resources {
+		tc.Require.DocumentCreate(indexName, r.ID, strings.NewReader(opensearchtest.JSONMustMarshal(t, r)))
+	}
+	tc.Require.IndicesCount([]string{indexName}, nil, len(resources))
+
+	return backend, tc
+}
+
+// TestEngine_UpdateSelfAndDescendants_RootScope ensures that updates which affect a
+// resource and its descendants (Delete, Restore, Move) are scoped to the root (space)
+// of the target resource. Two resources living in different roots may share the exact
+// same path, so matching by path alone would incorrectly update the wrong resource.
+func TestEngine_UpdateSelfAndDescendants_RootScope(t *testing.T) {
+	t.Run("delete only affects the resource in the target root", func(t *testing.T) {
+		indexName := "opencloud-test-engine-root-scope-delete"
+
+		target := opensearchtest.Testdata.Resources.File
+		other := otherRoot(target)
+
+		backend, tc := newRootScopeBackend(t, indexName, target, other)
+		defer tc.Require.IndicesDelete([]string{indexName})
+
+		require.NoError(t, backend.Delete(target.ID))
+
+		require.True(t, resourceByID(t, tc, indexName, target.ID).Deleted, "target resource should be marked as deleted")
+		require.False(t, resourceByID(t, tc, indexName, other.ID).Deleted, "resource in a different root must not be affected")
+	})
+
+	t.Run("restore only affects the resource in the target root", func(t *testing.T) {
+		indexName := "opencloud-test-engine-root-scope-restore"
+
+		target := opensearchtest.Testdata.Resources.File
+		target.Deleted = true
+		other := otherRoot(target)
+
+		backend, tc := newRootScopeBackend(t, indexName, target, other)
+		defer tc.Require.IndicesDelete([]string{indexName})
+
+		require.NoError(t, backend.Restore(target.ID))
+
+		require.False(t, resourceByID(t, tc, indexName, target.ID).Deleted, "target resource should be restored")
+		require.True(t, resourceByID(t, tc, indexName, other.ID).Deleted, "resource in a different root must not be affected")
+	})
+
+	t.Run("move only affects the resource in the target root", func(t *testing.T) {
+		indexName := "opencloud-test-engine-root-scope-move"
+
+		target := opensearchtest.Testdata.Resources.File
+		other := otherRoot(target)
+
+		backend, tc := newRootScopeBackend(t, indexName, target, other)
+		defer tc.Require.IndicesDelete([]string{indexName})
+
+		require.NoError(t, backend.Move(target.ID, target.ParentID, "./new/path/to/resource"))
+
+		require.Equal(t, "./new/path/to/resource", resourceByID(t, tc, indexName, target.ID).Path, "target resource should be moved")
+		require.Equal(t, other.Path, resourceByID(t, tc, indexName, other.ID).Path, "resource in a different root must not be moved")
 	})
 }
