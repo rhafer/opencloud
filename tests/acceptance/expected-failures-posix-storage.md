@@ -339,8 +339,6 @@ _ocdav: api compatibility, return correct status code_
 
 #### [POSIX: failing CLI commands](https://github.com/opencloud-eu/opencloud/issues/3095)
 
-- [cliCommands/restoreTrashBinItems.feature:11](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/cliCommands/restoreTrashBinItems.feature#L11)
-- [cliCommands/restoreTrashBinItems.feature:23](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/cliCommands/restoreTrashBinItems.feature#L23)
 - [cliCommands/sharesCleanup.feature:12](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/cliCommands/sharesCleanup.feature#L12)
 
 ### notification issue #323
