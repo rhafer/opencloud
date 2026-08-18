@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"time"
@@ -149,9 +150,16 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 	}
 
 	recipientStat, err := gatewayClient.Stat(
-		metadata.AppendToOutgoingContext(ctx, revactx.TokenHeader, authResponse.GetToken()),
+		func() context.Context {
+			md, _ := metadata.FromOutgoingContext(ctx)
+			md = md.Copy()
+			md.Set(revactx.TokenHeader, authResponse.GetToken())
+
+			return metadata.NewOutgoingContext(ctx, md)
+		}(),
 		&storageprovider.StatRequest{Ref: ref},
 	)
+
 	switch {
 	case err != nil:
 		g.logger.Error().Err(err).Msg("could not stat the item as the recipient")
