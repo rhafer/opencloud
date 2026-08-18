@@ -116,8 +116,11 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		errorcode.ItemNotFound.Render(w, r, http.StatusNotFound, "item not found")
 		return
 	case statResponse.GetStatus().GetCode() != rpc.Code_CODE_OK:
-		g.logger.Error().Str("code", statResponse.GetStatus().GetCode().String()).Msg("could not stat item")
-		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not stat item")
+		g.logger.Error().
+			Str("code", statResponse.GetStatus().GetCode().String()).
+			Str("message", statResponse.GetStatus().GetMessage()).
+			Msg("could not stat item")
+		errorcode.RenderError(w, r, errorcode.FromCS3Status(statResponse.GetStatus(), nil))
 		return
 	}
 
@@ -136,8 +139,12 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		errorcode.ItemNotFound.Render(w, r, http.StatusNotFound, "recipient not found")
 		return
 	case authResponse.GetStatus().GetCode() != rpc.Code_CODE_OK:
-		g.logger.Error().Str("userID", userID).Str("code", authResponse.GetStatus().GetCode().String()).Msg("could not authenticate the recipient")
-		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not authenticate the recipient")
+		g.logger.Error().
+			Str("userID", userID).
+			Str("code", authResponse.GetStatus().GetCode().String()).
+			Str("message", authResponse.GetStatus().GetMessage()).
+			Msg("could not authenticate the recipient")
+		errorcode.RenderError(w, r, errorcode.FromCS3Status(authResponse.GetStatus(), nil))
 		return
 	}
 
@@ -156,8 +163,12 @@ func (g Graph) SendActivityNotification(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusAccepted)
 		return
 	case recipientStat.GetStatus().GetCode() != rpc.Code_CODE_OK:
-		g.logger.Error().Str("userID", userID).Str("code", recipientStat.GetStatus().GetCode().String()).Msg("could not stat the item as the recipient")
-		errorcode.GeneralException.Render(w, r, http.StatusInternalServerError, "could not stat item")
+		g.logger.Error().
+			Str("userID", userID).
+			Str("code", recipientStat.GetStatus().GetCode().String()).
+			Str("message", recipientStat.GetStatus().GetMessage()).
+			Msg("could not stat the item as the recipient")
+		errorcode.RenderError(w, r, errorcode.FromCS3Status(recipientStat.GetStatus(), nil))
 		return
 	}
 

@@ -134,6 +134,8 @@ var _ = Describe("SendActivityNotification", func() {
 					return &gateway.AuthenticateResponse{Status: status.NewNotFound(context.Background(), "not found")}
 				case "broken":
 					return &gateway.AuthenticateResponse{Status: status.NewInternal(context.Background(), "auth failed")}
+				case "denied":
+					return &gateway.AuthenticateResponse{Status: status.NewPermissionDenied(context.Background(), nil, "permission denied")}
 				}
 
 				return &gateway.AuthenticateResponse{
@@ -232,6 +234,19 @@ var _ = Describe("SendActivityNotification", func() {
 		Expect(mentions()).To(BeEmpty())
 	})
 
+	// anything the caller stat answers beyond that is whatever the cs3 status maps to
+	It("carries the cs3 status of a failed caller stat", func() {
+		statWith(func(ctx context.Context, _ string) *rpc.Status {
+			return status.NewInvalidArg(ctx, "invalid reference")
+		})
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("alice", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusBadRequest))
+		Expect(mentions()).To(BeEmpty())
+	})
+
 	// a recipient without access looks like success, so the sender cannot probe who has it
 	It("silently drops a mention for a recipient who cannot see the item", func() {
 		statAs("")
@@ -276,6 +291,22 @@ var _ = Describe("SendActivityNotification", func() {
 		Expect(mentions()).To(BeEmpty())
 	})
 
+	It("carries the cs3 status of a failed recipient stat", func() {
+		statWith(func(ctx context.Context, token string) *rpc.Status {
+			if token == "alice-token" {
+				return status.NewLocked(ctx, "locked")
+			}
+
+			return status.NewOK(ctx)
+		})
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("alice", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusLocked))
+		Expect(mentions()).To(BeEmpty())
+	})
+
 	// a user id is no secret, other endpoints look users up as well
 	It("refuses a recipient that does not exist", func() {
 		statAs("", "alice-token")
@@ -294,6 +325,17 @@ var _ = Describe("SendActivityNotification", func() {
 		svc.SendActivityNotification(rr, request("broken", mention))
 
 		Expect(rr.Code).To(Equal(http.StatusInternalServerError))
+		Expect(mentions()).To(BeEmpty())
+	})
+
+	// a rejected machine auth is a server side misconfiguration, the status decides what it looks like
+	It("carries the cs3 status of a rejected machine auth", func() {
+		statAs("")
+
+		rr := httptest.NewRecorder()
+		svc.SendActivityNotification(rr, request("denied", mention))
+
+		Expect(rr.Code).To(Equal(http.StatusForbidden))
 		Expect(mentions()).To(BeEmpty())
 	})
 
