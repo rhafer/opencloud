@@ -337,9 +337,6 @@ _ocdav: api compatibility, return correct status code_
 - [coreApiWebdavPreviews/previews.feature:264](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/coreApiWebdavPreviews/previews.feature#L264)
 - [coreApiWebdavPreviews/previews.feature:265](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/coreApiWebdavPreviews/previews.feature#L265)
 
-#### [POSIX: failing CLI commands](https://github.com/opencloud-eu/opencloud/issues/3095)
-
-- [cliCommands/sharesCleanup.feature:12](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/cliCommands/sharesCleanup.feature#L12)
 
 ### notification issue #323
 - [apiNotification/emailNotification.feature:280](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/apiNotification/emailNotification.feature#L280)
