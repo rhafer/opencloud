@@ -26,12 +26,14 @@ type transferClaims struct {
 
 // DataGatewayMiddleware handles both routing of /data requests and rewriting TUS Location headers.
 type DataGatewayMiddleware struct {
+	Prefix  string
 	Secret  string
 	Timeout time.Duration
 }
 
-func NewDataGatewayMiddleware(secret string, timeout time.Duration) *DataGatewayMiddleware {
+func NewDataGatewayMiddleware(prefix, secret string, timeout time.Duration) *DataGatewayMiddleware {
 	return &DataGatewayMiddleware{
+		Prefix:  prefix,
 		Secret:  secret,
 		Timeout: timeout,
 	}
@@ -41,10 +43,14 @@ func NewDataGatewayMiddleware(secret string, timeout time.Duration) *DataGateway
 func (m *DataGatewayMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		// --- REQUEST PHASE: Handle tus PATCH, DELETE and GET /data requests ---
-		isTusPatchRequest := strings.HasPrefix(r.URL.Path, "/data") && r.Header.Get("Tus-Resumable") == "1.0.0"
+		// --- REQUEST PHASE: Handle /data requests ---
+		// Not only the TUS PATCH requests by clients need to be rewritten.
+		// Services like antivirus make GET requests to check the file content
+		// and a DELETE reuquest is used to cancel an upload.
+		// All of these requests need to be routed through the datagateway.
+		isDataGatewayRequest := strings.HasPrefix(r.URL.Path, m.Prefix)
 
-		if isTusPatchRequest {
+		if isDataGatewayRequest {
 			token := r.Header.Get(TokenTransportHeader)
 			if token == "" {
 				token = path.Base(r.URL.Path)
