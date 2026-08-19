@@ -42,6 +42,17 @@ type Classification struct {
 	Reasons []string
 }
 
+// AddBreaking records engine-specific breaking reasons (e.g. analyzer drift)
+// found outside the properties tree and forces the verdict to breaking. It is a
+// no-op when reasons is empty, so callers can pass their findings unconditionally.
+func (c *Classification) AddBreaking(reasons ...string) {
+	if len(reasons) == 0 {
+		return
+	}
+	c.Verdict = VerdictBreaking
+	c.Reasons = append(reasons, c.Reasons...)
+}
+
 // Classify recursively compares a stored `properties` tree against the one from
 // code (both generic JSON-decoded, not marshaled structs). dataFields reports
 // whether a code-only field already holds data in the index (bleve dynamic
@@ -89,7 +100,7 @@ func classifyNode(stored, code any, dataFields func(string) bool, path string, c
 		return
 	}
 
-	for _, k := range sortedUnionKeys(storedMap, codeMap) {
+	for _, k := range SortedUnionKeys(storedMap, codeMap) {
 		if k == "properties" {
 			continue
 		}
@@ -134,7 +145,8 @@ func joinPath(prefix, k string) string {
 	return prefix + "." + k
 }
 
-func sortedUnionKeys(a, b map[string]any) []string {
+// SortedUnionKeys returns the sorted union of the keys of a and b.
+func SortedUnionKeys(a, b map[string]any) []string {
 	keys := slices.Collect(maps.Keys(a))
 	for k := range b {
 		if _, ok := a[k]; !ok {

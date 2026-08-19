@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"path/filepath"
 	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
@@ -158,24 +156,14 @@ func classifyStoredMapping(index bleve.Index) (searchmapping.Classification, []b
 	var reasons []string
 	compareKeysExcept(stored, code, "default_mapping", "", &reasons)
 	compareKeysExcept(storedDM, codeDM, "properties", "default_mapping.", &reasons)
-	if len(reasons) > 0 {
-		classification.Verdict = searchmapping.VerdictBreaking
-		classification.Reasons = append(reasons, classification.Reasons...)
-	}
+	classification.AddBreaking(reasons...)
 
 	return classification, codeB, nil
 }
 
 // compareKeysExcept deep-compares all keys present on either side except skip.
 func compareKeysExcept(stored, code map[string]any, skip, prefix string, reasons *[]string) {
-	keys := slices.Collect(maps.Keys(stored))
-	for k := range code {
-		if _, ok := stored[k]; !ok {
-			keys = append(keys, k)
-		}
-	}
-	slices.Sort(keys)
-	for _, k := range keys {
+	for _, k := range searchmapping.SortedUnionKeys(stored, code) {
 		if k == skip {
 			continue
 		}

@@ -203,11 +203,7 @@ func (r *osReconciler) Classify() (searchmapping.Classification, error) {
 		propertiesMap(r.local.Get("mappings.properties").Raw),
 		nil,
 	)
-	reasons = append(reasons, classification.Reasons...)
-	if len(reasons) > 0 {
-		classification.Verdict = searchmapping.VerdictBreaking
-		classification.Reasons = reasons
-	}
+	classification.AddBreaking(reasons...)
 	return classification, nil
 }
 
