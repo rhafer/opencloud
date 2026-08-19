@@ -213,7 +213,8 @@ var _ = Describe("NewMapping", func() {
 	})
 
 	// A diff here means existing indexes will classify as breaking (schema or
-	// bleve marshaling changed); update the golden file only deliberately.
+	// bleve marshaling changed). Update the golden deliberately; on a marshaling
+	// change, bump search.SchemaVersion too or existing indexes refuse to start.
 	It("matches the committed golden mapping", func() {
 		m, err := bleve.NewMapping()
 		Expect(err).ToNot(HaveOccurred())
