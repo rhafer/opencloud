@@ -25,104 +25,113 @@ var _ = Describe("Classify", func() {
 		return func(path string) bool { return slices.Contains(fields, path) }
 	}
 
-	It("classifies identical schemas as equal", func() {
-		c := Classify(parse(code), parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictEqual))
-		Expect(c.NewFields).To(BeEmpty())
-		Expect(c.Reasons).To(BeEmpty())
-	})
+	// setup produces the (stored, code, dataFields) arguments for one case.
+	type setup func() (stored, codeSchema map[string]any, dataFields func(string) bool)
 
-	It("classifies a new top-level field as additive", func() {
-		stored := parse(code)
-		delete(stored, "Size")
+	substrings := func(ss []string) []any {
+		out := make([]any, len(ss))
+		for i, s := range ss {
+			out[i] = ContainSubstring(s)
+		}
+		return out
+	}
+	fields := func(ss []string) []any {
+		out := make([]any, len(ss))
+		for i, s := range ss {
+			out[i] = s
+		}
+		return out
+	}
 
-		c := Classify(stored, parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictAdditive))
-		Expect(c.NewFields).To(ConsistOf("Size"))
-		Expect(c.Reasons).To(BeEmpty())
-	})
+	// newFields/reasons are asserted only when non-nil; an empty slice asserts
+	// "none".
+	DescribeTable("verdict",
+		func(s setup, verdict Verdict, newFields, reasons []string) {
+			stored, codeSchema, dataFields := s()
 
-	It("classifies a new nested field as additive", func() {
-		stored := parse(code)
-		delete(stored["photo"].(map[string]any)["properties"].(map[string]any), "cameraMake")
+			c := Classify(stored, codeSchema, dataFields)
+			Expect(c.Verdict).To(Equal(verdict))
+			if newFields != nil {
+				Expect(c.NewFields).To(ConsistOf(fields(newFields)...))
+			}
+			if reasons != nil {
+				Expect(c.Reasons).To(ConsistOf(substrings(reasons)...))
+			}
+		},
+		Entry("identical schemas are equal",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				return parse(code), parse(code), nil
+			}), VerdictEqual, []string{}, []string{}),
 
-		c := Classify(stored, parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictAdditive))
-		Expect(c.NewFields).To(ConsistOf("photo.cameraMake"))
-	})
+		Entry("a new top-level field is additive",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored, "Size")
+				return stored, parse(code), nil
+			}), VerdictAdditive, []string{"Size"}, nil),
 
-	It("lists every leaf of a new subtree", func() {
-		stored := parse(code)
-		delete(stored, "photo")
+		Entry("a new nested field is additive",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored["photo"].(map[string]any)["properties"].(map[string]any), "cameraMake")
+				return stored, parse(code), nil
+			}), VerdictAdditive, []string{"photo.cameraMake"}, nil),
 
-		c := Classify(stored, parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictAdditive))
-		Expect(c.NewFields).To(ConsistOf("photo.cameraMake", "photo.cameraModel"))
-	})
+		Entry("a new subtree lists every leaf",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored, "photo")
+				return stored, parse(code), nil
+			}), VerdictAdditive, []string{"photo.cameraMake", "photo.cameraModel"}, nil),
 
-	It("breaks when a new field already has data in the index", func() {
-		stored := parse(code)
-		delete(stored, "Size")
+		Entry("a new field that already holds data is breaking",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored, "Size")
+				return stored, parse(code), hasData("Size")
+			}), VerdictBreaking, nil, []string{"Size"}),
 
-		c := Classify(stored, parse(code), hasData("Size"))
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("Size")))
-	})
+		Entry("a new nested field that already holds data is breaking",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored["photo"].(map[string]any)["properties"].(map[string]any), "cameraMake")
+				return stored, parse(code), hasData("photo.cameraMake")
+			}), VerdictBreaking, nil, []string{"photo.cameraMake"}),
 
-	It("breaks when a new nested field already has data in the index", func() {
-		stored := parse(code)
-		delete(stored["photo"].(map[string]any)["properties"].(map[string]any), "cameraMake")
+		Entry("a new subtree with data below it is breaking",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored, "photo")
+				return stored, parse(code), hasData("photo")
+			}), VerdictBreaking, nil, []string{"photo"}),
 
-		c := Classify(stored, parse(code), hasData("photo.cameraMake"))
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("photo.cameraMake")))
-	})
+		Entry("a changed field definition is breaking",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				stored["Size"].(map[string]any)["type"] = "keyword"
+				return stored, parse(code), nil
+			}), VerdictBreaking, nil, []string{"Size"}),
 
-	It("breaks when a new subtree already has data below it", func() {
-		stored := parse(code)
-		delete(stored, "photo")
+		Entry("a field removed from the code schema is breaking",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				reduced := parse(code)
+				delete(reduced, "Size")
+				return parse(code), reduced, nil
+			}), VerdictBreaking, nil, []string{"removed or renamed"}),
 
-		// the callback is consulted with the subtree root
-		c := Classify(stored, parse(code), hasData("photo"))
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("photo")))
-	})
+		Entry("a changed object attribute is breaking",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				stored["photo"].(map[string]any)["dynamic"] = true
+				return stored, parse(code), nil
+			}), VerdictBreaking, nil, []string{"dynamic"}),
 
-	It("breaks on a changed field definition", func() {
-		stored := parse(code)
-		stored["Size"].(map[string]any)["type"] = "keyword"
-
-		c := Classify(stored, parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("Size")))
-	})
-
-	It("breaks on a field that was removed from the code schema", func() {
-		reduced := parse(code)
-		delete(reduced, "Size")
-
-		c := Classify(parse(code), reduced, nil)
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("removed or renamed")))
-	})
-
-	It("breaks on a changed object attribute", func() {
-		stored := parse(code)
-		stored["photo"].(map[string]any)["dynamic"] = true
-
-		c := Classify(stored, parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("dynamic")))
-	})
-
-	It("lets breaking win over additive", func() {
-		stored := parse(code)
-		delete(stored, "Size")
-		stored["Name"].(map[string]any)["type"] = "text"
-
-		c := Classify(stored, parse(code), nil)
-		Expect(c.Verdict).To(Equal(VerdictBreaking))
-		Expect(c.NewFields).To(ConsistOf("Size"))
-		Expect(c.Reasons).To(ConsistOf(ContainSubstring("Name")))
-	})
+		Entry("breaking wins over additive",
+			setup(func() (map[string]any, map[string]any, func(string) bool) {
+				stored := parse(code)
+				delete(stored, "Size")
+				stored["Name"].(map[string]any)["type"] = "text"
+				return stored, parse(code), nil
+			}), VerdictBreaking, []string{"Size"}, []string{"Name"}),
+	)
 })

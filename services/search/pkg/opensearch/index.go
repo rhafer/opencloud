@@ -232,10 +232,8 @@ func (r *osReconciler) ApplyAdditive() (bool, error) {
 	return true, nil
 }
 
-// jsonEqual reports whether two raw JSON values are deeply equal. gjson yields
-// an empty string for a path that does not exist; two such unset values are
-// equal, an unset value never equals a present one, and a value that fails to
-// parse counts as unequal.
+// jsonEqual reports whether two raw JSON values are deeply equal. A missing
+// gjson path is an empty string, so two unset values compare equal.
 func jsonEqual(a, b string) bool {
 	if a == "" || b == "" {
 		return a == b

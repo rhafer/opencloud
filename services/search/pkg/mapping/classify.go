@@ -13,11 +13,9 @@ import (
 // ErrManualActionRequired marks schema changes that cannot be applied in place.
 var ErrManualActionRequired = errors.New("manual action required")
 
-// ManualActionRequiredError reports a breaking schema change. Because the index
-// is versioned by search.SchemaVersion, a released instance never hits this: a
-// version bump builds a fresh index. It fires in development when the mapping is
-// changed in a breaking way without bumping search.SchemaVersion, so the fix is
-// to bump it (or revert the change).
+// ManualActionRequiredError reports a breaking schema change. Only reachable in
+// development: a released instance versions the index by search.SchemaVersion,
+// so a bump builds a fresh index instead.
 func ManualActionRequiredError(index string, reasons []string) error {
 	return fmt.Errorf(
 		"%w: the search mapping in code differs from index %s in a breaking way:\n  - %s\n"+
@@ -44,11 +42,10 @@ type Classification struct {
 	Reasons []string
 }
 
-// Classify recursively compares a stored `properties` tree against the one
-// generated from code. Both sides must be generic JSON-decoded values, not
-// marshaled Go structs. dataFields reports whether the index holds data at or
-// below a dotted field path absent from the stored schema (bleve dynamic
-// fields); engines without that blind spot pass nil.
+// Classify recursively compares a stored `properties` tree against the one from
+// code (both generic JSON-decoded, not marshaled structs). dataFields reports
+// whether a code-only field already holds data in the index (bleve dynamic
+// fields make a new field breaking); engines without that blind spot pass nil.
 func Classify(stored, code map[string]any, dataFields func(path string) bool) Classification {
 	c := Classification{Verdict: VerdictEqual}
 	classifyProperties(stored, code, dataFields, "", &c)

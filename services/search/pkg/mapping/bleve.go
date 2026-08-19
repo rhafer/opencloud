@@ -12,10 +12,8 @@ import (
 // struct via reflection. Field names come from json tags; overrides are
 // keyed by those names (or dotted paths for nested fields).
 //
-// The returned mapping references analyzer names (Analyzer on the FieldOpts,
-// plus the words analyzer for the Fulltext type); the caller registers every
-// referenced analyzer on the enclosing IndexMapping (IndexMapping.Validate
-// catches missing ones).
+// The returned mapping references analyzer names that the caller must register
+// on the enclosing IndexMapping (IndexMapping.Validate catches missing ones).
 func BleveBuildMapping(t reflect.Type, overrides map[string]FieldOpts) (*bleveMapping.DocumentMapping, error) {
 	return buildBleveDocMapping(t, overrides, "")
 }

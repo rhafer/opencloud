@@ -99,10 +99,9 @@ func (r *bleveReconciler) ApplyAdditive() (bool, error) {
 }
 
 // classifyStoredMapping diffs the stored mapping against NewMapping() and
-// returns the marshaled code mapping. New-in-code fields that already hold
-// data (previously indexed dynamically) are breaking. The compare is only
-// stable within one bleve version: a changed marshaling default fails towards
-// breaking, normalize the affected key here if that ever fires.
+// returns the marshaled code mapping. New-in-code fields that already hold data
+// (previously indexed dynamically) are breaking. The compare assumes stable
+// bleve marshaling; the golden test guards against a marshaling-default drift.
 func classifyStoredMapping(index bleve.Index) (searchmapping.Classification, []byte, error) {
 	storedB, err := index.GetInternal([]byte("_mapping"))
 	if err != nil {
