@@ -11,6 +11,8 @@ import (
 	opensearchgo "github.com/opensearch-project/opensearch-go/v4"
 	opensearchgoAPI "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 
+	"github.com/opencloud-eu/reva/v2/pkg/errtypes"
+
 	searchService "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch"
 	opensearchtest "github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/test"
@@ -595,4 +597,17 @@ var _ = Describe("Backend", func() {
 		)
 	})
 
+	Describe("SearchWithAnInvalidQuery", func() {
+		const indexName = "opencloud-test-engine-search-invalid-query"
+
+		It("answers with a bad request", func() {
+			backend, tc := newBackend(indexName)
+			deleteIndexOnCleanup(tc, indexName)
+
+			_, err := backend.Search(context.Background(), &searchService.SearchIndexRequest{Query: "AND mediatype:document"})
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(BeAssignableToTypeOf(errtypes.BadRequest("")))
+			Expect(err.Error()).To(Equal(`error: bad request: the expression can't begin from a binary operator: 'AND'`))
+		})
+	})
 })
