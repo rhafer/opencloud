@@ -2473,6 +2473,7 @@ def opencloudServer(storage = "decomposed", depends_on = [], deploy_type = "", e
         "EVENTHISTORY_STORE": "memory",
         "OC_TRANSLATION_PATH": "%s/tests/config/translations" % dirs["base"],
         "ACTIVITYLOG_WRITE_BUFFER_DURATION": "0",  # Disable write buffer so that test expectations are met in time
+        "OC_LDAP_LOOKUP_CACHE_TTL": "0",  # disable ldap lookup cache so that test fixture change are applied right away
         # search grpc port needed for index cli tests
         "SEARCH_GRPC_ADDR": "0.0.0.0:9220",
         # debug addresses required for running services health tests
