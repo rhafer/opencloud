@@ -25,7 +25,7 @@ import (
 
 // bolt_timeout makes a second process on the same datapath fail after 5s
 // instead of blocking forever on the file lock.
-var openRuntimeConfig = map[string]interface{}{"bolt_timeout": "5s"}
+var openRuntimeConfig = map[string]any{"bolt_timeout": "5s"}
 
 // NewIndex opens (or creates) the bleve index at root and reconciles its schema
 // against NewMapping() via searchmapping.Reconcile.

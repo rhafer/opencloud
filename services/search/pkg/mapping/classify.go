@@ -50,7 +50,8 @@ func (c *Classification) AddBreaking(reasons ...string) {
 		return
 	}
 	c.Verdict = VerdictBreaking
-	c.Reasons = append(reasons, c.Reasons...)
+	// clone so we never append into the caller's variadic slice
+	c.Reasons = append(slices.Clone(reasons), c.Reasons...)
 }
 
 // Classify recursively compares a stored `properties` tree against the one from
