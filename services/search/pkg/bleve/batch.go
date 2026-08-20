@@ -68,6 +68,8 @@ func (b *Batch) Move(id string, parentID string, targetPath string) error {
 		}
 
 		for _, resource := range resources {
+			resource.Hidden = search.IsHidden(resource.Path)
+
 			if err := b.batch.Index(resource.ID, resource); err != nil {
 				return err
 			}

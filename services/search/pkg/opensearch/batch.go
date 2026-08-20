@@ -70,7 +70,12 @@ func (b *Batch) Move(id string, parentID string, targetPath string) error {
 				return &osu.BodyParamScript{
 					Source: `
 					if (ctx._source.ID == params.id ) { ctx._source.Name = params.newName; ctx._source.ParentID = params.parentID; }
-					ctx._source.Path = ctx._source.Path.replace(params.oldPath, params.newPath)
+					ctx._source.Path = ctx._source.Path.replace(params.oldPath, params.newPath);
+					boolean hidden = false;
+					for (String name : ctx._source.Path.splitOnToken('/')) {
+						if (!name.equals('.') && !name.equals('..') && name.startsWith('.')) { hidden = true; break; }
+					}
+					ctx._source.Hidden = hidden;
 				`,
 					Lang: "painless",
 					Params: map[string]any{

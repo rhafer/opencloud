@@ -647,7 +647,7 @@ func (s *Service) doUpsertItem(ref *provider.Reference, batch BatchOperator) {
 		Type:     uint64(stat.Info.Type),
 		Document: doc,
 	}
-	r.Hidden = strings.HasPrefix(r.Path, ".")
+	r.Hidden = IsHidden(r.Path)
 
 	if parentID := stat.GetInfo().GetParentId(); parentID != nil {
 		r.ParentID = storagespace.FormatResourceID(parentID)
@@ -692,6 +692,17 @@ func (s *Service) doUpsertItem(ref *provider.Reference, batch BatchOperator) {
 		s.logger.Error().Err(err).Int32("status", int32(resp.GetStatus().GetCode())).Msg("error storing metadata")
 		return
 	}
+}
+
+// IsHidden identifies if a node is hidden or not based on its name & path.
+func IsHidden(path string) bool {
+	for name := range strings.SplitSeq(filepath.Clean(path), string(filepath.Separator)) {
+		if name != "." && name != ".." && strings.HasPrefix(name, ".") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func addAudioMetadata(metadata map[string]string, audio *libregraph.Audio) {

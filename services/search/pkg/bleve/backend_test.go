@@ -20,6 +20,20 @@ import (
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
+func hiddenByID(idx bleveSearch.Index, id string) bool {
+	GinkgoHelper()
+
+	req := bleveSearch.NewSearchRequest(bleveSearch.NewDocIDQuery([]string{id}))
+	req.Fields = []string{"Hidden"}
+
+	res, err := idx.Search(req)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(res.Hits).To(HaveLen(1), "no record for %s", id)
+
+	hidden, _ := res.Hits[0].Fields["Hidden"].(bool)
+	return hidden
+}
+
 var _ = Describe("Bleve", func() {
 	var (
 		eng *bleve.Backend
@@ -576,6 +590,44 @@ var _ = Describe("Bleve", func() {
 			matches := assertDocCount(rootResource.ID, "Name:child.pdf", 1)
 			Expect(matches[0].Entity.ParentId.OpaqueId).To(Equal("3"))
 			Expect(matches[0].Entity.Ref.Path).To(Equal("./my/newname/child.pdf"))
+		})
+
+		DescribeTable("keeps the flag in step with the path",
+			func(from, target string, hidden bool) {
+				parentResource.Path = from
+				parentResource.Hidden = search.IsHidden(from)
+				childResource.Path = from + "/child.pdf"
+				childResource.Hidden = parentResource.Hidden
+
+				Expect(eng.Upsert(parentResource.ID, parentResource)).To(Succeed())
+				Expect(eng.Upsert(childResource.ID, childResource)).To(Succeed())
+
+				Expect(eng.Move(parentResource.ID, parentResource.ParentID, target)).To(Succeed())
+
+				for _, id := range []string{parentResource.ID, childResource.ID} {
+					Expect(hiddenByID(idx, id)).
+						To(Equal(hidden), "%s after moving from %s to %s", id, from, target)
+				}
+			},
+			Entry("into a dot folder", "./parent", "./.trash/parent", true),
+			Entry("into a plain folder", "./parent", "./archive/parent", false),
+			Entry("renamed with a leading dot", "./parent", "./.parent", true),
+			Entry("out of a dot folder", "./.trash/parent", "./archive/parent", false),
+			Entry("renamed without the leading dot", "./.parent", "./parent", false),
+			Entry("within the same dot folder", "./.trash/parent", "./.trash/moved", true),
+		)
+
+		// the trash leaves the path alone, so the flag has to come through untouched
+		It("carries the flag through the trash and back", func() {
+			childResource.Path = "./.secret/file.txt"
+			childResource.Hidden = true
+			Expect(eng.Upsert(childResource.ID, childResource)).To(Succeed())
+
+			Expect(eng.Delete(childResource.ID)).To(Succeed())
+			Expect(hiddenByID(idx, childResource.ID)).To(BeTrue(), "after trashing")
+
+			Expect(eng.Restore(childResource.ID)).To(Succeed())
+			Expect(hiddenByID(idx, childResource.ID)).To(BeTrue(), "after restoring")
 		})
 
 		It("moves the parent and its child resources", func() {
