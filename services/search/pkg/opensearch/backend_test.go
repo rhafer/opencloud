@@ -399,6 +399,64 @@ var _ = Describe("Backend", func() {
 		})
 	})
 
+	Describe("Hidden", func() {
+		const indexName = "opencloud-test-engine-hidden"
+
+		DescribeTable("keeps the flag in step with the path",
+			func(from, target string, hidden bool) {
+				folder := opensearchtest.Testdata.Resources.Folder
+				folder.ID = "1$1!30"
+				folder.Name = "parent"
+				folder.Path = from
+				folder.Hidden = search.IsHidden(from)
+
+				child := opensearchtest.Testdata.Resources.File
+				child.ID = "1$1!31"
+				child.Name = "child.txt"
+				child.Path = from + "/child.txt"
+				child.ParentID = folder.ID
+				child.Hidden = folder.Hidden
+
+				backend, tc := newBackend(indexName, folder, child)
+				deleteIndexOnCleanup(tc, indexName)
+				tc.Require.IndicesRefresh([]string{indexName}, nil)
+
+				Expect(backend.Move(folder.ID, folder.ParentID, target)).To(Succeed())
+				tc.Require.IndicesRefresh([]string{indexName}, nil)
+
+				for _, id := range []string{folder.ID, child.ID} {
+					Expect(resourceByID(tc, indexName, id).Hidden).
+						To(Equal(hidden), "%s after moving from %s to %s", id, from, target)
+				}
+			},
+			Entry("into a dot folder", "./parent", "./.trash/parent", true),
+			Entry("into a plain folder", "./parent", "./archive/parent", false),
+			Entry("renamed with a leading dot", "./parent", "./.parent", true),
+			Entry("out of a dot folder", "./.trash/parent", "./archive/parent", false),
+			Entry("renamed without the leading dot", "./.parent", "./parent", false),
+			Entry("within the same dot folder", "./.trash/parent", "./.trash/moved", true),
+		)
+
+		It("carries the flag through the trash and back", func() {
+			hidden := opensearchtest.Testdata.Resources.File
+			hidden.ID = "1$1!32"
+			hidden.Path = "./.secret/file.txt"
+			hidden.Hidden = true
+
+			backend, tc := newBackend(indexName, hidden)
+			deleteIndexOnCleanup(tc, indexName)
+			tc.Require.IndicesRefresh([]string{indexName}, nil)
+
+			Expect(backend.Delete(hidden.ID)).To(Succeed())
+			tc.Require.IndicesRefresh([]string{indexName}, nil)
+			Expect(resourceByID(tc, indexName, hidden.ID).Hidden).To(BeTrue(), "after trashing")
+
+			Expect(backend.Restore(hidden.ID)).To(Succeed())
+			tc.Require.IndicesRefresh([]string{indexName}, nil)
+			Expect(resourceByID(tc, indexName, hidden.ID).Hidden).To(BeTrue(), "after restoring")
+		})
+	})
+
 	Describe("DocCount", func() {
 		const indexName = "opencloud-test-engine-doc-count"
 
