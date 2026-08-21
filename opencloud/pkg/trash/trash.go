@@ -10,8 +10,12 @@ import (
 const (
 	// _trashGlobPattern is the glob pattern to find all trash items
 	_trashGlobPattern = "spaces/*/*/trash/*/*/*/*"
+	// _trashRootPattern is the glob pattern of the trash container root
+	_trashRootPattern = "spaces/*/*/trash"
 	// _posixTrashGlobPattern is the glob pattern to find all trash items on posix
 	_posixTrashGlobPattern = "*/*/.Trash/files/*"
+	// _posixTrashRootPattern is the glob pattern of the trash container root on posix
+	_posixTrashRootPattern = "*/*/.Trash/files"
 )
 
 // PurgeTrashEmptyPaths purges empty paths in the trash
@@ -32,18 +36,14 @@ func PurgeTrashEmptyPaths(p string, dryRun bool, posix bool) error {
 	}
 
 	for _, d := range dirs {
-		if err := removeEmptyFolder(d, dryRun, posix); err != nil {
+		if err := removeEmptyFolder(d, dryRun, posix, p); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func removeEmptyFolder(path string, dryRun bool, posix bool) error {
-	stop := "trash"
-	if posix {
-		stop = "files"
-	}
+func removeEmptyFolder(path string, dryRun bool, posix bool, basePath string) error {
 
 	if dryRun {
 		if posix {
@@ -80,8 +80,17 @@ func removeEmptyFolder(path string, dryRun bool, posix bool) error {
 		return nil
 	}
 	nd := filepath.Dir(path)
-	if filepath.Base(nd) == stop {
+	if isTrashRoot(nd, basePath, posix) {
 		return nil
 	}
-	return removeEmptyFolder(nd, dryRun, posix)
+	return removeEmptyFolder(nd, dryRun, posix, basePath)
+}
+
+func isTrashRoot(path, basePath string, posix bool) bool {
+	rootPattern := _trashRootPattern
+	if posix {
+		rootPattern = _posixTrashRootPattern
+	}
+	matched, _ := filepath.Match(filepath.Join(basePath, rootPattern), path)
+	return matched
 }
