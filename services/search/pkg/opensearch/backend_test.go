@@ -214,6 +214,29 @@ var _ = Describe("Backend", func() {
 		})
 	})
 
+	Describe("WriteVisibility", func() {
+		const indexName = "opencloud-test-engine-write-visibility"
+
+		It("deletes a record that was just written", func() {
+			document := opensearchtest.Testdata.Resources.File
+			document.ID = "1$1!95"
+			document.Name = "textfile.txt"
+			document.Path = "./textfile.txt"
+
+			backend, tc := newBackend(indexName)
+			deleteIndexOnCleanup(tc, indexName)
+
+			Expect(backend.Upsert(document.ID, document)).To(Succeed())
+			Expect(backend.Delete(document.ID)).To(Succeed())
+
+			resp, err := backend.Search(context.Background(), &searchService.SearchIndexRequest{
+				Query: fmt.Sprintf(`name:"%s"`, document.Name),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.Matches).To(BeEmpty())
+		})
+	})
+
 	Describe("Delete", func() {
 		const indexName = "opencloud-test-engine-delete"
 
