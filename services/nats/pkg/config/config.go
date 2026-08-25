@@ -19,10 +19,10 @@ type Config struct {
 }
 
 type Monitoring struct {
-	Enabled   bool   `yaml:"enabled" env:"NATS_MONITORING_ENABLED" desc:"Whether to enable the NATS server monitoring HTTP endpoint" introductionVersion:"%NEXT%"`
-	Host      string `yaml:"host" env:"NATS_MONITORING_HTTP_HOST" desc:"The address the NATS server monitoring HTTP endpoint should be bound to" introductionVersion:"%NEXT%"`
-	Port      int    `yaml:"port" env:"NATS_MONITORING_HTTP_PORT" desc:"The port the NATS server monitoring HTTP endpoint should be bound to" introductionVersion:"%NEXT%"`
-	EnableTLS bool   `yaml:"enable_tls" env:"NATS_MONITORING_ENABLE_TLS" desc:"Enable TLS for NATS server monitoring HTTP endpoint. Note that it will use the same TLS configuration as the streaming API." introductionVersion:"%NEXT%"`
+	Enabled   bool   `yaml:"enabled" env:"NATS_MONITORING_ENABLED" desc:"Whether to enable the NATS server monitoring HTTP endpoint" introductionVersion:"7.5.0"`
+	Host      string `yaml:"host" env:"NATS_MONITORING_HTTP_HOST" desc:"The address the NATS server monitoring HTTP endpoint should be bound to" introductionVersion:"7.5.0"`
+	Port      int    `yaml:"port" env:"NATS_MONITORING_HTTP_PORT" desc:"The port the NATS server monitoring HTTP endpoint should be bound to" introductionVersion:"7.5.0"`
+	EnableTLS bool   `yaml:"enable_tls" env:"NATS_MONITORING_ENABLE_TLS" desc:"Enable TLS for NATS server monitoring HTTP endpoint. Note that it will use the same TLS configuration as the streaming API." introductionVersion:"7.5.0"`
 }
 
 // Nats is the nats config

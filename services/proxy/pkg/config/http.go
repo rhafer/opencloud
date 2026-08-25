@@ -14,12 +14,12 @@ type HTTP struct {
 }
 
 type Client struct {
-	DialTimeout           time.Duration `yaml:"dial_timeout" env:"PROXY_TRANSPORT_CLIENT_DIAL_TIMEOUT" desc:"Dial timeout for the HTTP client." introductionVersion:"%NEXT%"`
-	DialKeepAlive         time.Duration `yaml:"dial_keep_alive" env:"PROXY_TRANSPORT_CLIENT_DIAL_KEEP_ALIVE" desc:"Dial keep alive for the HTTP client." introductionVersion:"%NEXT%"`
-	ForceAttemptHTTP2     bool          `yaml:"force_attempt_http2" env:"PROXY_TRANSPORT_CLIENT_FORCE_ATTEMPT_HTTP2" desc:"Force attempt HTTP/2 for the HTTP client. Set to true if backend communication is encrypted and HTTP/2 is desired." introductionVersion:"%NEXT%"`
-	MaxIdleConns          int           `yaml:"max_idle_conns" env:"PROXY_TRANSPORT_CLIENT_MAX_IDLE_CONNS" desc:"Maximum idle connections for the HTTP client." introductionVersion:"%NEXT%"`
-	MaxIdleConnsPerHost   int           `yaml:"max_idle_conns_per_host" env:"PROXY_TRANSPORT_CLIENT_MAX_IDLE_CONNS_PER_HOST" desc:"Maximum idle connections per host for the HTTP client." introductionVersion:"%NEXT%"`
-	IdleConnTimeout       time.Duration `yaml:"idle_conn_timeout" env:"PROXY_TRANSPORT_CLIENT_IDLE_CONN_TIMEOUT" desc:"Idle connection timeout for the HTTP client." introductionVersion:"%NEXT%"`
-	TLSHandshakeTimeout   time.Duration `yaml:"tls_handshake_timeout" env:"PROXY_TRANSPORT_CLIENT_TLS_HANDSHAKE_TIMEOUT" desc:"TLS handshake timeout for the HTTP client." introductionVersion:"%NEXT%"`
-	ExpectContinueTimeout time.Duration `yaml:"expect_continue_timeout" env:"PROXY_TRANSPORT_CLIENT_EXPECT_CONTINUE_TIMEOUT" desc:"Expect continue timeout for the HTTP client." introductionVersion:"%NEXT%"`
+	DialTimeout           time.Duration `yaml:"dial_timeout" env:"PROXY_TRANSPORT_CLIENT_DIAL_TIMEOUT" desc:"Dial timeout for the HTTP client." introductionVersion:"7.5.0"`
+	DialKeepAlive         time.Duration `yaml:"dial_keep_alive" env:"PROXY_TRANSPORT_CLIENT_DIAL_KEEP_ALIVE" desc:"Dial keep alive for the HTTP client." introductionVersion:"7.5.0"`
+	ForceAttemptHTTP2     bool          `yaml:"force_attempt_http2" env:"PROXY_TRANSPORT_CLIENT_FORCE_ATTEMPT_HTTP2" desc:"Force attempt HTTP/2 for the HTTP client. Set to true if backend communication is encrypted and HTTP/2 is desired." introductionVersion:"7.5.0"`
+	MaxIdleConns          int           `yaml:"max_idle_conns" env:"PROXY_TRANSPORT_CLIENT_MAX_IDLE_CONNS" desc:"Maximum idle connections for the HTTP client." introductionVersion:"7.5.0"`
+	MaxIdleConnsPerHost   int           `yaml:"max_idle_conns_per_host" env:"PROXY_TRANSPORT_CLIENT_MAX_IDLE_CONNS_PER_HOST" desc:"Maximum idle connections per host for the HTTP client." introductionVersion:"7.5.0"`
+	IdleConnTimeout       time.Duration `yaml:"idle_conn_timeout" env:"PROXY_TRANSPORT_CLIENT_IDLE_CONN_TIMEOUT" desc:"Idle connection timeout for the HTTP client." introductionVersion:"7.5.0"`
+	TLSHandshakeTimeout   time.Duration `yaml:"tls_handshake_timeout" env:"PROXY_TRANSPORT_CLIENT_TLS_HANDSHAKE_TIMEOUT" desc:"TLS handshake timeout for the HTTP client." introductionVersion:"7.5.0"`
+	ExpectContinueTimeout time.Duration `yaml:"expect_continue_timeout" env:"PROXY_TRANSPORT_CLIENT_EXPECT_CONTINUE_TIMEOUT" desc:"Expect continue timeout for the HTTP client." introductionVersion:"7.5.0"`
 }
