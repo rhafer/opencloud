@@ -114,16 +114,16 @@ Confirm the reva line in `go.mod` is exactly `github.com/opencloud-eu/reva/v2 RE
 - Stage everything the bump touched: `git add go.mod go.sum vendor pkg/version/version.go`.
 - One commit, conventional-commits format, **empty body**:
   ```
-  chore: reva bump -2.48.0
+  chore: bump reva to 2.48.0
   ```
 - PR base: **`main`** (reva bumps always target main).
-- PR title: `[full-ci] chore: reva bump -2.48.0` (the commit message prefixed with `[full-ci] `).
+- PR title: `[full-ci] chore: bump reva to 2.48.0` (the commit message prefixed with `[full-ci] `).
 - PR body: the file from step 4.
 - Add the label `Type:Maintenance`.
 
 ```bash
 gh pr create --base main \
-  --title "[full-ci] chore: reva bump -$REVA_VERSION_NO_V" \
+  --title "[full-ci] chore: bump reva to $REVA_VERSION_NO_V" \
   --label "Type:Maintenance" \
   --body-file <body-file>
 ```
