@@ -1,5 +1,76 @@
 # Changelog
 
+## [7.5.0](https://github.com/opencloud-eu/opencloud/releases/tag/v7.5.0) - 2026-08-25
+
+### ❤️ Thanks to all contributors! ❤️
+
+@AlexAndBear, @JammingBen, @Svanvith, @aduffeck, @butonic, @fschade, @junkerderprovinz, @kulmann, @maki5, @pbleser-oc, @rhafer, @saw-jan, @schweigisito, @v-scharf
+
+### ✅ Tests
+
+- test(api): update php test dependencies [[#3335](https://github.com/opencloud-eu/opencloud/pull/3335)]
+- fix(acceptance): fix running acceptance tests against host on Linux [[#3358](https://github.com/opencloud-eu/opencloud/pull/3358)]
+- fix(graph): adding the same user as multiple members in a group (#3354) [[#3356](https://github.com/opencloud-eu/opencloud/pull/3356)]
+- test(api): fix share role update test scenario [[#3322](https://github.com/opencloud-eu/opencloud/pull/3322)]
+- test: add api tests for cross-space search index mutation [[#3320](https://github.com/opencloud-eu/opencloud/pull/3320)]
+- ci: run search acceptance tests against OpenSearch in nightly [[#3302](https://github.com/opencloud-eu/opencloud/pull/3302)]
+- api-test: notification settings and getting email notifications [[#3281](https://github.com/opencloud-eu/opencloud/pull/3281)]
+- api-test: add posixfs scan and consistency CLI tests [[#3263](https://github.com/opencloud-eu/opencloud/pull/3263)]
+- api-test: replace sleeps with WaitHelper poll for async state [[#3239](https://github.com/opencloud-eu/opencloud/pull/3239)]
+
+### 📈 Enhancement
+
+- feat(thumbnails): extend list of default resolutions [[#3386](https://github.com/opencloud-eu/opencloud/pull/3386)]
+- ability to disable grpc and/or event consumer for event history service [[#3279](https://github.com/opencloud-eu/opencloud/pull/3279)]
+- feat(graph): add LibreGraphContentType on drive [[#3355](https://github.com/opencloud-eu/opencloud/pull/3355)]
+- feat: update space template image [[#3324](https://github.com/opencloud-eu/opencloud/pull/3324)]
+- feat(web): add rclone-crypt to default apps [[#3313](https://github.com/opencloud-eu/opencloud/pull/3313)]
+- enhance: send events for adding/removing favourite items [[#3229](https://github.com/opencloud-eu/opencloud/pull/3229)]
+- allow tuning the proxies http client [[#3278](https://github.com/opencloud-eu/opencloud/pull/3278)]
+- feat(web): add yjsServerUrl config [[#3259](https://github.com/opencloud-eu/opencloud/pull/3259)]
+- feat(posixfs): #3182 add basepath option in the "posixfs scan" command [[#3235](https://github.com/opencloud-eu/opencloud/pull/3235)]
+
+### 🐛 Bug Fixes
+
+- fix(search): refresh the opensearch index after a write [[#3388](https://github.com/opencloud-eu/opencloud/pull/3388)]
+- fix(thumbnails): respect the requested height in libvips builds [[#3377](https://github.com/opencloud-eu/opencloud/pull/3377)]
+- refactor datagateway into proxy middleware [[#3289](https://github.com/opencloud-eu/opencloud/pull/3289)]
+- Only log a debug message when an item is still in processing state [[#3158](https://github.com/opencloud-eu/opencloud/pull/3158)]
+- fix(postprocessing): retry publishing events instead of killing the server [[#3347](https://github.com/opencloud-eu/opencloud/pull/3347)]
+- actually log error on exit [[#3344](https://github.com/opencloud-eu/opencloud/pull/3344)]
+- fix(activitylog): log missing parent id cache entry at debug level [[#3325](https://github.com/opencloud-eu/opencloud/pull/3325)]
+- fix restore file version for shared resource [[#3268](https://github.com/opencloud-eu/opencloud/pull/3268)]
+- Fix missing favorite flag on opensearch hits [[#3252](https://github.com/opencloud-eu/opencloud/pull/3252)]
+
+### 📚 Documentation
+
+- docs: clarify custom role bootstrap behavior [[#3366](https://github.com/opencloud-eu/opencloud/pull/3366)]
+
+### 📦️ Dependencies
+
+- [full-ci] chore: bump web to v7.4.0 [[#3399](https://github.com/opencloud-eu/opencloud/pull/3399)]
+- build(deps): bump google.golang.org/grpc from 1.83.0 to 1.83.1 [[#3396](https://github.com/opencloud-eu/opencloud/pull/3396)]
+- build(deps): bump github.com/stretchr/testify from 1.12.0 to 1.12.1 [[#3395](https://github.com/opencloud-eu/opencloud/pull/3395)]
+- build(deps): bump github.com/go-chi/chi/v5 from 5.3.1 to 5.3.2 [[#3394](https://github.com/opencloud-eu/opencloud/pull/3394)]
+- build(deps): bump github.com/grpc-ecosystem/grpc-gateway/v2 from 2.29.0 to 2.30.0 [[#3380](https://github.com/opencloud-eu/opencloud/pull/3380)]
+- build(deps): bump golang.org/x/image from 0.44.0 to 0.45.0 [[#3381](https://github.com/opencloud-eu/opencloud/pull/3381)]
+- build(deps): bump github.com/beevik/etree from 1.7.0 to 1.7.1 [[#3382](https://github.com/opencloud-eu/opencloud/pull/3382)]
+- build(deps): bump github.com/nats-io/nats-server/v2 from 2.14.4 to 2.14.5 [[#3357](https://github.com/opencloud-eu/opencloud/pull/3357)]
+- build(deps): bump go.opentelemetry.io/contrib/zpages from 0.69.0 to 0.70.0 [[#3360](https://github.com/opencloud-eu/opencloud/pull/3360)]
+- build(deps): bump github.com/sirupsen/logrus from 1.9.4 to 1.10.0 [[#3359](https://github.com/opencloud-eu/opencloud/pull/3359)]
+- chore: bump reva to latest main [[#3329](https://github.com/opencloud-eu/opencloud/pull/3329)]
+- build(deps): bump github.com/stretchr/testify from 1.11.1 to 1.12.0 [[#3341](https://github.com/opencloud-eu/opencloud/pull/3341)]
+- build(deps): bump golang.org/x/net from 0.57.0 to 0.58.0 [[#3342](https://github.com/opencloud-eu/opencloud/pull/3342)]
+- build(deps): bump github.com/onsi/ginkgo/v2 from 2.32.0 to 2.32.1 [[#3340](https://github.com/opencloud-eu/opencloud/pull/3340)]
+- build(deps): bump github.com/testcontainers/testcontainers-go/modules/opensearch from 0.43.0 to 0.44.0 [[#3303](https://github.com/opencloud-eu/opencloud/pull/3303)]
+- build(deps): bump github.com/opencloud-eu/libre-graph-api-go [[#3326](https://github.com/opencloud-eu/opencloud/pull/3326)]
+- build(deps): bump go.opentelemetry.io/otel/exporters/stdout/stdouttrace from 1.44.0 to 1.45.0 [[#3306](https://github.com/opencloud-eu/opencloud/pull/3306)]
+- build(deps): bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.69.0 to 0.70.0 [[#3305](https://github.com/opencloud-eu/opencloud/pull/3305)]
+- build(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.44.0 to 1.45.0 [[#3280](https://github.com/opencloud-eu/opencloud/pull/3280)]
+- build(deps): bump github.com/rogpeppe/go-internal from 1.15.0 to 1.16.0 [[#3250](https://github.com/opencloud-eu/opencloud/pull/3250)]
+- build(deps): bump github.com/kovidgoyal/imaging from 1.8.22 to 1.8.23 [[#3135](https://github.com/opencloud-eu/opencloud/pull/3135)]
+- build(deps): bump go.opentelemetry.io/otel/trace from 1.44.0 to 1.45.0 [[#3266](https://github.com/opencloud-eu/opencloud/pull/3266)]
+
 ## [7.4.0](https://github.com/opencloud-eu/opencloud/releases/tag/v7.4.0) - 2026-08-03
 
 ### ❤️ Thanks to all contributors! ❤️
