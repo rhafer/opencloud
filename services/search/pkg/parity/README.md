@@ -206,6 +206,7 @@ Fixtures:
 - `plain.txt`, ID = 1$1!plain.txt
 - `box`, ID = 1$1!box, folder
 - `boxed.txt`, ID = 1$1!boxed.txt, Path = ./box/boxed.txt
+- `song.mp3`, ID = 1$1!song.mp3, MimeType = audio/mpeg
 
 | Case | Query | expected | bleve | OpenSearch | same? |
 |---|---|---|---|---|---|
@@ -221,6 +222,8 @@ Fixtures:
 | FIELDS-10 | `hidden:TRUE` | hidden.txt | no match | error | ❌ known |
 | FIELDS-11 | `id:"1$1!AB-23"` | cased.txt | cased.txt | no match | ❌ known |
 | FIELDS-12 | `id:"1$1!ab-23"` | no match | no match | no match | ✅ |
+| FIELDS-13 | `audio.artist:"Some Artist"` | song.mp3 | song.mp3 | no match | ❌ known |
+| FIELDS-14 | `audio.artist:"some artist"` | no match | no match | no match | ✅ |
 
 ### deleted
 
@@ -582,6 +585,8 @@ Fixtures:
 | BATCH-03 | takes a resource out the same way a delete does, then `name:"*child*"` | no match | no match | no match | ✅ |
 | BATCH-04 | moves a resource the same way a move does, then `path:"./my/newname/child.pdf"` | child.pdf | child.pdf | child.pdf | ✅ |
 | BATCH-04 | moves a resource the same way a move does, then `path:"./parent/child.pdf"` | no match | no match | no match | ✅ |
+| BATCH-05 | keeps what another batch holds out of its push, then `name:"*added*"` | added.pdf | added.pdf | added.pdf | ✅ |
+| BATCH-05 | keeps what another batch holds out of its push, then `name:"*other*"` | no match | no match | no match | ✅ |
 
 ## Response
 
