@@ -58,7 +58,8 @@ func newOpenSearch(t *testing.T, index string, fixtures []search.Resource) testE
 	t.Helper()
 
 	tc := opensearchtest.NewDefaultTestClient(t, defaultConfig.Engine.OpenSearch.Client)
-	versioned := opensearch.IndexName(index)
+	// main has no index generations yet, the index name is used as given
+	versioned := index
 
 	if err := tc.IndicesReset(t.Context(), []string{versioned}); err != nil {
 		return testEngine{name: "opensearch", unavailable: err.Error()}

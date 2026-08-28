@@ -6,13 +6,11 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/opencloud-eu/reva/v2/pkg/errtypes"
 
-	"github.com/opencloud-eu/opencloud/pkg/kql"
 	searchMessage "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/search/v0"
 	searchService "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
 	"github.com/opencloud-eu/opencloud/services/search/internal/opensearchtest"
@@ -23,9 +21,8 @@ import (
 var defaultConfig *config.Config
 
 func TestMain(m *testing.M) {
-	// the fixtures are stamped with fixtureNow, holding the clock still keeps
-	// "today" on their side of midnight for the whole run
-	kql.PatchTimeNow(func() time.Time { return fixtureNow })
+	// the fixtures are stamped with fixtureNow; a run crossing midnight would
+	// see "today" move away from them (RANGE-05/06)
 
 	cfg, done, err := opensearchtest.SetupTests(context.Background())
 	if err != nil {

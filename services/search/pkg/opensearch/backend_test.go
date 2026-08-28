@@ -14,8 +14,8 @@ import (
 	"github.com/opencloud-eu/reva/v2/pkg/errtypes"
 
 	searchService "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
+	opensearchtest "github.com/opencloud-eu/opencloud/services/search/internal/opensearchtest"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch"
-	opensearchtest "github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/test"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
