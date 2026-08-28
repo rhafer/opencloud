@@ -1,112 +1,184 @@
 package parity
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
-	"sync"
 
 	sprovider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
+	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/types"
 	"github.com/opencloud-eu/reva/v2/pkg/storagespace"
 
 	searchMessage "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/search/v0"
-
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
-const matrixFile = "README.md"
-
-type matrixRow struct {
-	section        string
-	wantCount      *int
-	wantBadRequest bool
-	limit          int32
-	ref            *searchMessage.Reference
-	group          string
-	id             string
-	query          string
-	reads          string
-	context        string
-	want           []string
-	answered       map[string][]string
-	skipped        map[string]bool
-
-	groupAt, caseAt, queryAt int
-}
-
-var (
-	matrixMu   sync.Mutex
-	matrixRows = map[string]*matrixRow{}
+const (
+	matrixFile  = "README.md"
+	matrixEntry = "engine parity"
 )
 
+// matrixRow is one line of the README. It travels in a report entry, which
+// crosses processes as JSON under ginkgo -p, hence the exported fields and
+// the scope already rendered to a string.
+type matrixRow struct {
+	Section        string
+	Group          string
+	ID             string
+	Query          string
+	Scope          string
+	Limit          int32
+	Reads          string
+	Context        string
+	Want           []string
+	WantCount      *int
+	WantBadRequest bool
+	// Overrides is what an engine is held to instead, rendered like expected
+	Overrides map[string]string
+
+	GroupAt, CaseAt, QueryAt int
+}
+
+func (r matrixRow) key() string {
+	return fmt.Sprintf("%s/%s/%s/%d", r.Group, r.ID, r.Query, r.QueryAt)
+}
+
+// matrixAnswer is what a spec attaches to its report: one engine's answer to
+// one row. A skipped engine leaves the README alone.
+type matrixAnswer struct {
+	Row     matrixRow
+	Engine  string
+	Answer  []string
+	Skipped bool
+}
+
 func recordAnswer(row matrixRow, engine string, answer []string) {
-	matrixMu.Lock()
-	defer matrixMu.Unlock()
-
-	key := fmt.Sprintf("%s/%s/%s", row.group, row.id, row.query)
-	known, ok := matrixRows[key]
-	if !ok {
-		row.answered = map[string][]string{}
-		row.skipped = map[string]bool{}
-		known = &row
-		matrixRows[key] = known
-	}
-
-	if answer == nil {
-		known.skipped[engine] = true
-		return
-	}
-
-	known.answered[engine] = answer
+	AddReportEntry(matrixEntry, matrixAnswer{Row: row, Engine: engine, Answer: answer}, ReportEntryVisibilityNever)
 }
 
 func recordSkip(row matrixRow, engine string) {
-	recordAnswer(row, engine, nil)
+	AddReportEntry(matrixEntry, matrixAnswer{Row: row, Engine: engine, Skipped: true}, ReportEntryVisibilityNever)
 }
 
-func writeMatrix() {
-	matrixMu.Lock()
-	defer matrixMu.Unlock()
+// matrixPlanned is every row the spec tree announced while it was built, so
+// the README is only written when each of them got an answer from every engine.
+var matrixPlanned []matrixRow
 
-	rows := make([]*matrixRow, 0, len(matrixRows))
-	skipped, incomplete := false, false
-	for _, row := range matrixRows {
-		rows = append(rows, row)
-		skipped = skipped || len(row.skipped) > 0
-		incomplete = incomplete || len(row.answered)+len(row.skipped) != 2
+func planRow(rows ...matrixRow) {
+	matrixPlanned = append(matrixPlanned, rows...)
+}
+
+type matrixResult struct {
+	matrixRow
+	answered map[string][]string
+	skipped  map[string]bool
+}
+
+// matrixAnswerOf reads an entry back: in-process it still carries the value,
+// from another process only its JSON.
+func matrixAnswerOf(entry types.ReportEntry) (matrixAnswer, bool) {
+	if answer, ok := entry.GetRawValue().(matrixAnswer); ok {
+		return answer, true
 	}
 
-	switch {
-	case len(rows) != matrixExpectedRows():
-		fmt.Fprintf(os.Stderr, "%s left alone, %d of %d cases ran\n", matrixFile, len(rows), matrixExpectedRows())
-		return
-	case skipped:
-		fmt.Fprintf(os.Stderr, "%s left alone, an engine was not reachable\n", matrixFile)
-		return
-	case incomplete:
-		fmt.Fprintf(os.Stderr, "%s left alone, an engine died before it answered\n", matrixFile)
+	var answer matrixAnswer
+	if err := json.Unmarshal([]byte(entry.Value.AsJSON), &answer); err != nil {
+		return matrixAnswer{}, false
+	}
+
+	return answer, true
+}
+
+func collectMatrix(report types.Report) []*matrixResult {
+	results := map[string]*matrixResult{}
+	for _, spec := range report.SpecReports {
+		for _, entry := range spec.ReportEntries {
+			if entry.Name != matrixEntry {
+				continue
+			}
+
+			answer, ok := matrixAnswerOf(entry)
+			if !ok {
+				continue
+			}
+
+			key := answer.Row.key()
+			result, known := results[key]
+			if !known {
+				result = &matrixResult{matrixRow: answer.Row, answered: map[string][]string{}, skipped: map[string]bool{}}
+				results[key] = result
+			}
+
+			if answer.Skipped {
+				result.skipped[answer.Engine] = true
+				continue
+			}
+
+			result.answered[answer.Engine] = answer.Answer
+		}
+	}
+
+	rows := make([]*matrixResult, 0, len(results))
+	for _, result := range results {
+		rows = append(rows, result)
+	}
+
+	return rows
+}
+
+func writeMatrix(report types.Report) {
+	rows := collectMatrix(report)
+
+	answered := map[string]*matrixResult{}
+	for _, row := range rows {
+		answered[row.key()] = row
+	}
+
+	var missing []string
+	for _, planned := range matrixPlanned {
+		result, ok := answered[planned.key()]
+		switch {
+		case !ok:
+			missing = append(missing, planned.ID+" "+planned.Query)
+		case len(result.skipped) > 0:
+			fmt.Fprintf(os.Stderr, "%s left alone, an engine was not reachable\n", matrixFile)
+			return
+		case len(result.answered) != len(engineNames):
+			missing = append(missing, planned.ID+" "+planned.Query)
+		}
+	}
+
+	if len(missing) > 0 {
+		fmt.Fprintf(os.Stderr, "%s left alone, no answer from every engine for: %s\n", matrixFile, strings.Join(missing, "; "))
 		return
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
 		switch {
-		case a.groupAt != b.groupAt:
-			return a.groupAt < b.groupAt
-		case a.caseAt != b.caseAt:
-			return a.caseAt < b.caseAt
+		case a.GroupAt != b.GroupAt:
+			return a.GroupAt < b.GroupAt
+		case a.CaseAt != b.CaseAt:
+			return a.CaseAt < b.CaseAt
 		default:
-			return a.queryAt < b.queryAt
+			return a.QueryAt < b.QueryAt
 		}
 	})
 
 	out := &strings.Builder{}
+	out.WriteString("# Engine parity\n\n")
+	out.WriteString("Written by the parity suite (`go test ./services/search/pkg/parity/`), do not edit.\n")
+	out.WriteString("Every case runs against bleve and OpenSearch. `same?` is ✅ when both answer as\n")
+	out.WriteString("expected, `❌ known` when an engine's divergence is documented in the case\n")
+	out.WriteString("(`engineOverrides`), `❌` when it is not.\n")
 
 	group, section := "", ""
 	for _, row := range rows {
-		if row.section != section {
-			section = row.section
+		if row.Section != section {
+			section = row.Section
 			if out.Len() > 0 {
 				out.WriteString("\n")
 			}
@@ -114,68 +186,46 @@ func writeMatrix() {
 			fmt.Fprintf(out, "## %s\n", section)
 		}
 
-		if row.group != group {
-			group = row.group
+		if row.Group != group {
+			group = row.Group
 			fmt.Fprintf(out, "\n### %s\n\n%s\n\n", group, matrixFixtures(group))
 			out.WriteString("| Case | Query | expected | bleve | OpenSearch | same? |\n")
 			out.WriteString("|---|---|---|---|---|---|\n")
 		}
 
-		query := "`" + shortenQuery(row.query) + "`"
-		if row.ref != nil {
-			query += " " + matrixScope(row.ref)
+		query := "`" + shortenQuery(row.Query) + "`"
+		if row.Scope != "" {
+			query += " " + row.Scope
 		}
 
-		if row.limit != 0 {
-			query = fmt.Sprintf("%s with a limit of %d", query, row.limit)
+		if row.Limit != 0 {
+			query = fmt.Sprintf("%s with a limit of %d", query, row.Limit)
 		}
 
-		if row.reads != "" {
-			query += " reads `" + row.reads + "`"
+		if row.Reads != "" {
+			query += " reads `" + row.Reads + "`"
 		}
 
-		if row.context != "" {
-			query = row.context + ", then " + query
+		if row.Context != "" {
+			query = row.Context + ", then " + query
 		}
 
-		expected := matrixNames(row.want)
+		expected := matrixNames(row.Want)
 		switch {
-		case row.wantBadRequest:
+		case row.WantBadRequest:
 			expected = "bad request"
-		case row.wantCount != nil:
-			expected = fmt.Sprintf("%d items", *row.wantCount)
+		case row.WantCount != nil:
+			expected = fmt.Sprintf("%d items", *row.WantCount)
 		}
 
 		fmt.Fprintf(out, "| %s | %s | %s | %s | %s | %s |\n",
-			row.id, query, expected,
+			row.ID, query, expected,
 			matrixNames(row.answered["bleve"]), matrixNames(row.answered["opensearch"]), matrixVerdict(row))
 	}
 
 	if err := os.WriteFile(matrixFile, []byte(out.String()), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write %s: %v\n", matrixFile, err)
 	}
-}
-
-func matrixExpectedRows() int {
-	rows := 0
-	for _, g := range queryGroups() {
-		rows += len(g.cases)
-	}
-
-	for _, g := range lifecycleGroups() {
-		for _, c := range g.cases {
-			rows += len(c.expect)
-			if c.wantDocCount != nil {
-				rows++
-			}
-		}
-	}
-
-	for _, g := range responseGroups() {
-		rows += len(g.cases)
-	}
-
-	return rows
 }
 
 func matrixFixtures(group string) string {
@@ -300,6 +350,10 @@ func fixtureFields(f search.Resource, withID bool) string {
 }
 
 func matrixScope(ref *searchMessage.Reference) string {
+	if ref == nil {
+		return ""
+	}
+
 	space := storagespace.FormatResourceID(&sprovider.ResourceId{
 		StorageId: ref.GetResourceId().GetStorageId(),
 		SpaceId:   ref.GetResourceId().GetSpaceId(),
@@ -343,51 +397,59 @@ func shortenQuery(q string) string {
 	return q[:32] + "..." + q[len(q)-24:]
 }
 
-func matrixVerdict(row *matrixRow) string {
+func matrixVerdict(row *matrixResult) string {
 	var off []string
-	for _, engine := range []string{"bleve", "opensearch"} {
-		if row.wantBadRequest {
-			if matrixNames(row.answered[engine]) != "bad request" {
-				off = append(off, engine)
-			}
+	known := true
+	for _, engine := range engineNames {
+		answer := matrixNames(row.answered[engine])
 
+		agrees := answer == matrixNames(row.Want)
+		switch {
+		case row.WantBadRequest:
+			agrees = answer == "bad request"
+		case row.WantCount != nil:
+			agrees = len(row.answered[engine]) == *row.WantCount
+		}
+
+		if agrees {
 			continue
 		}
 
-		if row.wantCount != nil {
-			if len(row.answered[engine]) != *row.wantCount {
-				off = append(off, engine)
-			}
-
-			continue
+		off = append(off, engine)
+		if row.WantCount != nil {
+			answer = fmt.Sprintf("%d items", len(row.answered[engine]))
 		}
 
-		if matrixNames(row.answered[engine]) != matrixNames(row.want) {
-			off = append(off, engine)
+		if expected, ok := row.Overrides[engine]; !ok || expected != answer {
+			known = false
 		}
 	}
 
-	if len(off) == 0 {
+	switch {
+	case len(off) == 0:
 		return "✅"
+	case known:
+		return "❌ known"
+	default:
+		return "❌"
 	}
-
-	return "❌"
 }
 
 func (c lifecycleCase) matrixRows(group string, groupAt, caseAt int) []matrixRow {
 	rows := make([]matrixRow, 0, len(c.expect)+1)
 	for i, expect := range c.expect {
 		rows = append(rows, matrixRow{
-			section: "Operations", group: group, id: c.label(group), query: expect.query, context: c.title, want: expect.want,
-			groupAt: groupAt, caseAt: caseAt, queryAt: i,
+			Section: "Operations", Group: group, ID: c.label(group), Query: expect.query, Context: c.title, Want: expect.want, Overrides: renderOverrides(c.overridesFor(expect.query)),
+			GroupAt: groupAt, CaseAt: caseAt, QueryAt: i,
 		})
 	}
 
 	if c.wantDocCount != nil {
 		rows = append(rows, matrixRow{
-			section: "Operations", group: group, id: c.label(group), query: "DocCount()", context: c.title,
-			want:    []string{fmt.Sprint(*c.wantDocCount)},
-			groupAt: groupAt, caseAt: caseAt, queryAt: len(c.expect),
+			Section: "Operations", Group: group, ID: c.label(group), Query: "DocCount()", Context: c.title,
+			Want:      []string{fmt.Sprint(*c.wantDocCount)},
+			Overrides: renderOverrides(c.docCountOverrides()),
+			GroupAt:   groupAt, CaseAt: caseAt, QueryAt: len(c.expect),
 		})
 	}
 
