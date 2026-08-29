@@ -32,7 +32,7 @@ func Validate(t reflect.Type, overrides map[string]FieldOpts) error {
 		// would target a non-existent field and silently match nothing. Use the
 		// effective type (override, else the inferred Go type), since an override
 		// with no explicit Type still infers keyword/numeric/... from the field.
-		if opts.caseInsensitive() && !effectivelyCased(opts, goType) {
+		if opts.CaseInsensitive != nil && *opts.CaseInsensitive && !effectivelyCased(opts, goType) {
 			miscased = append(miscased, k)
 		}
 	}

@@ -26,16 +26,10 @@ var fieldIndex = sync.OnceValue(func() map[string]string {
 	return idx
 })
 
-// caseInsensitiveFields are the fields searched case-insensitively by default,
-// derived from the CaseInsensitive overrides.
-var caseInsensitiveFields = sync.OnceValue(func() map[string]struct{} {
-	out := map[string]struct{}{}
-	for field, opts := range (search.Resource{}).SearchFieldOverrides() {
-		if opts.CaseInsensitive != nil && *opts.CaseInsensitive {
-			out[field] = struct{}{}
-		}
-	}
-	return out
+// siblingFields lists which search siblings every field carries, from the
+// resource struct and its overrides.
+var siblingFields = sync.OnceValue(func() map[string]mapping.Siblings {
+	return mapping.SearchSiblings(reflect.TypeFor[search.Resource](), search.Resource{}.SearchFieldOverrides())
 })
 
 // pathFields are hierarchical path fields (TypePath), derived from the overrides.
@@ -87,8 +81,7 @@ func FieldValueIsNormalized(field string) bool {
 
 // FieldIsCaseInsensitive reports whether a field's default search is case-insensitive.
 func FieldIsCaseInsensitive(field string) bool {
-	_, ok := caseInsensitiveFields()[field]
-	return ok
+	return siblingFields()[field].Lowercase
 }
 
 // FieldIsPath reports whether a field is a hierarchical path field.
@@ -103,21 +96,8 @@ func FieldIsFulltext(field string) bool {
 	return ok
 }
 
-// wordBrokenFields are the keyword fields split into words (NoWordBreaker set
-// to false), derived from the overrides.
-var wordBrokenFields = sync.OnceValue(func() map[string]struct{} {
-	out := map[string]struct{}{}
-	for field, opts := range (search.Resource{}).SearchFieldOverrides() {
-		if opts.NoWordBreaker != nil && !*opts.NoWordBreaker {
-			out[field] = struct{}{}
-		}
-	}
-	return out
-})
-
 // FieldIsWordBroken reports whether a field is split into words, so a value
 // without a wildcard matches it as a phrase of those words instead of as a whole.
 func FieldIsWordBroken(field string) bool {
-	_, ok := wordBrokenFields()[field]
-	return ok
+	return siblingFields()[field].Words
 }

@@ -221,7 +221,7 @@ var _ = Describe("Bleve", func() {
 				assertDocCount(rootResource.ID, "Size:>100000", 0)
 			})
 
-			It("preserves value case for fields not explicitly marked lowercase", func() {
+			It("matches facet values case-insensitively", func() {
 				parentResource.Document.Audio = &libregraph.Audio{
 					Artist: libregraph.PtrString("Some Artist"),
 				}
@@ -229,7 +229,7 @@ var _ = Describe("Bleve", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				assertDocCount(rootResource.ID, `audio.artist:"Some Artist"`, 1)
-				assertDocCount(rootResource.ID, `audio.artist:"some artist"`, 0)
+				assertDocCount(rootResource.ID, `audio.artist:"some artist"`, 1)
 			})
 		})
 

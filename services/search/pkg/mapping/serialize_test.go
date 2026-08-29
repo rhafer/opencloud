@@ -23,17 +23,18 @@ var _ = Describe("PrepareForIndex serialization", func() {
 	})
 
 	It("flattens embedded structs", func() {
-		type inner struct {
+		type Inner struct {
 			Name string `json:"Name"`
 			Size uint64 `json:"Size"`
 		}
 		type outer struct {
-			inner
+			Inner
 			ID string `json:"ID"`
 		}
-		m, err := PrepareForIndex(outer{inner: inner{Name: "a", Size: 7}, ID: "x"}, nil)
+		m, err := PrepareForIndex(outer{Inner: Inner{Name: "a", Size: 7}, ID: "x"}, nil)
 		Expect(err).ToNot(HaveOccurred())
-		want := map[string]any{"Name": "a", "Size": float64(7), "ID": "x"}
+		// keywords carry their lowercased search sibling by default
+		want := map[string]any{"Name": "a", "Name_lowercase": "a", "Size": float64(7), "ID": "x", "ID_lowercase": "x"}
 		Expect(m).To(Equal(want))
 	})
 

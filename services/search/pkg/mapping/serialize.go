@@ -2,6 +2,7 @@ package mapping
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/opencloud-eu/opencloud/pkg/conversions"
 )
@@ -19,6 +20,6 @@ func PrepareForIndex(v any, overrides map[string]FieldOpts) (map[string]any, err
 		return out, nil
 	}
 	addGeopointSiblings(out, overrides)
-	addSearchSiblings(out, overrides)
+	addSearchSiblings(out, deref(reflect.TypeOf(v)), overrides)
 	return out, nil
 }

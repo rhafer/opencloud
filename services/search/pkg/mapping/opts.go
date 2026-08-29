@@ -35,7 +35,8 @@ type FieldOpts struct {
 
 	// CaseInsensitive additionally indexes a lowercased <name>_lowercase sibling
 	// for case-insensitive search; the case-preserved base is always indexed.
-	// Nil/false means off. Keyword/path only.
+	// On by default for keyword/path fields, KQL searches case-insensitively;
+	// false opts a field out (ids, paths).
 	CaseInsensitive *bool
 
 	// NoWordBreaker is SharePoint's switch: nil or true leaves a keyword field
@@ -52,5 +53,5 @@ type FieldOpts struct {
 	IncludeInAll *bool
 }
 
-func (o FieldOpts) caseInsensitive() bool { return o.CaseInsensitive != nil && *o.CaseInsensitive }
+func (o FieldOpts) caseInsensitive() bool { return o.CaseInsensitive == nil || *o.CaseInsensitive }
 func (o FieldOpts) wordBroken() bool      { return o.NoWordBreaker != nil && !*o.NoWordBreaker }

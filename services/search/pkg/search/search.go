@@ -72,16 +72,21 @@ type Resource struct {
 // resourceFieldOverrides is built once (it never changes) and reused on hot
 // paths instead of reallocating per call.
 var resourceFieldOverrides = sync.OnceValue(func() map[string]mapping.FieldOpts {
-	True, False := true, false
+	False := false
 	return map[string]mapping.FieldOpts{
-		// a single word finds names and titles that contain it; wildcards and
-		// whole values go through the lowercased sibling
-		"Name":      {NoWordBreaker: &False, CaseInsensitive: &True},
-		"Title":     {NoWordBreaker: &False, CaseInsensitive: &True},
-		"Path":      {Type: mapping.TypePath},
-		"Content":   {Type: mapping.TypeFulltext},
-		"Tags":      {CaseInsensitive: &True, IncludeInAll: &False},
-		"Favorites": {CaseInsensitive: &True, IncludeInAll: &False},
+		// every keyword field searches case-insensitively unless opted out:
+		// ids are opaque, paths are POSIX, the mime type is normalized already
+		"ID":       {CaseInsensitive: &False},
+		"RootID":   {CaseInsensitive: &False},
+		"ParentID": {CaseInsensitive: &False},
+		"Path":     {Type: mapping.TypePath, CaseInsensitive: &False},
+		"MimeType": {CaseInsensitive: &False},
+		"Content":  {Type: mapping.TypeFulltext},
+		// a single word finds names and titles that contain it
+		"Name":      {NoWordBreaker: &False},
+		"Title":     {NoWordBreaker: &False},
+		"Tags":      {IncludeInAll: &False},
+		"Favorites": {IncludeInAll: &False},
 		"location":  {Type: mapping.TypeGeopoint},
 	}
 })

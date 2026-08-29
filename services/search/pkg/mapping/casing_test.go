@@ -45,11 +45,21 @@ var _ = Describe("PrepareForIndex casing", func() {
 		Expect(m["Name_words"]).To(Equal("Report FINAL"))
 	})
 
-	It("writes no sibling without CaseInsensitive", func() {
+	It("writes the lowercased sibling by default", func() {
 		type doc struct {
 			ID string `json:"ID"`
 		}
 		m, err := PrepareForIndex(doc{ID: "ABC"}, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(m["ID"+LowercaseSuffix]).To(Equal("abc"))
+	})
+
+	It("writes no sibling with CaseInsensitive off", func() {
+		False := false
+		type doc struct {
+			ID string `json:"ID"`
+		}
+		m, err := PrepareForIndex(doc{ID: "ABC"}, map[string]FieldOpts{"ID": {CaseInsensitive: &False}})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(m).ToNot(HaveKey("ID" + LowercaseSuffix))
 	})

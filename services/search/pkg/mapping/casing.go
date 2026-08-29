@@ -1,25 +1,58 @@
 package mapping
 
-import "strings"
+import (
+	"reflect"
+	"strings"
+)
 
-// addSearchSiblings writes the _lowercase and _words siblings the overrides ask
-// for next to their base values.
-func addSearchSiblings(m map[string]any, overrides map[string]FieldOpts) {
-	for key, opts := range overrides {
-		if !isCasedType(opts) || (!opts.caseInsensitive() && !opts.wordBroken()) {
-			continue
-		}
+// addSearchSiblings writes the _lowercase and _words siblings next to their
+// base values, for every keyword/path field of t that has them (see
+// SearchSiblings).
+func addSearchSiblings(m map[string]any, t reflect.Type, overrides map[string]FieldOpts) {
+	for key, siblings := range SearchSiblings(t, overrides) {
 		parent, leaf, ok := resolveLeaf(m, key)
 		if !ok {
 			continue
 		}
-		if opts.caseInsensitive() {
+		if siblings.Lowercase {
 			addLowercaseSibling(parent, leaf)
 		}
-		if opts.wordBroken() {
+		if siblings.Words {
 			addWordsSibling(parent, leaf)
 		}
 	}
+}
+
+// Siblings says which search-only siblings a field carries.
+type Siblings struct {
+	Lowercase bool
+	Words     bool
+}
+
+// SearchSiblings lists the fields of t (json names, nested as parent.child)
+// that carry a _lowercase or _words sibling, from the effective field type and
+// the overrides. It is the one place that decides, the renderers, the
+// document writer and the query lowering all follow it.
+func SearchSiblings(t reflect.Type, overrides map[string]FieldOpts) map[string]Siblings {
+	out := map[string]Siblings{}
+	for key, goType := range collectFields(t, "") {
+		opts := overrides[key]
+		eff := opts.Type
+		if eff == "" {
+			eff = inferType(goType)
+		}
+		if eff != TypeKeyword && eff != TypePath {
+			continue
+		}
+		siblings := Siblings{
+			Lowercase: opts.caseInsensitive(),
+			Words:     eff == TypeKeyword && opts.wordBroken(),
+		}
+		if siblings.Lowercase || siblings.Words {
+			out[key] = siblings
+		}
+	}
+	return out
 }
 
 // addWordsSibling copies the value to a <leaf>_words sibling; the words
@@ -29,10 +62,6 @@ func addWordsSibling(parent map[string]any, leaf string) {
 	case string, []any, []string:
 		parent[leaf+WordsSuffix] = v
 	}
-}
-
-func isCasedType(opts FieldOpts) bool {
-	return opts.Type == "" || opts.Type == TypeKeyword || opts.Type == TypePath
 }
 
 func resolveLeaf(m map[string]any, dottedPath string) (map[string]any, string, bool) {

@@ -30,12 +30,12 @@ var _ = Describe("ResolveField", func() {
 
 var _ = Describe("FieldIsCaseInsensitive", func() {
 	It("reports the CaseInsensitive override fields", func() {
-		// The CaseInsensitive override fields (resolved canonical names).
-		for _, f := range []string{"Name", "Title", "Tags", "Favorites"} {
+		// keyword fields are case-insensitive by default, facets included
+		for _, f := range []string{"Name", "Title", "Tags", "Favorites", "audio.artist", "photo.cameraMake"} {
 			Expect(query.FieldIsCaseInsensitive(f)).To(BeTrue(), f)
 		}
-		// Case-preserved / non-keyword fields are not.
-		for _, f := range []string{"MimeType", "ID", "Content", "Path", "unknown"} {
+		// opted out (ids, path, mime type) or not a keyword at all
+		for _, f := range []string{"MimeType", "ID", "RootID", "ParentID", "Content", "Path", "Size", "unknown"} {
 			Expect(query.FieldIsCaseInsensitive(f)).To(BeFalse(), f)
 		}
 	})
@@ -71,7 +71,7 @@ var _ = Describe("Normalize", func() {
 			&ast.OperatorNode{Value: "AND"},
 			&ast.StringNode{Key: "Tags", Value: "x", CaseInsensitive: true},
 			&ast.OperatorNode{Value: "AND"},
-			&ast.StringNode{Key: "photo.cameraMake", Value: "canon"},
+			&ast.StringNode{Key: "photo.cameraMake", Value: "canon", CaseInsensitive: true},
 			&ast.OperatorNode{Value: "AND"},
 			&ast.OperatorNode{Value: "NOT"},
 			&ast.StringNode{Key: "MimeType", Value: "httpd/unix-directory"},

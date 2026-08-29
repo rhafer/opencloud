@@ -60,7 +60,9 @@ func (m IndexManager) MarshalJSON() ([]byte, error) {
 func buildResourceMapping() ([]byte, error) {
 	resourceType := reflect.TypeFor[search.Resource]()
 	overrides := maps.Clone(search.Resource{}.SearchFieldOverrides())
-	overrides["MimeType"] = searchmapping.FieldOpts{Type: searchmapping.TypeWildcard}
+	mimeType := overrides["MimeType"]
+	mimeType.Type = searchmapping.TypeWildcard
+	overrides["MimeType"] = mimeType
 	if err := searchmapping.Validate(resourceType, overrides); err != nil {
 		return nil, err
 	}
