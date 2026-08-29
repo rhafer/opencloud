@@ -64,7 +64,12 @@ func buildBleveDocMapping(t reflect.Type, overrides map[string]FieldOpts, prefix
 			base := bleveKeywordMapping(fieldType, opts)
 			doc.AddFieldMappingsAt(fi.Name, base)
 			if opts.caseInsensitive() {
-				doc.AddFieldMappingsAt(fi.Name+LowercaseSuffix, lowercaseSibling(base))
+				doc.AddFieldMappingsAt(fi.Name+LowercaseSuffix, searchSibling(base))
+			}
+			if opts.wordBroken() {
+				words := searchSibling(base)
+				words.Analyzer = WordsAnalyzer
+				doc.AddFieldMappingsAt(fi.Name+WordsSuffix, words)
 			}
 			return nil
 		}
@@ -92,11 +97,11 @@ func bleveKeywordMapping(fieldType string, opts FieldOpts) *bleveMapping.FieldMa
 	return fm
 }
 
-// lowercaseSibling derives the lowercased shadow of a keyword/path field from its
-// base mapping: used only for case-insensitive matching, so indexed but never
-// stored, kept out of _all, and without doc values, since the case-preserved base
-// field is what we return and aggregate on.
-func lowercaseSibling(base *bleveMapping.FieldMapping) *bleveMapping.FieldMapping {
+// searchSibling derives a search-only shadow of a keyword/path field from its
+// base mapping (the _lowercase and _words siblings): indexed but never stored,
+// kept out of _all, and without doc values, since the case-preserved base field
+// is what we return and aggregate on.
+func searchSibling(base *bleveMapping.FieldMapping) *bleveMapping.FieldMapping {
 	fm := *base
 	fm.Store = false
 	fm.IncludeInAll = false

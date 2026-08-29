@@ -106,6 +106,21 @@ var _ = Describe("OpenSearchBuildMapping", func() {
 		Expect(mime["type"]).To(Equal("wildcard"), "MimeType: %#v", mime)
 	})
 
+	It("splits a keyword into words when NoWordBreaker is false", func() {
+		True, False := true, false
+		type doc struct {
+			Name string `json:"Name"`
+		}
+		props, err := OpenSearchBuildMapping(reflect.TypeFor[doc](), map[string]FieldOpts{
+			"Name": {NoWordBreaker: &False, CaseInsensitive: &True},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		// the base stays a keyword, the words go to their own sibling
+		Expect(props["Name"]).To(Equal(map[string]any{"type": "keyword"}))
+		Expect(props["Name_lowercase"]).To(Equal(map[string]any{"type": "keyword"}))
+		Expect(props["Name_words"]).To(Equal(map[string]any{"type": "text", "analyzer": WordsAnalyzer}))
+	})
+
 	It("builds an object plus a geo_point sibling for geopoints", func() {
 		type doc struct {
 			Location *struct {

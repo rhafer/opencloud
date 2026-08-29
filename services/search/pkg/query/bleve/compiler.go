@@ -88,6 +88,13 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 				v = strings.ToLower(v)
 			}
 
+			// a word-broken field matches the value as a phrase of its words on the
+			// _words sibling (a quoted query string term is a match phrase query
+			// run through the field's analyzer); wildcards stay on _lowercase
+			if searchQuery.FieldIsWordBroken(n.Key) && !strings.Contains(n.Value, "*") {
+				k, v = n.Key+mapping.WordsSuffix, `"`+strings.ReplaceAll(n.Value, `"`, `\"`)+`"`
+			}
+
 			var q bleveQuery.Query = bleveQuery.NewQueryStringQuery(k + ":" + v)
 			if searchQuery.FieldIsPath(n.Key) {
 				// bleve has no path hierarchy analyzer, unlike OpenSearch: match the

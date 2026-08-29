@@ -602,6 +602,7 @@ var _ = Describe("Bleve", func() {
 			Expect(count).To(Equal(uint64(1)))
 
 			query := bleveSearch.NewMatchQuery("child.pdf")
+			query.SetField("Name")
 			res, err := idx.Search(bleveSearch.NewSearchRequest(query))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res.Hits.Len()).To(Equal(1))
@@ -843,6 +844,7 @@ var _ = Describe("Bleve", func() {
 			Expect(count).To(Equal(uint64(1)))
 
 			query := bleveSearch.NewMatchQuery("child.pdf")
+			query.SetField("Name")
 			res, err := idx.Search(bleveSearch.NewSearchRequest(query))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res.Hits.Len()).To(Equal(1))

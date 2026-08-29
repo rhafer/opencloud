@@ -10,6 +10,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/keyword"
+	"github.com/blevesearch/bleve/v2/analysis/char/regexp"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
 	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
@@ -66,6 +67,28 @@ func NewMapping() (mapping.IndexMapping, error) {
 				lowercase.Name,
 				porter.Name,
 			},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// words: split into lowercased words, a dot is a word boundary too so that
+	// "report" finds "Report.txt"; no stemming, a name is not prose
+	err = indexMapping.AddCustomCharFilter("dot_to_space", map[string]any{
+		"type":    regexp.Name,
+		"regexp":  `\.`,
+		"replace": " ",
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = indexMapping.AddCustomAnalyzer(searchmapping.WordsAnalyzer,
+		map[string]any{
+			"type":          custom.Name,
+			"char_filters":  []string{"dot_to_space"},
+			"tokenizer":     unicode.Name,
+			"token_filters": []string{lowercase.Name},
 		},
 	)
 	if err != nil {

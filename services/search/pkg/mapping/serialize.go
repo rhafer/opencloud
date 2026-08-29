@@ -19,6 +19,6 @@ func PrepareForIndex(v any, overrides map[string]FieldOpts) (map[string]any, err
 		return out, nil
 	}
 	addGeopointSiblings(out, overrides)
-	addLowercaseSiblings(out, overrides)
+	addSearchSiblings(out, overrides)
 	return out, nil
 }

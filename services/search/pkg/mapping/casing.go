@@ -2,16 +2,32 @@ package mapping
 
 import "strings"
 
-func addLowercaseSiblings(m map[string]any, overrides map[string]FieldOpts) {
+// addSearchSiblings writes the _lowercase and _words siblings the overrides ask
+// for next to their base values.
+func addSearchSiblings(m map[string]any, overrides map[string]FieldOpts) {
 	for key, opts := range overrides {
-		if !opts.caseInsensitive() || !isCasedType(opts) {
+		if !isCasedType(opts) || (!opts.caseInsensitive() && !opts.wordBroken()) {
 			continue
 		}
 		parent, leaf, ok := resolveLeaf(m, key)
 		if !ok {
 			continue
 		}
-		addLowercaseSibling(parent, leaf)
+		if opts.caseInsensitive() {
+			addLowercaseSibling(parent, leaf)
+		}
+		if opts.wordBroken() {
+			addWordsSibling(parent, leaf)
+		}
+	}
+}
+
+// addWordsSibling copies the value to a <leaf>_words sibling; the words
+// analyzer does the splitting and lowercasing. No-op for non-strings.
+func addWordsSibling(parent map[string]any, leaf string) {
+	switch v := parent[leaf].(type) {
+	case string, []any, []string:
+		parent[leaf+WordsSuffix] = v
 	}
 }
 

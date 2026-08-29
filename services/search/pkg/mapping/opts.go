@@ -20,6 +20,12 @@ const (
 // LowercaseSuffix names the lowercased sibling of a keyword/path field.
 const LowercaseSuffix = "_lowercase"
 
+// WordsSuffix names the word-broken sibling of a keyword field.
+const WordsSuffix = "_words"
+
+// WordsAnalyzer names the analyzer both engines register for the words sibling.
+const WordsAnalyzer = "words"
+
 // FieldOpts overrides the default type inference for a struct field. Keys in
 // the override map are json-tag names (e.g. "Name", "location", "audio.artist"),
 // not Go field names.
@@ -32,9 +38,19 @@ type FieldOpts struct {
 	// Nil/false means off. Keyword/path only.
 	CaseInsensitive *bool
 
+	// NoWordBreaker is SharePoint's switch: nil or true leaves a keyword field
+	// one whole value, false additionally indexes a <name>_words sibling split
+	// into lowercased words (no stemming), so a single word matches a value
+	// that contains it: "report" finds "Report.txt". The base stays the whole
+	// value for returning and aggregating; wildcards and whole-value matches
+	// use the _lowercase sibling, so it wants CaseInsensitive alongside.
+	// Keyword only.
+	NoWordBreaker *bool
+
 	// IncludeInAll controls bleve's _all field inclusion. Nil means "use the
 	// bleve default for this field type". Has no effect on OpenSearch.
 	IncludeInAll *bool
 }
 
 func (o FieldOpts) caseInsensitive() bool { return o.CaseInsensitive != nil && *o.CaseInsensitive }
+func (o FieldOpts) wordBroken() bool      { return o.NoWordBreaker != nil && !*o.NoWordBreaker }

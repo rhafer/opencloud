@@ -92,6 +92,22 @@ var _ = Describe("BleveBuildMapping", func() {
 		Expect(dm.Properties["Tags_lowercase"].Fields[0].IncludeInAll).To(BeFalse(), "Tags sibling IncludeInAll honored")
 	})
 
+	It("splits a keyword into words when NoWordBreaker is false", func() {
+		True, False := true, false
+		dm, err := BleveBuildMapping(reflect.TypeFor[bleveDoc](), map[string]FieldOpts{
+			"Name": {NoWordBreaker: &False, CaseInsensitive: &True},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		// the base stays a keyword, the words go to a search-only sibling
+		Expect(dm.Properties["Name"].Fields[0].Analyzer).To(Equal("keyword"), "Name base stays a keyword")
+		Expect(dm.Properties["Name"].Fields[0].Store).To(BeTrue(), "Name base is stored (returned)")
+		Expect(dm.Properties["Name_lowercase"].Fields[0].Analyzer).To(Equal("keyword"), "Name_lowercase stays a keyword")
+		words := dm.Properties["Name_words"].Fields[0]
+		Expect(words.Analyzer).To(Equal(WordsAnalyzer), "Name_words is split into words")
+		Expect(words.Store).To(BeFalse(), "Name_words is not stored")
+		Expect(words.IncludeInAll).To(BeFalse(), "Name_words is out of _all")
+	})
+
 	It("builds an object sub-document plus a geopoint sibling", func() {
 		type geoDoc struct {
 			Location *struct {

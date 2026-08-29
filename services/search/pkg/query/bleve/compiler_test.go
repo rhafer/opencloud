@@ -39,7 +39,7 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_lowercase:federated`),
+				query.NewQueryStringQuery(`Name_words:"federated"`),
 			}),
 			wantErr: false,
 		},
@@ -72,7 +72,7 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_lowercase:john\ smith`),
+				query.NewQueryStringQuery(`Name_words:"John Smith"`),
 			}),
 			wantErr: false,
 		},
@@ -86,8 +86,8 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_lowercase:john\ smith`),
-				query.NewQueryStringQuery(`Name_lowercase:jane`),
+				query.NewQueryStringQuery(`Name_words:"John Smith"`),
+				query.NewQueryStringQuery(`Name_words:"Jane"`),
 			}),
 			wantErr: false,
 		},
@@ -139,10 +139,10 @@ func Test_compile(t *testing.T) {
 			},
 			want: query.NewDisjunctionQuery([]query.Query{
 				query.NewConjunctionQuery([]query.Query{
-					query.NewQueryStringQuery(`Name_lowercase:a`),
-					query.NewQueryStringQuery(`Name_lowercase:b`),
+					query.NewQueryStringQuery(`Name_words:"a"`),
+					query.NewQueryStringQuery(`Name_words:"b"`),
 				}),
-				query.NewQueryStringQuery(`Name_lowercase:c`),
+				query.NewQueryStringQuery(`Name_words:"c"`),
 			}),
 			wantErr: false,
 		},
@@ -158,10 +158,10 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewDisjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_lowercase:a`),
+				query.NewQueryStringQuery(`Name_words:"a"`),
 				query.NewConjunctionQuery([]query.Query{
-					query.NewQueryStringQuery(`Name_lowercase:b`),
-					query.NewQueryStringQuery(`Name_lowercase:c`),
+					query.NewQueryStringQuery(`Name_words:"b"`),
+					query.NewQueryStringQuery(`Name_words:"c"`),
 				}),
 			}),
 			wantErr: false,
@@ -183,11 +183,11 @@ func Test_compile(t *testing.T) {
 			},
 			want: query.NewConjunctionQuery([]query.Query{
 				query.NewDisjunctionQuery([]query.Query{
-					query.NewQueryStringQuery(`Name_lowercase:a`),
-					query.NewQueryStringQuery(`Name_lowercase:b`),
-					query.NewQueryStringQuery(`Name_lowercase:c`),
+					query.NewQueryStringQuery(`Name_words:"a"`),
+					query.NewQueryStringQuery(`Name_words:"b"`),
+					query.NewQueryStringQuery(`Name_words:"c"`),
 				}),
-				query.NewQueryStringQuery(`Name_lowercase:d`),
+				query.NewQueryStringQuery(`Name_words:"d"`),
 			}),
 			wantErr: false,
 		},
@@ -320,7 +320,7 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_lowercase:john\ smith`),
+				query.NewQueryStringQuery(`Name_words:"John Smith"`),
 				query.NewQueryStringQuery(`Hidden:t`),
 				query.NewQueryStringQuery(`Hidden:t`),
 			}),
@@ -548,7 +548,7 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_lowercase:john\ smith\ \+\-\=\&\|\>\<\!\(\)\{\}\[\]\^\"\~\:\ `),
+				query.NewQueryStringQuery(`Name_words:"John Smith +-=&|><!(){}[]^\"~: "`),
 			}),
 			wantErr: false,
 		},

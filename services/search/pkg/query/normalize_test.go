@@ -30,13 +30,25 @@ var _ = Describe("ResolveField", func() {
 
 var _ = Describe("FieldIsCaseInsensitive", func() {
 	It("reports the CaseInsensitive override fields", func() {
-		// The three CaseInsensitive override fields (resolved canonical names).
-		for _, f := range []string{"Name", "Tags", "Favorites"} {
+		// The CaseInsensitive override fields (resolved canonical names).
+		for _, f := range []string{"Name", "Title", "Tags", "Favorites"} {
 			Expect(query.FieldIsCaseInsensitive(f)).To(BeTrue(), f)
 		}
 		// Case-preserved / non-keyword fields are not.
 		for _, f := range []string{"MimeType", "ID", "Content", "Path", "unknown"} {
 			Expect(query.FieldIsCaseInsensitive(f)).To(BeFalse(), f)
+		}
+	})
+})
+
+var _ = Describe("FieldIsWordBroken", func() {
+	It("reports the fields with NoWordBreaker switched off", func() {
+		for _, f := range []string{"Name", "Title"} {
+			Expect(query.FieldIsWordBroken(f)).To(BeTrue(), f)
+		}
+		// whole-value keywords, paths and full text are not
+		for _, f := range []string{"Tags", "Favorites", "MimeType", "ID", "Content", "Path", "unknown"} {
+			Expect(query.FieldIsWordBroken(f)).To(BeFalse(), f)
 		}
 	})
 })

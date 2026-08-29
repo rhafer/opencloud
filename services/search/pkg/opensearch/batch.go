@@ -71,7 +71,7 @@ func (b *Batch) Move(id, parentID, location string) error {
 				newPath := utils.MakeRelativePath(location)
 				newName := path.Base(newPath)
 				return &osu.BodyParamScript{
-					// Keep Name and its lowercased search sibling in sync; Path has
+					// Keep Name and its search siblings in sync; Path has
 					// no sibling (case-sensitive by design). Only the leading
 					// oldPath is replaced (startsWith + substring, not
 					// String.replace, which would also rewrite a repeated segment
@@ -85,6 +85,7 @@ func (b *Batch) Move(id, parentID, location string) error {
 							ctx._source.Name = params.newName;
 							ctx._source.ParentID = params.parentID;
 							if (ctx._source.Name%[1]s != null) { ctx._source.Name%[1]s = params.newNameLower; }
+							if (ctx._source.Name%[2]s != null) { ctx._source.Name%[2]s = params.newName; }
 						}
 						if (ctx._source.Path != null && ctx._source.Path.startsWith(params.oldPath)) {
 							ctx._source.Path = params.newPath + ctx._source.Path.substring(params.oldPath.length());
@@ -94,7 +95,7 @@ func (b *Batch) Move(id, parentID, location string) error {
 							if (!name.equals('.') && !name.equals('..') && name.startsWith('.')) { hidden = true; break; }
 						}
 						ctx._source.Hidden = hidden;
-					`, mapping.LowercaseSuffix),
+					`, mapping.LowercaseSuffix, mapping.WordsSuffix),
 					Lang: "painless",
 					Params: map[string]any{
 						"id":           id,

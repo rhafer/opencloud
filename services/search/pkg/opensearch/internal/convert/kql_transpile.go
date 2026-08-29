@@ -119,6 +119,12 @@ func (t kqlOpensearchTranspiler) toBuilder(node ast.Node) (osu.Builder, error) {
 			return osu.NewWildcardQuery(field).Value(value), nil
 		}
 
+		// a word-broken field matches the value as a phrase of its words on the
+		// _words sibling, whose analyzer lowercases; wildcards stay on _lowercase
+		if query.FieldIsWordBroken(node.Key) {
+			return osu.NewMatchPhraseQuery(node.Key + mapping.WordsSuffix).Query(node.Value), nil
+		}
+
 		if query.FieldIsFulltext(node.Key) {
 			return osu.NewMatchPhraseQuery(field).Query(value), nil
 		}

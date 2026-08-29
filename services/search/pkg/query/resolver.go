@@ -102,3 +102,22 @@ func FieldIsFulltext(field string) bool {
 	_, ok := fulltextFields()[field]
 	return ok
 }
+
+// wordBrokenFields are the keyword fields split into words (NoWordBreaker set
+// to false), derived from the overrides.
+var wordBrokenFields = sync.OnceValue(func() map[string]struct{} {
+	out := map[string]struct{}{}
+	for field, opts := range (search.Resource{}).SearchFieldOverrides() {
+		if opts.NoWordBreaker != nil && !*opts.NoWordBreaker {
+			out[field] = struct{}{}
+		}
+	}
+	return out
+})
+
+// FieldIsWordBroken reports whether a field is split into words, so a value
+// without a wildcard matches it as a phrase of those words instead of as a whole.
+func FieldIsWordBroken(field string) bool {
+	_, ok := wordBrokenFields()[field]
+	return ok
+}

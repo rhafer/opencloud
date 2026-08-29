@@ -87,6 +87,21 @@ func buildResourceMapping() ([]byte, error) {
 						"tokenizer": "standard",
 						"filter":    []string{"lowercase", "porter_stem"},
 					},
+					// words: split into lowercased words, a dot is a word boundary
+					// too so that "report" finds "Report.txt"; no stemming, a name
+					// is not prose
+					searchmapping.WordsAnalyzer: map[string]any{
+						"type":        "custom",
+						"char_filter": []string{"dot_to_space"},
+						"tokenizer":   "standard",
+						"filter":      []string{"lowercase"},
+					},
+				},
+				"char_filter": map[string]any{
+					"dot_to_space": map[string]any{
+						"type":     "mapping",
+						"mappings": []string{`. => \u0020`},
+					},
 				},
 				"tokenizer": map[string]any{
 					"path_hierarchy": map[string]any{"type": "path_hierarchy"},

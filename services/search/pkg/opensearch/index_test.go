@@ -10,7 +10,6 @@ import (
 
 	"github.com/opencloud-eu/opencloud/services/search/internal/opensearchtest"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch"
-	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch/internal/test"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 

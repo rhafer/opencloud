@@ -74,7 +74,10 @@ type Resource struct {
 var resourceFieldOverrides = sync.OnceValue(func() map[string]mapping.FieldOpts {
 	True, False := true, false
 	return map[string]mapping.FieldOpts{
-		"Name":      {CaseInsensitive: &True},
+		// a single word finds names and titles that contain it; wildcards and
+		// whole values go through the lowercased sibling
+		"Name":      {NoWordBreaker: &False, CaseInsensitive: &True},
+		"Title":     {NoWordBreaker: &False, CaseInsensitive: &True},
 		"Path":      {Type: mapping.TypePath},
 		"Content":   {Type: mapping.TypeFulltext},
 		"Tags":      {CaseInsensitive: &True, IncludeInAll: &False},

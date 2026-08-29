@@ -66,6 +66,9 @@ func buildOpenSearchProperties(t reflect.Type, overrides map[string]FieldOpts, p
 			if opts.caseInsensitive() {
 				props[fi.Name+LowercaseSuffix] = m
 			}
+			if opts.wordBroken() {
+				props[fi.Name+WordsSuffix] = map[string]any{"type": "text", "analyzer": WordsAnalyzer}
+			}
 			return nil
 		}
 

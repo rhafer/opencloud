@@ -17,12 +17,15 @@ func Validate(t reflect.Type, overrides map[string]FieldOpts) error {
 		return nil
 	}
 	fields := collectFields(t, "")
-	var unknown, miscased []string
+	var unknown, miscased, unbroken []string
 	for k, opts := range overrides {
 		goType, ok := fields[k]
 		if !ok {
 			unknown = append(unknown, k)
 			continue
+		}
+		if opts.wordBroken() && !effectivelyKeyword(opts, goType) {
+			unbroken = append(unbroken, k)
 		}
 		// CaseInsensitive routes queries to a <field>_lowercase sibling, which is
 		// only generated for keyword/path fields; on any other type the query
@@ -41,6 +44,10 @@ func Validate(t reflect.Type, overrides map[string]FieldOpts) error {
 		sort.Strings(miscased)
 		return fmt.Errorf("mapping: CaseInsensitive is only valid on keyword/path fields: %s", strings.Join(miscased, ", "))
 	}
+	if len(unbroken) > 0 {
+		sort.Strings(unbroken)
+		return fmt.Errorf("mapping: NoWordBreaker is only valid on keyword fields: %s", strings.Join(unbroken, ", "))
+	}
 	return nil
 }
 
@@ -52,6 +59,16 @@ func effectivelyCased(opts FieldOpts, goType reflect.Type) bool {
 		eff = inferType(goType)
 	}
 	return eff == TypeKeyword || eff == TypePath
+}
+
+// effectivelyKeyword reports whether a field is a keyword, the only type
+// NoWordBreaker applies to.
+func effectivelyKeyword(opts FieldOpts, goType reflect.Type) bool {
+	eff := opts.Type
+	if eff == "" && goType != nil {
+		eff = inferType(goType)
+	}
+	return eff == TypeKeyword
 }
 
 // collectFields maps every known field name (nested as "parent.child") to its Go
