@@ -139,6 +139,18 @@
           }
         ]
       },
+      "Name_words": {
+        "enabled": true,
+        "dynamic": true,
+        "fields": [
+          {
+            "type": "text",
+            "analyzer": "words",
+            "index": true,
+            "include_term_vectors": true
+          }
+        ]
+      },
       "ParentID": {
         "enabled": true,
         "dynamic": true,
@@ -165,6 +177,18 @@
             "index": true,
             "include_term_vectors": true,
             "docvalues": true
+          }
+        ]
+      },
+      "Path_words": {
+        "enabled": true,
+        "dynamic": true,
+        "fields": [
+          {
+            "type": "text",
+            "analyzer": "words",
+            "index": true,
+            "include_term_vectors": true
           }
         ]
       },
@@ -237,6 +261,30 @@
           }
         ]
       },
+      "Title_lowercase": {
+        "enabled": true,
+        "dynamic": true,
+        "fields": [
+          {
+            "type": "text",
+            "analyzer": "keyword",
+            "index": true,
+            "include_term_vectors": true
+          }
+        ]
+      },
+      "Title_words": {
+        "enabled": true,
+        "dynamic": true,
+        "fields": [
+          {
+            "type": "text",
+            "analyzer": "words",
+            "index": true,
+            "include_term_vectors": true
+          }
+        ]
+      },
       "Type": {
         "enabled": true,
         "dynamic": true,
@@ -284,6 +332,54 @@
               }
             ]
           },
+          "albumArtist_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "albumArtist_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "album_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "album_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
           "artist": {
             "enabled": true,
             "dynamic": true,
@@ -296,6 +392,30 @@
                 "include_term_vectors": true,
                 "include_in_all": true,
                 "docvalues": true
+              }
+            ]
+          },
+          "artist_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "artist_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
               }
             ]
           },
@@ -327,6 +447,30 @@
               }
             ]
           },
+          "composers_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "composers_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
           "copyright": {
             "enabled": true,
             "dynamic": true,
@@ -339,6 +483,30 @@
                 "include_term_vectors": true,
                 "include_in_all": true,
                 "docvalues": true
+              }
+            ]
+          },
+          "copyright_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "copyright_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
               }
             ]
           },
@@ -396,6 +564,30 @@
               }
             ]
           },
+          "genre_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "genre_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
           "hasDrm": {
             "enabled": true,
             "dynamic": true,
@@ -434,6 +626,30 @@
                 "include_term_vectors": true,
                 "include_in_all": true,
                 "docvalues": true
+              }
+            ]
+          },
+          "title_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "title_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
               }
             ]
           },
@@ -587,6 +803,30 @@
               }
             ]
           },
+          "cameraMake_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "cameraMake_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
           "cameraModel": {
             "enabled": true,
             "dynamic": true,
@@ -599,6 +839,30 @@
                 "include_term_vectors": true,
                 "include_in_all": true,
                 "docvalues": true
+              }
+            ]
+          },
+          "cameraModel_lowercase": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "keyword",
+                "index": true,
+                "include_term_vectors": true
+              }
+            ]
+          },
+          "cameraModel_words": {
+            "enabled": true,
+            "dynamic": true,
+            "fields": [
+              {
+                "type": "text",
+                "analyzer": "words",
+                "index": true,
+                "include_term_vectors": true
               }
             ]
           },
@@ -706,11 +970,28 @@
   "index_dynamic": true,
   "docvalues_dynamic": true,
   "analysis": {
+    "char_filters": {
+      "dot_to_space": {
+        "regexp": "\\.",
+        "replace": " ",
+        "type": "regexp"
+      }
+    },
     "analyzers": {
       "fulltext": {
         "token_filters": [
           "to_lower",
           "stemmer_porter"
+        ],
+        "tokenizer": "unicode",
+        "type": "custom"
+      },
+      "words": {
+        "char_filters": [
+          "dot_to_space"
+        ],
+        "token_filters": [
+          "to_lower"
         ],
         "tokenizer": "unicode",
         "type": "custom"

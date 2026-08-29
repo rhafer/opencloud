@@ -134,7 +134,7 @@ func TestIndexManager(t *testing.T) {
 
 		resp, err := tc.Client().Indices.Mapping.Get(t.Context(), &opensearchgoAPI.MappingGetReq{Indices: []string{indexName}})
 		require.NoError(t, err)
-		require.True(t, gjson.GetBytes(resp.Indices[indexName].Mappings, "properties.Title").Exists())
+		require.True(t, gjson.GetBytes(resp.GetIndices()[indexName].Mappings, "properties.Title").Exists())
 	})
 
 	t.Run("adds a new nested field to an existing index in place", func(t *testing.T) {
@@ -152,7 +152,7 @@ func TestIndexManager(t *testing.T) {
 
 		resp, err := tc.Client().Indices.Mapping.Get(t.Context(), &opensearchgoAPI.MappingGetReq{Indices: []string{indexName}})
 		require.NoError(t, err)
-		require.True(t, gjson.GetBytes(resp.Indices[indexName].Mappings, "properties.photo.properties.cameraMake").Exists())
+		require.True(t, gjson.GetBytes(resp.GetIndices()[indexName].Mappings, "properties.photo.properties.cameraMake").Exists())
 	})
 
 	t.Run("fails when an existing field changed its definition", func(t *testing.T) {
