@@ -24,7 +24,7 @@ func Validate(t reflect.Type, overrides map[string]FieldOpts) error {
 			unknown = append(unknown, k)
 			continue
 		}
-		if opts.wordBroken() && !effectivelyKeyword(opts, goType) {
+		if opts.NoWordBreaker != nil && !*opts.NoWordBreaker && !effectivelyKeyword(opts, goType) {
 			unbroken = append(unbroken, k)
 		}
 		// CaseInsensitive routes queries to a <field>_lowercase sibling, which is

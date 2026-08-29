@@ -39,13 +39,13 @@ type FieldOpts struct {
 	// false opts a field out (ids, paths).
 	CaseInsensitive *bool
 
-	// NoWordBreaker is SharePoint's switch: nil or true leaves a keyword field
-	// one whole value, false additionally indexes a <name>_words sibling split
-	// into lowercased words (no stemming), so a single word matches a value
-	// that contains it: "report" finds "Report.txt". The base stays the whole
-	// value for returning and aggregating; wildcards and whole-value matches
-	// use the _lowercase sibling, so it wants CaseInsensitive alongside.
-	// Keyword only.
+	// NoWordBreaker is SharePoint's switch, with its default: a keyword field
+	// additionally indexes a <name>_words sibling split into lowercased words
+	// (no stemming), so a single word matches a value that contains it,
+	// "report" finds "Report.txt"; true opts a field out and leaves it one
+	// whole value (tags, ids, paths). The base stays the whole value for
+	// returning and aggregating; wildcards and whole-value matches use the
+	// _lowercase sibling. Keyword only.
 	NoWordBreaker *bool
 
 	// IncludeInAll controls bleve's _all field inclusion. Nil means "use the
@@ -54,4 +54,4 @@ type FieldOpts struct {
 }
 
 func (o FieldOpts) caseInsensitive() bool { return o.CaseInsensitive == nil || *o.CaseInsensitive }
-func (o FieldOpts) wordBroken() bool      { return o.NoWordBreaker != nil && !*o.NoWordBreaker }
+func (o FieldOpts) wordBroken() bool      { return o.NoWordBreaker == nil || !*o.NoWordBreaker }

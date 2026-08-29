@@ -55,7 +55,7 @@ var _ = Describe("Validate", func() {
 		Expect(err.Error()).To(ContainSubstring("CaseInsensitive"))
 	})
 
-	It("rejects NoWordBreaker on a non-keyword field", func() {
+	It("rejects switching NoWordBreaker off on a non-keyword field", func() {
 		False := false
 		err := Validate(reflect.TypeFor[sample](), map[string]FieldOpts{
 			"Name": {Type: TypeFulltext, NoWordBreaker: &False},

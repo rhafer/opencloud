@@ -30,14 +30,11 @@ var _ = Describe("PrepareForIndex casing", func() {
 		Expect(m["Tags_lowercase"]).To(Equal([]any{"work", "urgent"}))
 	})
 
-	It("copies the value to a words sibling when NoWordBreaker is off", func() {
-		True, False := true, false
+	It("copies the value to a words sibling by default", func() {
 		type doc struct {
 			Name string `json:"Name"`
 		}
-		m, err := PrepareForIndex(doc{Name: "Report FINAL"}, map[string]FieldOpts{
-			"Name": {NoWordBreaker: &False, CaseInsensitive: &True},
-		})
+		m, err := PrepareForIndex(doc{Name: "Report FINAL"}, nil)
 		Expect(err).ToNot(HaveOccurred())
 		// the analyzer splits and lowercases, the value goes over as is
 		Expect(m["Name"]).To(Equal("Report FINAL"))

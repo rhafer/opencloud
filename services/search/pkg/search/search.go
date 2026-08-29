@@ -72,21 +72,19 @@ type Resource struct {
 // resourceFieldOverrides is built once (it never changes) and reused on hot
 // paths instead of reallocating per call.
 var resourceFieldOverrides = sync.OnceValue(func() map[string]mapping.FieldOpts {
-	False := false
+	True, False := true, false
 	return map[string]mapping.FieldOpts{
-		// every keyword field searches case-insensitively unless opted out:
-		// ids are opaque, paths are POSIX, the mime type is normalized already
-		"ID":       {CaseInsensitive: &False},
-		"RootID":   {CaseInsensitive: &False},
-		"ParentID": {CaseInsensitive: &False},
-		"Path":     {Type: mapping.TypePath, CaseInsensitive: &False},
-		"MimeType": {CaseInsensitive: &False},
-		"Content":  {Type: mapping.TypeFulltext},
-		// a single word finds names and titles that contain it
-		"Name":      {NoWordBreaker: &False},
-		"Title":     {NoWordBreaker: &False},
-		"Tags":      {IncludeInAll: &False},
-		"Favorites": {IncludeInAll: &False},
+		// every keyword field searches case-insensitively and by word (name,
+		// title, the facets) unless opted out: ids are opaque, paths are POSIX,
+		// the mime type is normalized already, a tag is one label
+		"ID":        {CaseInsensitive: &False, NoWordBreaker: &True},
+		"RootID":    {CaseInsensitive: &False, NoWordBreaker: &True},
+		"ParentID":  {CaseInsensitive: &False, NoWordBreaker: &True},
+		"Path":      {Type: mapping.TypePath, CaseInsensitive: &False},
+		"MimeType":  {CaseInsensitive: &False, NoWordBreaker: &True},
+		"Content":   {Type: mapping.TypeFulltext},
+		"Tags":      {NoWordBreaker: &True, IncludeInAll: &False},
+		"Favorites": {NoWordBreaker: &True, IncludeInAll: &False},
 		"location":  {Type: mapping.TypeGeopoint},
 	}
 })

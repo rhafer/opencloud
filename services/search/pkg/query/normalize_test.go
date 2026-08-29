@@ -42,11 +42,11 @@ var _ = Describe("FieldIsCaseInsensitive", func() {
 })
 
 var _ = Describe("FieldIsWordBroken", func() {
-	It("reports the fields with NoWordBreaker switched off", func() {
-		for _, f := range []string{"Name", "Title"} {
+	It("reports the word-broken fields, keywords unless opted out", func() {
+		for _, f := range []string{"Name", "Title", "audio.artist", "photo.cameraMake"} {
 			Expect(query.FieldIsWordBroken(f)).To(BeTrue(), f)
 		}
-		// whole-value keywords, paths and full text are not
+		// opted out (labels, ids, mime type), paths and full text are not
 		for _, f := range []string{"Tags", "Favorites", "MimeType", "ID", "Content", "Path", "unknown"} {
 			Expect(query.FieldIsWordBroken(f)).To(BeFalse(), f)
 		}

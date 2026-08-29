@@ -33,8 +33,12 @@ var _ = Describe("PrepareForIndex serialization", func() {
 		}
 		m, err := PrepareForIndex(outer{Inner: Inner{Name: "a", Size: 7}, ID: "x"}, nil)
 		Expect(err).ToNot(HaveOccurred())
-		// keywords carry their lowercased search sibling by default
-		want := map[string]any{"Name": "a", "Name_lowercase": "a", "Size": float64(7), "ID": "x", "ID_lowercase": "x"}
+		// keywords carry their lowercase and words search siblings by default
+		want := map[string]any{
+			"Name": "a", "Name_lowercase": "a", "Name_words": "a",
+			"Size": float64(7),
+			"ID":   "x", "ID_lowercase": "x", "ID_words": "x",
+		}
 		Expect(m).To(Equal(want))
 	})
 

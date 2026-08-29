@@ -92,11 +92,8 @@ var _ = Describe("BleveBuildMapping", func() {
 		Expect(dm.Properties["Tags_lowercase"].Fields[0].IncludeInAll).To(BeFalse(), "Tags sibling IncludeInAll honored")
 	})
 
-	It("splits a keyword into words when NoWordBreaker is false", func() {
-		True, False := true, false
-		dm, err := BleveBuildMapping(reflect.TypeFor[bleveDoc](), map[string]FieldOpts{
-			"Name": {NoWordBreaker: &False, CaseInsensitive: &True},
-		})
+	It("gives a keyword its lowercase and words siblings by default", func() {
+		dm, err := BleveBuildMapping(reflect.TypeFor[bleveDoc](), nil)
 		Expect(err).ToNot(HaveOccurred())
 		// the base stays a keyword, the words go to a search-only sibling
 		Expect(dm.Properties["Name"].Fields[0].Analyzer).To(Equal("keyword"), "Name base stays a keyword")

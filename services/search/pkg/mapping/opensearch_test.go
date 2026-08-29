@@ -106,19 +106,29 @@ var _ = Describe("OpenSearchBuildMapping", func() {
 		Expect(mime["type"]).To(Equal("wildcard"), "MimeType: %#v", mime)
 	})
 
-	It("splits a keyword into words when NoWordBreaker is false", func() {
-		True, False := true, false
+	It("gives a keyword its lowercase and words siblings by default", func() {
 		type doc struct {
 			Name string `json:"Name"`
 		}
-		props, err := OpenSearchBuildMapping(reflect.TypeFor[doc](), map[string]FieldOpts{
-			"Name": {NoWordBreaker: &False, CaseInsensitive: &True},
-		})
+		props, err := OpenSearchBuildMapping(reflect.TypeFor[doc](), nil)
 		Expect(err).ToNot(HaveOccurred())
 		// the base stays a keyword, the words go to their own sibling
 		Expect(props["Name"]).To(Equal(map[string]any{"type": "keyword"}))
 		Expect(props["Name_lowercase"]).To(Equal(map[string]any{"type": "keyword"}))
 		Expect(props["Name_words"]).To(Equal(map[string]any{"type": "text", "analyzer": WordsAnalyzer}))
+	})
+
+	It("leaves a keyword one whole value with NoWordBreaker", func() {
+		True := true
+		type doc struct {
+			Tag string `json:"Tag"`
+		}
+		props, err := OpenSearchBuildMapping(reflect.TypeFor[doc](), map[string]FieldOpts{
+			"Tag": {NoWordBreaker: &True},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(props).To(HaveKey("Tag_lowercase"))
+		Expect(props).ToNot(HaveKey("Tag_words"))
 	})
 
 	It("builds an object plus a geo_point sibling for geopoints", func() {
