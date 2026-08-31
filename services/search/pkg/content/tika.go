@@ -94,10 +94,20 @@ func (t Tika) Extract(ctx context.Context, ri *provider.ResourceInfo) (Document,
 			doc.Content = strings.TrimSpace(fmt.Sprintf("%s %s", doc.Content, content))
 		}
 
-		doc.Location = t.getLocation(meta)
-		doc.Image = t.getImage(meta)
-		doc.Photo = t.getPhoto(meta)
-		doc.Audio = t.getAudio(meta)
+		// keep facets from earlier entries, an embedded resource's meta
+		// (e.g. cover art) must not reset them
+		if v := t.getLocation(meta); v != nil {
+			doc.Location = v
+		}
+		if v := t.getImage(meta); v != nil {
+			doc.Image = v
+		}
+		if v := t.getPhoto(meta); v != nil {
+			doc.Photo = v
+		}
+		if v := t.getAudio(meta); v != nil {
+			doc.Audio = v
+		}
 	}
 
 	if langCode, _ := t.tika.LanguageString(ctx, doc.Content); langCode != "" && t.CleanStopWords {

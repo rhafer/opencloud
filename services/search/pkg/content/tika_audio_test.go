@@ -9,6 +9,7 @@ import (
 var _ = Describe("getAudio", func() {
 	It("maps the audio metadata to the audio facet", func() {
 		meta := map[string][]string{
+			"Content-Type":              {"audio/mpeg"},
 			"xmpDM:genre":               {"Some Genre"},
 			"xmpDM:album":               {"Some Album"},
 			"xmpDM:trackNumber":         {"7"},
@@ -50,5 +51,30 @@ var _ = Describe("getAudio", func() {
 
 	It("returns nil when no audio metadata is present", func() {
 		Expect(Tika{}.getAudio(map[string][]string{})).To(BeNil())
+	})
+
+	It("returns nil for non-audio content types", func() {
+		Expect(Tika{}.getAudio(map[string][]string{
+			"Content-Type": {"application/pdf"},
+			"dc:title":     {"quarterly report"},
+		})).To(BeNil())
+	})
+
+	It("takes the year from a full release date", func() {
+		audio := Tika{}.getAudio(map[string][]string{
+			"Content-Type":      {"audio/mpeg"},
+			"xmpDM:releaseDate": {"2004-06-01"},
+		})
+		Expect(audio).ToNot(BeNil())
+		Expect(audio.Year).To(Equal(libregraph.PtrInt32(2004)))
+	})
+
+	It("rounds the bitrate to the nearest kbps", func() {
+		audio := Tika{}.getAudio(map[string][]string{
+			"Content-Type":  {"audio/mpeg"},
+			"audio:bitrate": {"191999"},
+		})
+		Expect(audio).ToNot(BeNil())
+		Expect(audio.Bitrate).To(Equal(libregraph.PtrInt64(192)))
 	})
 })

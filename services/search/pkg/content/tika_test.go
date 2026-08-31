@@ -11,6 +11,7 @@ import (
 	provider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	libregraph "github.com/opencloud-eu/libre-graph-api-go"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/opencloud-eu/opencloud/pkg/log"
@@ -121,6 +122,7 @@ var _ = Describe("Tika", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(doc.Title).To(Equal("quarterly report"))
 		})
+
 		It("removes stop words", func() {
 			body = "body to test stop words!!! against almost everyone"
 			language = "en"
@@ -131,6 +133,53 @@ var _ = Describe("Tika", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(doc.Content).To(Equal("body test stop words!!!"))
+		})
+
+		It("keeps the audio facet when an embedded resource follows", func() {
+			fullResponse = `[{"Content-Type": "audio/mpeg", "dc:title": "Sucker", "tk:content": "lyrics"}, {"Content-Type": "image/jpeg", "tiff:ImageWidth": "500"}]`
+
+			doc, err := tika.Extract(context.TODO(), &provider.ResourceInfo{
+				Type: provider.ResourceType_RESOURCE_TYPE_FILE,
+				Size: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(doc.Audio).ToNot(BeNil())
+			Expect(doc.Audio.Title).To(Equal(libregraph.PtrString("Sucker")))
+			Expect(doc.Image).ToNot(BeNil())
+		})
+
+		It("adds no audio facet to non-audio documents", func() {
+			fullResponse = `[{"Content-Type": "application/pdf", "dc:title": "quarterly report"}]`
+
+			doc, err := tika.Extract(context.TODO(), &provider.ResourceInfo{
+				Type: provider.ResourceType_RESOURCE_TYPE_FILE,
+				Size: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(doc.Audio).To(BeNil())
+			Expect(doc.Title).To(Equal("quarterly report"))
+		})
+
+		It("prefers the tika 4 content key over the legacy one", func() {
+			fullResponse = `[{"tk:content": "new", "X-TIKA:content": "old"}]`
+
+			doc, err := tika.Extract(context.TODO(), &provider.ResourceInfo{
+				Type: provider.ResourceType_RESOURCE_TYPE_FILE,
+				Size: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(doc.Content).To(Equal("new"))
+		})
+
+		It("joins the content of all meta entries", func() {
+			fullResponse = `[{"tk:content": "one"}, {"X-TIKA:content": "two"}]`
+
+			doc, err := tika.Extract(context.TODO(), &provider.ResourceInfo{
+				Type: provider.ResourceType_RESOURCE_TYPE_FILE,
+				Size: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(doc.Content).To(Equal("one two"))
 		})
 
 		It("keeps stop words", func() {

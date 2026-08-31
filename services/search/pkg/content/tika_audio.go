@@ -3,11 +3,19 @@ package content
 import (
 	"math"
 	"strconv"
+	"strings"
+	"time"
 
 	libregraph "github.com/opencloud-eu/libre-graph-api-go"
 )
 
 func (t Tika) getAudio(meta map[string][]string) *libregraph.Audio {
+	// generic keys like dc:title show up on any document, only audio
+	// content types carry the audio facet
+	if v, err := getFirstValue(meta, "Content-Type"); err != nil || !strings.HasPrefix(v, "audio/") {
+		return nil
+	}
+
 	var audio *libregraph.Audio
 	initAudio := func() {
 		if audio == nil {
@@ -34,7 +42,7 @@ func (t Tika) getAudio(meta map[string][]string) *libregraph.Audio {
 		// tika emits bits per second, graph wants kbps
 		if bps, err := strconv.ParseInt(v, 10, 64); err == nil {
 			initAudio()
-			audio.SetBitrate(bps / 1000)
+			audio.SetBitrate(int64(math.Round(float64(bps) / 1000)))
 		}
 	}
 
@@ -53,7 +61,6 @@ func (t Tika) getAudio(meta map[string][]string) *libregraph.Audio {
 			initAudio()
 			audio.SetDisc(int32(i))
 		}
-
 	}
 
 	if v, err := getFirstValue(meta, "audio:disc-count"); err == nil {
@@ -113,6 +120,9 @@ func (t Tika) getAudio(meta map[string][]string) *libregraph.Audio {
 		if i, err := strconv.ParseInt(v, 10, 32); err == nil {
 			initAudio()
 			audio.SetYear(int32(i))
+		} else if d, err := time.Parse(time.DateOnly, v); err == nil {
+			initAudio()
+			audio.SetYear(int32(d.Year()))
 		}
 	}
 
