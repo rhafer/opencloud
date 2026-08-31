@@ -20,10 +20,6 @@ import (
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
 
-const (
-	wildcardSuffix = ".wildcard"
-)
-
 func NewIndex(root string) (bleve.Index, error) {
 	destination := filepath.Join(root, fmt.Sprintf("bleve-v%d", search.SchemaVersion))
 	index, err := bleve.Open(destination)
