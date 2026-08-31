@@ -33,7 +33,7 @@ independently maintained description of the index layout:
   whose query values need to be pre-lowercased, with a comment that
   literally says "Keep in sync with index.go".
 
-The current implementation has four concrete problems:
+The current implementation has three concrete problems:
 
 1. **The two backends do not behave the same.** Both rely on their
    own implicit defaults for fields that are not explicitly
@@ -50,21 +50,15 @@ The current implementation has four concrete problems:
      wildcard match only); OpenSearch word-tokenizes, so a bare
      `name:report` matches "My Report.txt" on OpenSearch but not on
      bleve.
-2. **The indexed facet metadata is effectively unreachable.** The
-   audio, image, photo and location sub-fields go into the index and
-   take up space, but no caller of the search service can actually
-   use them. The KQL compiler does not support the dot syntax needed
-   to refer to `audio.artist` on the OpenSearch side, and until
-   #2633 the bleve-side compiler unconditionally lowercased query
-   values even against case-preserving fields. The hit and REPORT
-   paths do not expose facet values back to consumers either.
-3. **Drift risk.** The OpenSearch JSON template is a subset of what
+2. **Drift risk.** The OpenSearch JSON template is a subset of what
    actually gets indexed. Even where it overlaps with the bleve
-   mapping it diverges on analyzer choices. Because point 2 means
-   nothing queries the diverging fields, the divergence has been
-   invisible, but it would surface the moment the first working
-   cross-backend facet query landed.
-4. **Per-facet cost.** Adding a new facet (motionPhoto, etc.)
+   mapping it diverges on analyzer choices. Because the facet
+   fields were not reachable from user queries at the time (no dot
+   syntax in the KQL compilers, no facet exposure on the hit and
+   REPORT paths), the divergence has been invisible, but it would
+   surface the moment the first working cross-backend facet query
+   landed.
+3. **Per-facet cost.** Adding a new facet (motionPhoto, etc.)
    requires coordinated edits across the proto message, both backend
    mappings, the bleve hit converters, the OpenSearch convert
    closures, the search service's metadata persistence, the graph
@@ -76,10 +70,10 @@ The current implementation has four concrete problems:
 
 ### A note on backwards compatibility
 
-The unreachability above (problem 2) has a useful corollary for
-this ADR: **changing the indexed shape of the facet fields cannot
-break any existing client of the search service**, because no
-client successfully reads them today. The behavior changes
+That the facet fields were unreachable at decision time has a
+useful corollary for this ADR: **changing the indexed shape of the
+facet fields cannot break any existing client of the search
+service**, because no client successfully read them. The behavior changes
 discussed below are therefore additive in a literal sense; nothing
 that works today stops working as a result.
 
