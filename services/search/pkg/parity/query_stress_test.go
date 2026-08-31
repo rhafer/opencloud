@@ -25,7 +25,7 @@ func stressGroup() queryGroup {
 			{id: 6, query: `tag:("final") AND NOT mediatype:folder`, want: []string{"quarterly report.docx", "photo.jpg"}},
 			{id: 7, query: `hidden:true AND name:"*notes*"`, want: []string{"notes.md"}, engineOverrides: map[string]override{"bleve": override{}}},
 			{id: 8, query: `name:quarterly report`, want: []string{"quarterly report.docx"}, engineOverrides: map[string]override{"bleve": override{}, "opensearch": override{}}},
-			{id: 9, query: `name:"quarterly report"`},
+			{id: 9, query: `name:"quarterly report"`, want: []string{"quarterly report.docx"}},
 			{id: 10, query: `name:"quarterly report.docx"`, want: []string{"quarterly report.docx"}},
 			{id: 11, query: `NOT tag:("draft")`, want: []string{"quarterly report.docx", "photo.jpg", "notes.md", "archive"}, engineOverrides: map[string]override{"bleve": override{want: []string{"archive", "draft report.txt", "notes.md", "photo.jpg", "quarterly report.docx"}}}},
 			{id: 12, query: `tag:("final") OR hidden:true`, want: []string{"quarterly report.docx", "photo.jpg", "notes.md"}, engineOverrides: map[string]override{"bleve": override{want: []string{"photo.jpg", "quarterly report.docx"}}}},

@@ -18,6 +18,8 @@ func titleGroup() queryGroup {
 			{id: 5, query: `Title:"*ly rep*"`, want: []string{"q1.html"}},
 			{id: 6, query: `title:quarterly`, want: []string{"q1.html"}, engineOverrides: map[string]override{"bleve": override{}, "opensearch": override{}}},
 			{id: 7, query: `Title:"QUARTERLY REPORT"`, want: []string{"q1.html"}, engineOverrides: map[string]override{"bleve": override{}}},
+			{id: 8, query: `Title="quarterly report"`, want: []string{"q1.html"}},
+			{id: 9, query: `Title="quarterly"`},
 		},
 	}
 }
