@@ -31,11 +31,11 @@ var _ = Describe("ResolveField", func() {
 var _ = Describe("FieldIsCaseInsensitive", func() {
 	It("reports the CaseInsensitive override fields", func() {
 		// keyword fields are case-insensitive by default, facets included
-		for _, f := range []string{"Name", "Title", "Tags", "Favorites", "audio.artist", "photo.cameraMake"} {
+		for _, f := range []string{"Name", "Title", "Tags", "audio.artist", "photo.cameraMake"} {
 			Expect(query.FieldIsCaseInsensitive(f)).To(BeTrue(), f)
 		}
-		// opted out (ids, path, mime type) or not a keyword at all
-		for _, f := range []string{"MimeType", "ID", "RootID", "ParentID", "Content", "Path", "Size", "unknown"} {
+		// opted out (ids, favorites, path, mime type) or not a keyword at all
+		for _, f := range []string{"MimeType", "ID", "RootID", "ParentID", "Favorites", "Content", "Path", "Size", "unknown"} {
 			Expect(query.FieldIsCaseInsensitive(f)).To(BeFalse(), f)
 		}
 	})

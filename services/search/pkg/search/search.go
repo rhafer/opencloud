@@ -84,7 +84,7 @@ var resourceFieldOverrides = sync.OnceValue(func() map[string]mapping.FieldOpts 
 		"MimeType":  {CaseInsensitive: &False, NoWordBreaker: &True},
 		"Content":   {Type: mapping.TypeFulltext},
 		"Tags":      {NoWordBreaker: &True, IncludeInAll: &False},
-		"Favorites": {NoWordBreaker: &True, IncludeInAll: &False},
+		"Favorites": {NoWordBreaker: &True, IncludeInAll: &False, CaseInsensitive: &False}, // opaque user ids
 		"location":  {Type: mapping.TypeGeopoint},
 	}
 })
