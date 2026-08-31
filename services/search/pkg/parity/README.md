@@ -181,6 +181,10 @@ Fixtures:
 | MEDIATYPE-04 | `mediatype:*jpeg` | photo.jpg | photo.jpg | photo.jpg | ✅ |
 | MEDIATYPE-05 | `mediatype:image` | photo.jpg | photo.jpg | photo.jpg | ✅ |
 | MEDIATYPE-06 | `mediatype:folder` | albums, drafts | albums, drafts | albums, drafts | ✅ |
+| MEDIATYPE-07 | `mediatype:file` | notes.md, photo.jpg | notes.md, photo.jpg | notes.md, photo.jpg | ✅ |
+| MEDIATYPE-08 | `NOT mediatype:file` | albums, drafts | albums, drafts | albums, drafts | ✅ |
+| MEDIATYPE-09 | `mediatype:file OR mediatype:image` | notes.md, photo.jpg | notes.md, photo.jpg | notes.md, photo.jpg | ✅ |
+| MEDIATYPE-10 | `NOT mediatype:(image OR folder)` | notes.md | notes.md | notes.md | ✅ |
 
 ### path
 
