@@ -40,7 +40,7 @@ func (t Tika) getAudio(meta map[string][]string) *libregraph.Audio {
 
 	if v, err := getFirstValue(meta, "audio:bitrate"); err == nil {
 		// tika emits bits per second, graph wants kbps
-		if bps, err := strconv.ParseInt(v, 10, 64); err == nil {
+		if bps, err := strconv.ParseInt(v, 10, 64); err == nil && bps > 0 {
 			initAudio()
 			audio.SetBitrate(int64(math.Round(float64(bps) / 1000)))
 		}

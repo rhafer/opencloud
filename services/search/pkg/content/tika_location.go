@@ -43,7 +43,8 @@ func parseCoordinate(meta map[string][]string, key string, limit float64) (float
 	if err != nil {
 		return 0, err
 	}
-	if math.Abs(f) > limit {
+	// ParseFloat accepts "NaN", which json cannot marshal
+	if math.IsNaN(f) || math.Abs(f) > limit {
 		return 0, fmt.Errorf("%s out of range: %v", key, f)
 	}
 

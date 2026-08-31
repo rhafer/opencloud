@@ -39,6 +39,7 @@ var _ = Describe("getLocation", func() {
 	It("returns nil for out-of-range coordinates", func() {
 		Expect(Tika{}.getLocation(map[string][]string{"geo:lat": {"91"}, "geo:long": {"11.1"}})).To(BeNil())
 		Expect(Tika{}.getLocation(map[string][]string{"geo:lat": {"49.48"}, "geo:long": {"-180.5"}})).To(BeNil())
+		Expect(Tika{}.getLocation(map[string][]string{"geo:lat": {"NaN"}, "geo:long": {"11.1"}})).To(BeNil())
 	})
 
 	It("returns nil when no location metadata is present", func() {
