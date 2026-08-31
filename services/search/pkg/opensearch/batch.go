@@ -168,7 +168,11 @@ func (b *Batch) Purge(id string, onlyDeleted bool) error {
 			return fmt.Errorf("failed to get resource: %w", err)
 		}
 
-		query := osu.NewBoolQuery().Must(osu.NewTermQuery[string]("Path").Value(resource.Path))
+		// scope to the resource's space: the same path exists in other spaces
+		query := osu.NewBoolQuery().Must(
+			osu.NewTermQuery[string]("RootID").Value(resource.RootID),
+			osu.NewTermQuery[string]("Path").Value(resource.Path),
+		)
 		if onlyDeleted {
 			query.Must(osu.NewTermQuery[bool]("Deleted").Value(true))
 		}

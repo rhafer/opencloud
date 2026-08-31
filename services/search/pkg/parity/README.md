@@ -504,6 +504,8 @@ Fixtures:
 | ROOTSCOPE-01 | deletes only the one in the target root, then `name:"*twin*"` | twin.txt | twin.txt | twin.txt | ✅ |
 | ROOTSCOPE-02 | restores only the one in the target root, then `name:"*target*"` | target.txt | target.txt | target.txt | ✅ |
 | ROOTSCOPE-02 | restores only the one in the target root, then `name:"*twin*"` | no match | no match | no match | ✅ |
+| ROOTSCOPE-04 | purges only the one in the target root, then `name:"*target*"` | no match | no match | no match | ✅ |
+| ROOTSCOPE-04 | purges only the one in the target root, then `name:"*twin*"` | twin.txt | twin.txt | twin.txt | ✅ |
 | ROOTSCOPE-03 | moves only the one in the target root, then `path:"./moved.txt"` | moved.txt | moved.txt | moved.txt | ✅ |
 | ROOTSCOPE-03 | moves only the one in the target root, then `path:"./same/path.txt"` | twin.txt | twin.txt | twin.txt | ✅ |
 
