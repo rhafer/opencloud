@@ -9,9 +9,11 @@ until you remove it.
 
 ### OpenSearch
 
-The new index is `opencloud-resource-v3`. Fill it in one of two ways:
+The new index is `opencloud-resource-v4`. Fill it in one of two ways:
 
-- copy the old index, fast and keeps the extracted file contents, or
+- copy the old index, fast and keeps the extracted file contents; run it soon
+  after the upgrade, documents the service has indexed since win over copied
+  ones (`op_type: create`), or
 - index all spaces again, slower since every file is read once more, but drops
   documents that no longer have a resource.
 
@@ -21,12 +23,13 @@ The address below is the one from `SEARCH_ENGINE_OPEN_SEARCH_CLIENT_ADDRESSES`,
 
 ```shell
 # either copy the old index
-curl -X POST "https://opensearch.example.com:9200/_reindex?wait_for_completion=false" \
+curl -X POST "https://os.example.com:9200/_reindex?wait_for_completion=false" \
   -H 'Content-Type: application/json' -d '
-  {"source":{"index":"opencloud-resource"},"dest":{"index":"opencloud-resource-v3"}}'
+  {"source":{"index":"opencloud-resource","conflicts":"proceed"},
+   "dest":{"index":"opencloud-resource-v4","op_type":"create"}}'
 
 # the answer carries a task id, watch it while it runs
-curl "https://opensearch.example.com:9200/_tasks/<task-id>"
+curl "https://os.example.com:9200/_tasks/<task-id>"
 
 # or index all spaces again, the service keeps running while it happens
 opencloud search index --all-spaces
@@ -35,12 +38,12 @@ opencloud search index --all-spaces
 Once the new index is filled, remove the old one:
 
 ```shell
-curl -X DELETE "https://opensearch.example.com:9200/opencloud-resource"
+curl -X DELETE "https://os.example.com:9200/opencloud-resource"
 ```
 
 ### bleve
 
-The new index is the `bleve-v2` directory next to the old `bleve` one, both in
+The new index is the `bleve-v4` directory next to the old `bleve` one, both in
 `$OC_BASE_DATA_PATH/search` by default (`SEARCH_ENGINE_BLEVE_DATA_PATH`). A
 bleve index cannot be copied, index all spaces again:
 
