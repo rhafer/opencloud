@@ -67,6 +67,7 @@ func setupOpenSearchTestContainer(ctx context.Context, cfg *config.Config) (func
 
 	keepContainer := os.Getenv("KEEP_TEST_CONTAINER") == "true"
 	if keepContainer {
+		// the reaper would take the kept container down with the session
 		if err := os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true"); err != nil {
 			return nil, fmt.Errorf("failed to disable the testcontainers reaper: %w", err)
 		}
@@ -82,6 +83,14 @@ func setupOpenSearchTestContainer(ctx context.Context, cfg *config.Config) (func
 		opensearch.WithPassword(cfg.Engine.OpenSearch.Client.Password),
 		testcontainers.WithName(containerName),
 		testcontainers.WithReuseByName(containerName),
+		// test indexes are tiny; don't let a full host disk trip the flood-stage
+		// create-index / read-only blocks mid-run
+		testcontainers.WithEnv(map[string]string{
+			"cluster.routing.allocation.disk.threshold_enabled": "false",
+		}),
+		// a health probe answers at once on a reused container, a log wait
+		// would sit out the log timeout on it; a cold boot takes well over the
+		// previous 5s
 		testcontainers.WithWaitStrategy(
 			wait.ForHTTP("/_cluster/health?wait_for_status=yellow&timeout=1s").
 				WithPort(openSearchPort).
@@ -97,13 +106,16 @@ func setupOpenSearchTestContainer(ctx context.Context, cfg *config.Config) (func
 
 	address, err := container.Address(ctx)
 	if err != nil {
-		_ = container.Terminate(ctx)
+		_ = container.Terminate(ctx) // attempt to clean up the container
 		return nil, fmt.Errorf("failed to get OpenSearch container address: %w", err)
 	}
 
+	// Ensure the address is set in the default configuration.
 	cfg.Engine.OpenSearch.Client.Addresses = []string{address}
 
 	return func() {
+		// KEEP_TEST_CONTAINER=true leaves the container up for the next run,
+		// which picks it up again by name instead of booting a fresh one
 		if keepContainer {
 			_, _ = fmt.Fprintf(os.Stderr, "keeping OpenSearch container %s\n", containerName)
 			return
