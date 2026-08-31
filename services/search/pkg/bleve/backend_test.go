@@ -381,14 +381,14 @@ var _ = Describe("Bleve", func() {
 		})
 
 		Context("by content", func() {
-			It("matches full-text case-insensitively and stemmed", func() {
+			It("matches full-text case-insensitively, without stemming", func() {
 				parentResource.Document.Content = "Running Foxes"
 				Expect(eng.Upsert(parentResource.ID, parentResource)).To(Succeed())
 
 				assertDocCount(rootResource.ID, "content:running", 1)
 				assertDocCount(rootResource.ID, "content:RUNNING", 1) // case-insensitive
-				assertDocCount(rootResource.ID, "content:run", 1)     // porter stemming
-				assertDocCount(rootResource.ID, "content:run*", 1)    // wildcard over the stemmed term
+				assertDocCount(rootResource.ID, "content:run", 0)     // no stemming
+				assertDocCount(rootResource.ID, "content:run*", 1)    // wildcard over the word
 				assertDocCount(rootResource.ID, "content:cat", 0)
 			})
 		})

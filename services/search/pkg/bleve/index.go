@@ -12,7 +12,6 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/keyword"
 	"github.com/blevesearch/bleve/v2/analysis/char/regexp"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
-	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	storageProvider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
@@ -58,20 +57,6 @@ func NewMapping() (mapping.IndexMapping, error) {
 	indexMapping := bleve.NewIndexMapping()
 	indexMapping.DefaultAnalyzer = keyword.Name
 	indexMapping.DefaultMapping = docMapping
-	err = indexMapping.AddCustomAnalyzer("fulltext",
-		map[string]any{
-			"type":      custom.Name,
-			"tokenizer": unicode.Name,
-			"token_filters": []string{
-				lowercase.Name,
-				porter.Name,
-			},
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	// words: split into lowercased words, a dot is a word boundary too so that
 	// "report" finds "Report.txt"; no stemming, a name is not prose
 	err = indexMapping.AddCustomCharFilter("dot_to_space", map[string]any{

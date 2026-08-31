@@ -85,8 +85,8 @@ var _ = Describe("BleveBuildMapping", func() {
 		Expect(sibling.IncludeInAll).To(BeFalse(), "Name_lowercase is out of _all")
 		Expect(sibling.DocValues).To(BeFalse(), "Name_lowercase has no doc values")
 		contentField := dm.Properties["Content"].Fields[0]
-		Expect(contentField.Analyzer).To(Equal("fulltext"), "Content analyzer")
-		Expect(contentField.IncludeInAll).To(BeFalse(), "Content IncludeInAll should default to false for fulltext type")
+		Expect(contentField.Analyzer).To(Equal(WordsAnalyzer), "Content analyzer")
+		Expect(contentField.IncludeInAll).To(BeFalse(), "Content IncludeInAll should default to false for the fulltext type")
 		// Tags: base + lowercased sibling, both honoring the IncludeInAll override.
 		Expect(dm.Properties["Tags"].Fields[0].IncludeInAll).To(BeFalse(), "Tags base IncludeInAll honored")
 		Expect(dm.Properties["Tags_lowercase"].Fields[0].IncludeInAll).To(BeFalse(), "Tags sibling IncludeInAll honored")

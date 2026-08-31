@@ -12,7 +12,7 @@ import (
 // struct via reflection. Field names come from json tags; overrides are
 // keyed by those names (or dotted paths for nested fields).
 //
-// The returned mapping references the "fulltext" analyzer for Fulltext fields;
+// The returned mapping references the words analyzer for Fulltext fields;
 // the caller registers it on the enclosing IndexMapping.
 func BleveBuildMapping(t reflect.Type, overrides map[string]FieldOpts) (*bleveMapping.DocumentMapping, error) {
 	return buildBleveDocMapping(t, overrides, "")
@@ -118,7 +118,7 @@ func bleveFieldMapping(fieldType string, opts FieldOpts) (*bleveMapping.FieldMap
 	case TypeKeyword, TypeFulltext:
 		fm := bleve.NewTextFieldMapping()
 		if fieldType == TypeFulltext {
-			fm.Analyzer = "fulltext"
+			fm.Analyzer = WordsAnalyzer
 		}
 		switch {
 		case opts.IncludeInAll != nil:

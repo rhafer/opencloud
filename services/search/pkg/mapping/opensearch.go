@@ -90,7 +90,7 @@ func openSearchFieldMapping(fieldType string, goType reflect.Type) (map[string]a
 		return map[string]any{
 			"type":        "text",
 			"term_vector": "with_positions_offsets",
-			"analyzer":    "fulltext",
+			"analyzer":    WordsAnalyzer,
 		}, nil
 	case TypeWildcard:
 		// OpenSearch stores wildcard fields with doc_values=false by
