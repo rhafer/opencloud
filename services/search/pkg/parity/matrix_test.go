@@ -226,8 +226,15 @@ func writeMatrix(report types.Report) {
 			matrixNames(row.answered["bleve"]), matrixNames(row.answered["opensearch"]), matrixVerdict(row))
 	}
 
+	previous, _ := os.ReadFile(matrixFile)
 	if err := os.WriteFile(matrixFile, []byte(out.String()), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write %s: %v\n", matrixFile, err)
+		return
+	}
+	if string(previous) != out.String() {
+		// the committed matrix must match what the suite answers; the fresh
+		// content is already on disk, committing it is the fix
+		Fail(matrixFile + " was out of date, the suite regenerated it: commit the change")
 	}
 }
 
