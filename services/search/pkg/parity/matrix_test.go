@@ -171,7 +171,7 @@ func writeMatrix(report types.Report) {
 
 	out := &strings.Builder{}
 	out.WriteString("# Engine parity\n\n")
-	out.WriteString("Written by the parity suite (`go test ./services/search/pkg/parity/`), do not edit.\n")
+	out.WriteString("Written by the parity suite (`UPDATE_MATRIX=true go test ./services/search/pkg/parity/`), do not edit.\n")
 	out.WriteString("Every case runs against bleve and OpenSearch. `same?` is ✅ when both answer as\n")
 	out.WriteString("expected, `❌ known` when an engine's divergence is documented in the case\n")
 	out.WriteString("(`engineOverrides`), `❌` when it is not. `✅ stale` when every engine\n")
