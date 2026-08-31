@@ -10,6 +10,8 @@ Reference: implemented by https://github.com/opencloud-eu/opencloud/pull/3345 (r
 
 ## Context and Problem Statement
 
+This section describes the state at decision time (April 2026); the implementation has since resolved the problems listed here.
+
 The search service supports two backends, bleve (embedded) and
 OpenSearch (external). Each backend currently carries its own,
 independently maintained description of the index layout:
