@@ -23,7 +23,6 @@ import (
 
 const (
 	wildcardSuffix = ".wildcard"
-	indexVersion   = "v2"
 )
 
 func NewIndex(root string) (bleve.Index, error) {
