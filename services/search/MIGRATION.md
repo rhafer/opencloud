@@ -9,9 +9,7 @@ until you remove it.
 
 ### OpenSearch
 
-Fill the new index by indexing all spaces again; do not copy the old index
-over (`_reindex`), the service writes search fields at index time that a copy
-would miss, copied documents would not be found.
+Fill the new index by indexing all spaces again:
 
 ```shell
 # the service keeps running while it happens
