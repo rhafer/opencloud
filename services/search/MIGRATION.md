@@ -16,9 +16,11 @@ Fill the new index by indexing all spaces again:
 opencloud search index --all-spaces
 ```
 
-Once the new index is filled, remove the old one:
+Once the new index is filled, every index but the one with the highest
+`-v<N>` suffix can go (the v7.x index has no suffix):
 
 ```shell
+curl "https://os.example.com:9200/_cat/indices/opencloud-resource*"
 curl -X DELETE "https://os.example.com:9200/opencloud-resource"
 ```
 
@@ -32,7 +34,8 @@ bleve index cannot be copied, index all spaces again:
 opencloud search index --all-spaces
 ```
 
-Once the new index is filled, remove the old one:
+Once the new index is filled, every directory but the one with the highest
+`bleve-v<N>` suffix can go (the v7.x directory has no suffix):
 
 ```shell
 rm -r "$OC_BASE_DATA_PATH/search/bleve"
