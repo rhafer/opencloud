@@ -233,6 +233,7 @@ Fixtures:
 | FIELDS-12 | `id:"1$1!ab-23"` | no match | no match | no match | ✅ |
 | FIELDS-13 | `audio.artist:"Some Artist"` | song.mp3 | song.mp3 | song.mp3 | ✅ |
 | FIELDS-14 | `audio.artist:"some artist"` | song.mp3 | song.mp3 | song.mp3 | ✅ |
+| FIELDS-15 | `audio.duration>100` | no match | no match | no match | ✅ |
 
 ### deleted
 
