@@ -87,7 +87,10 @@ func (t Tika) Extract(ctx context.Context, ri *provider.ResourceInfo) (Document,
 			doc.Title = strings.TrimSpace(fmt.Sprintf("%s %s", doc.Title, title))
 		}
 
-		if content, err := getFirstValue(meta, "X-TIKA:content"); err == nil {
+		// tika 4 renamed the meta prefix from X-TIKA: to tk:
+		if content, err := getFirstValue(meta, "tk:content"); err == nil {
+			doc.Content = strings.TrimSpace(fmt.Sprintf("%s %s", doc.Content, content))
+		} else if content, err := getFirstValue(meta, "X-TIKA:content"); err == nil {
 			doc.Content = strings.TrimSpace(fmt.Sprintf("%s %s", doc.Content, content))
 		}
 

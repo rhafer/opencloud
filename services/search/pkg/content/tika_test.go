@@ -100,6 +100,17 @@ var _ = Describe("Tika", func() {
 			Expect(doc.Title).To(Equal("quarterly report"))
 		})
 
+		It("adds the content of a tika 4", func() {
+			fullResponse = `[{"tk:content": "some data"}]`
+
+			doc, err := tika.Extract(context.TODO(), &provider.ResourceInfo{
+				Type: provider.ResourceType_RESOURCE_TYPE_FILE,
+				Size: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(doc.Content).To(Equal("some data"))
+		})
+
 		It("adds the title of an older tika", func() {
 			fullResponse = `[{"title": "quarterly report"}]`
 
