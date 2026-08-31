@@ -1,7 +1,10 @@
 package opensearch_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -28,6 +31,28 @@ func TestVersionedIndexName(t *testing.T) {
 		fmt.Sprintf("resource_v%d", search.SchemaVersion),
 		string(opensearch.IndexManagerLatest),
 	)
+}
+
+// A diff here means the generated OpenSearch index definition changed: new
+// indexes get the new shape, existing ones answer to the startup classifier.
+// Update the golden deliberately (UPDATE_GOLDEN=1); a breaking change needs a
+// search.SchemaVersion bump.
+func TestGoldenMapping(t *testing.T) {
+	var pretty bytes.Buffer
+	require.NoError(t, json.Indent(&pretty, []byte(opensearch.IndexManagerLatest.String()), "", "  "))
+	pretty.WriteByte('\n')
+
+	if os.Getenv("UPDATE_GOLDEN") != "" {
+		require.NoError(t, os.WriteFile("testdata/resource.golden.json", pretty.Bytes(), 0o644))
+	}
+
+	goldenB, err := os.ReadFile("testdata/resource.golden.json")
+	require.NoError(t, err)
+
+	var got, golden map[string]any
+	require.NoError(t, json.Unmarshal(pretty.Bytes(), &got))
+	require.NoError(t, json.Unmarshal(goldenB, &golden))
+	require.Equal(t, golden, got)
 }
 
 func TestIndexManager(t *testing.T) {
