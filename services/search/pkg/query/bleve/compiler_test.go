@@ -24,6 +24,13 @@ var timeMustParse = func(t *testing.T, ts string) time.Time {
 // canonical ASTs (real field names, media-type already expanded) and call
 // compile() directly, dropping the query.Normalize wrapper and the mediatype
 // cases.
+func boolFieldQuery(field string, value bool) query.Query {
+	q := query.NewBoolFieldQuery(value)
+	q.SetField(field)
+
+	return q
+}
+
 func Test_compile(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -72,7 +79,7 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_words:"John Smith"`),
+				query.NewQueryStringQuery(`Name_words:"john smith"`),
 			}),
 			wantErr: false,
 		},
@@ -86,8 +93,8 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_words:"John Smith"`),
-				query.NewQueryStringQuery(`Name_words:"Jane"`),
+				query.NewQueryStringQuery(`Name_words:"john smith"`),
+				query.NewQueryStringQuery(`Name_words:"jane"`),
 			}),
 			wantErr: false,
 		},
@@ -320,9 +327,9 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_words:"John Smith"`),
-				query.NewQueryStringQuery(`Hidden:t`),
-				query.NewQueryStringQuery(`Hidden:t`),
+				query.NewQueryStringQuery(`Name_words:"john smith"`),
+				boolFieldQuery("Hidden", true),
+				boolFieldQuery("Hidden", true),
 			}),
 			wantErr: false,
 		},
@@ -548,7 +555,7 @@ func Test_compile(t *testing.T) {
 				},
 			},
 			want: query.NewConjunctionQuery([]query.Query{
-				query.NewQueryStringQuery(`Name_words:"John Smith +-=&|><!(){}[]^\"~: "`),
+				query.NewQueryStringQuery(`Name_words:"john smith +-=&|><!(){}[]^\"~: "`),
 			}),
 			wantErr: false,
 		},

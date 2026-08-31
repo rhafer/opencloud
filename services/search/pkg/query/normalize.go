@@ -1,6 +1,9 @@
 package query
 
 import (
+	"strconv"
+
+	provider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
 	"reflect"
 	"strings"
 
@@ -34,6 +37,9 @@ func normalizeNodes(nodes []ast.Node, resolve func(string) string, defaultKey st
 			node.Key = resolveKey(node.Key)
 			if FieldValueIsNormalized(node.Key) {
 				node.Value = strings.ToLower(node.Value)
+			}
+			if node.Key == "Type" {
+				node.Value = resourceType(node.Value)
 			}
 			if exp := mimetype.Expand(node.Key, node.Value); exp != nil {
 				out = append(out, normalizeNodes(exp, resolve, defaultKey)...)
@@ -78,4 +84,17 @@ func toPointer(n ast.Node) ast.Node {
 		return pn
 	}
 	return n
+}
+
+// resourceType maps the type categories to the stored resource type value;
+// unknown values pass through and become dead term queries.
+func resourceType(value string) string {
+	switch strings.ToLower(value) {
+	case "file":
+		return strconv.FormatUint(uint64(provider.ResourceType_RESOURCE_TYPE_FILE), 10)
+	case "folder":
+		return strconv.FormatUint(uint64(provider.ResourceType_RESOURCE_TYPE_CONTAINER), 10)
+	default:
+		return value
+	}
 }

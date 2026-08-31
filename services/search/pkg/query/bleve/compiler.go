@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	provider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
-
 	"github.com/blevesearch/bleve/v2"
 	bleveQuery "github.com/blevesearch/bleve/v2/search/query"
 	"github.com/opencloud-eu/opencloud/pkg/ast"
@@ -74,28 +72,71 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 	for i := offset; i < len(nodes); i++ {
 		switch n := nodes[i].(type) {
 		case *ast.StringNode:
+			// hidden takes bool words only; anything else matches nothing
+			if n.Key == "Hidden" {
+				var q bleveQuery.Query
+				if b, err := strconv.ParseBool(n.Value); err == nil {
+					bq := bleveQuery.NewBoolFieldQuery(b)
+					bq.SetField(n.Key)
+					q = bq
+				} else {
+					q = bleveQuery.NewMatchNoneQuery()
+				}
+				if prev == nil {
+					prev = q
+				} else {
+					next = q
+				}
+				break
+			}
+
 			// keys are resolved and media-type expanded by normalize. MimeType
 			// skips the escaper so the category wildcards (image/*) keep their `*`;
 			// bleve treats `/` and `+` as literals mid-term, so a literal MIME like
 			// image/svg+xml still matches exactly.
+			val := n.Value
+			if searchQuery.FieldIsPath(n.Key) {
+				val = strings.TrimSuffix(val, "/")
+			}
 			k := n.Key
-			v := n.Value
+			v := val
 			if k != "ID" && k != "Size" && k != "MimeType" {
-				v = bleveEscaper.Replace(n.Value)
+				v = bleveEscaper.Replace(val)
 			}
 			if n.CaseInsensitive {
 				k += mapping.LowercaseSuffix
 				v = strings.ToLower(v)
+				val = strings.ToLower(val)
 			}
+
+			isWildcard := strings.ContainsAny(val, "*?")
 
 			// a word-broken field matches the value as a phrase of its words on the
 			// _words sibling (a quoted query string term is a match phrase query
 			// run through the field's analyzer); wildcards stay on _lowercase
-			if searchQuery.FieldIsWordBroken(n.Key) && !strings.Contains(n.Value, "*") {
-				k, v = n.Key+mapping.WordsSuffix, `"`+strings.ReplaceAll(n.Value, `"`, `\"`)+`"`
+			if searchQuery.FieldIsWordBroken(n.Key) && !isWildcard && !n.Exact {
+				k, v = n.Key+mapping.WordsSuffix, `"`+strings.ReplaceAll(val, `"`, `\"`)+`"`
 			}
 
 			var q bleveQuery.Query = bleveQuery.NewQueryStringQuery(k + ":" + v)
+			switch {
+			case n.Exact && !isWildcard:
+				// = matches the whole value, on the lowercased sibling for
+				// case-insensitive fields
+				tq := bleveQuery.NewTermQuery(val)
+				tq.SetField(k)
+				q = tq
+			case isWildcard && searchQuery.FieldIsWordBroken(n.Key) && !strings.HasSuffix(val, "*"):
+				// a wildcard on a word-broken field forgives a missing extension:
+				// *report also matches Report.txt
+				bq := bleve.NewBooleanQuery()
+				bq.AddShould(
+					bleveQuery.NewQueryStringQuery(k+":"+v),
+					bleveQuery.NewQueryStringQuery(k+":"+v+".*"),
+				)
+				bq.SetMinShould(1)
+				q = bq
+			}
 			if searchQuery.FieldIsPath(n.Key) {
 				// bleve has no path hierarchy analyzer, unlike OpenSearch: match the
 				// folder itself and its descendants (`\/*`). A BooleanQuery keeps
@@ -316,31 +357,6 @@ func numberRange(field string, operator *ast.OperatorNode, value float64) bleveQ
 	return q
 }
 
-func pathAndBelow(field, path string) bleveQuery.Query {
-	path = strings.TrimSuffix(path, "/")
-
-	self := bleveQuery.NewTermQuery(path)
-	self.SetField(field)
-
-	below := bleveQuery.NewPrefixQuery(path + "/")
-	below.SetField(field)
-
-	return closed(bleveQuery.NewDisjunctionQuery([]bleveQuery.Query{self, below}))
-}
-
-func closed(q bleveQuery.Query) bleveQuery.Query {
-	// a bare disjunction reads as an open OR chain to mapBinary, a later OR
-	// would merge into it and widen the group
-	return bleveQuery.NewConjunctionQuery([]bleveQuery.Query{q})
-}
-
-func phrase(field, value string) bleveQuery.Query {
-	q := bleveQuery.NewMatchPhraseQuery(value)
-	q.SetField(field)
-
-	return q
-}
-
 func normalizeGroupingProperty(group *ast.GroupNode) *ast.GroupNode {
 	for _, n := range group.Nodes {
 		if onode, ok := n.(*ast.StringNode); ok {
@@ -348,82 +364,4 @@ func normalizeGroupingProperty(group *ast.GroupNode) *ast.GroupNode {
 		}
 	}
 	return group
-}
-
-func resourceType(value string) string {
-	switch strings.ToLower(value) {
-	case "file":
-		return strconv.FormatUint(uint64(provider.ResourceType_RESOURCE_TYPE_FILE), 10)
-	case "folder":
-		return strconv.FormatUint(uint64(provider.ResourceType_RESOURCE_TYPE_CONTAINER), 10)
-	default:
-		return value
-	}
-}
-
-func mimeType(k, v string) (bleveQuery.Query, bool) {
-	switch v {
-	case "file":
-		q := bleve.NewBooleanQuery()
-		q.AddMustNot(bleveQuery.NewQueryStringQuery(k + ":httpd/unix-directory"))
-		return q, false
-	case "folder":
-		return bleveQuery.NewQueryStringQuery(k + ":httpd/unix-directory"), false
-	case "document":
-		return bleveQuery.NewDisjunctionQuery(newQueryStringQueryList(k,
-			"application/msword",
-			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-			"application/vnd.openxmlformats-officedocument.wordprocessingml.form",
-			"application/vnd.oasis.opendocument.text",
-			"text/plain",
-			"text/markdown",
-			"application/rtf",
-			"application/vnd.apple.pages",
-		)), true
-	case "spreadsheet":
-		return bleveQuery.NewDisjunctionQuery(newQueryStringQueryList(k,
-			"application/vnd.ms-excel",
-			"application/vnd.oasis.opendocument.spreadsheet",
-			"text/csv",
-			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-			"application/vnd.apple.numbers",
-		)), true
-	case "presentation":
-		return bleveQuery.NewDisjunctionQuery(newQueryStringQueryList(k,
-			"application/vnd.openxmlformats-officedocument.presentationml.presentation",
-			"application/vnd.oasis.opendocument.presentation",
-			"application/vnd.ms-powerpoint",
-			"application/vnd.apple.keynote",
-		)), true
-	case "pdf":
-		return bleveQuery.NewQueryStringQuery(k + ":application/pdf"), false
-	case "image":
-		return bleveQuery.NewQueryStringQuery(k + ":image/*"), false
-	case "video":
-		return bleveQuery.NewQueryStringQuery(k + ":video/*"), false
-	case "audio":
-		return bleveQuery.NewQueryStringQuery(k + ":audio/*"), false
-	case "archive":
-		return bleveQuery.NewDisjunctionQuery(newQueryStringQueryList(k,
-			"application/zip",
-			"application/gzip",
-			"application/x-gzip",
-			"application/x-7z-compressed",
-			"application/x-rar-compressed",
-			"application/x-tar",
-			"application/x-bzip2",
-			"application/x-bzip",
-			"application/x-tgz",
-		)), true
-	default:
-		return bleveQuery.NewQueryStringQuery(k + ":" + v), false
-	}
-}
-
-func newQueryStringQueryList(k string, v ...string) []bleveQuery.Query {
-	list := make([]bleveQuery.Query, len(v))
-	for i := 0; i < len(v); i++ {
-		list[i] = bleveQuery.NewQueryStringQuery(k + ":" + v[i])
-	}
-	return list
 }

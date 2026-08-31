@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -108,15 +109,42 @@ func (t kqlOpensearchTranspiler) toBuilder(node ast.Node) (osu.Builder, error) {
 	case *ast.BooleanNode:
 		return osu.NewTermQuery[bool](node.Key).Value(node.Value), nil
 	case *ast.StringNode:
+		// hidden takes bool words only; anything else matches nothing
+		if node.Key == "Hidden" {
+			b, err := strconv.ParseBool(node.Value)
+			if err != nil {
+				return osu.NewMatchNoneQuery(), nil
+			}
+			return osu.NewTermQuery[bool](node.Key).Value(b), nil
+		}
+
 		field, value := node.Key, node.Value
+		if query.FieldIsPath(node.Key) {
+			value = strings.TrimSuffix(value, "/")
+		}
 		if node.CaseInsensitive {
 			field += mapping.LowercaseSuffix
 			value = strings.ToLower(value)
 		}
 
-		isWildcard := strings.Contains(value, "*")
-		if isWildcard {
+		if isWildcard := strings.ContainsAny(value, "*?"); isWildcard {
+			// a wildcard on a word-broken field forgives a missing extension:
+			// *report also matches Report.txt
+			if query.FieldIsWordBroken(node.Key) && !strings.HasSuffix(value, "*") {
+				return osu.NewBoolQuery().
+					Params(&osu.BoolQueryParams{MinimumShouldMatch: 1}).
+					Should(
+						osu.NewWildcardQuery(field).Value(value),
+						osu.NewWildcardQuery(field).Value(value+".*"),
+					), nil
+			}
 			return osu.NewWildcardQuery(field).Value(value), nil
+		}
+
+		// = matches the whole value, on the lowercased sibling for
+		// case-insensitive fields
+		if node.Exact {
+			return osu.NewTermQuery[string](field).Value(value), nil
 		}
 
 		// a word-broken field matches the value as a phrase of its words on the
