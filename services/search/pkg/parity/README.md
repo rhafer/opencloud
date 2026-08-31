@@ -232,7 +232,7 @@ Fixtures:
 | FIELDS-11 | `id:"1$1!AB-23"` | cased.txt | cased.txt | cased.txt | ✅ |
 | FIELDS-12 | `id:"1$1!ab-23"` | no match | no match | no match | ✅ |
 | FIELDS-13 | `audio.artist:"Some Artist"` | song.mp3 | song.mp3 | song.mp3 | ✅ |
-| FIELDS-14 | `audio.artist:"some artist"` | no match | no match | no match | ✅ |
+| FIELDS-14 | `audio.artist:"some artist"` | song.mp3 | song.mp3 | song.mp3 | ✅ |
 
 ### deleted
 

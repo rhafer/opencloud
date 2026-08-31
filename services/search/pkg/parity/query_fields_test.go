@@ -35,7 +35,7 @@ func fieldsGroup() queryGroup {
 			{id: 12, query: `id:"1$1!ab-23"`},
 			// a facet value keeps its case, the field is not marked lowercase
 			{id: 13, query: `audio.artist:"Some Artist"`, want: []string{"song.mp3"}},
-			{id: 14, query: `audio.artist:"some artist"`},
+			{id: 14, query: `audio.artist:"some artist"`, want: []string{"song.mp3"}}, // facets search case-insensitively
 		},
 	}
 }
