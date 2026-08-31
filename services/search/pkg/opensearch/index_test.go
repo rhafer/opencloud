@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 
 	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/services/search/internal/opensearchtest"
+	searchmapping "github.com/opencloud-eu/opencloud/services/search/pkg/mapping"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/opensearch"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/search"
 )
@@ -52,7 +54,30 @@ func TestGoldenMapping(t *testing.T) {
 	var got, golden map[string]any
 	require.NoError(t, json.Unmarshal(pretty.Bytes(), &got))
 	require.NoError(t, json.Unmarshal(goldenB, &golden))
-	require.Equal(t, golden, got)
+	require.Equal(t, golden, got, goldenAdvice(golden, got, "mappings.properties", "settings.analysis"))
+}
+
+// goldenAdvice classifies a golden diff so the failure says whether the change
+// is additive (regenerate with UPDATE_GOLDEN=1) or breaking (bump
+// search.SchemaVersion too).
+func goldenAdvice(golden, got map[string]any, propsPath, analysisPath string) string {
+	dig := func(m map[string]any, path string) map[string]any {
+		for _, k := range strings.Split(path, ".") {
+			m, _ = m[k].(map[string]any)
+		}
+		return m
+	}
+	c := searchmapping.Classify(dig(golden, propsPath), dig(got, propsPath), nil)
+	if !reflect.DeepEqual(dig(golden, analysisPath), dig(got, analysisPath)) {
+		c.AddBreaking("the analysis settings changed")
+	}
+	switch c.Verdict {
+	case searchmapping.VerdictAdditive:
+		return fmt.Sprintf("additive schema change (new fields: %v): regenerate the golden with UPDATE_GOLDEN=1, no SchemaVersion bump needed", c.NewFields)
+	case searchmapping.VerdictBreaking:
+		return fmt.Sprintf("breaking schema change (%v): regenerate the golden with UPDATE_GOLDEN=1 and bump search.SchemaVersion", c.Reasons)
+	}
+	return "the schema changed outside the classified tree: regenerate the golden with UPDATE_GOLDEN=1"
 }
 
 func TestIndexManager(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	bleveSearch "github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -233,6 +234,29 @@ var _ = Describe("NewMapping", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(json.Unmarshal(goldenB, &golden)).To(Succeed())
 
-		Expect(got).To(Equal(golden))
+		Expect(got).To(Equal(golden), goldenAdvice(golden, got))
 	})
 })
+
+// goldenAdvice classifies a golden diff so the failure says whether the change
+// is additive (regenerate with UPDATE_GOLDEN=1) or breaking (bump
+// search.SchemaVersion too).
+func goldenAdvice(golden, got map[string]any) string {
+	dig := func(m map[string]any, path ...string) map[string]any {
+		for _, k := range path {
+			m, _ = m[k].(map[string]any)
+		}
+		return m
+	}
+	c := searchmapping.Classify(dig(golden, "default_mapping", "properties"), dig(got, "default_mapping", "properties"), nil)
+	if !reflect.DeepEqual(dig(golden, "analysis"), dig(got, "analysis")) {
+		c.AddBreaking("the analysis definitions changed")
+	}
+	switch c.Verdict {
+	case searchmapping.VerdictAdditive:
+		return fmt.Sprintf("additive schema change (new fields: %v): regenerate the golden with UPDATE_GOLDEN=1, no SchemaVersion bump needed", c.NewFields)
+	case searchmapping.VerdictBreaking:
+		return fmt.Sprintf("breaking schema change (%v): regenerate the golden with UPDATE_GOLDEN=1 and bump search.SchemaVersion", c.Reasons)
+	}
+	return "the mapping changed outside the classified tree (bleve marshaling drift?): regenerate the golden with UPDATE_GOLDEN=1 and see the SchemaVersion note above"
+}
