@@ -113,9 +113,12 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 
 			// a word-broken field matches the value as a phrase of its words on the
 			// _words sibling (a quoted query string term is a match phrase query
-			// run through the field's analyzer); wildcards stay on _lowercase
+			// run through the field's analyzer); wildcards stay on _lowercase.
+			// A fulltext field is its own words field, the phrase runs on it.
 			if searchQuery.FieldIsWordBroken(n.Key) && !isWildcard && !n.Exact {
 				k, v = n.Key+mapping.WordsSuffix, `"`+strings.ReplaceAll(val, `"`, `\"`)+`"`
+			} else if searchQuery.FieldIsFulltext(n.Key) && !isWildcard && !n.Exact {
+				v = `"` + strings.ReplaceAll(val, `"`, `\"`) + `"`
 			}
 
 			var q bleveQuery.Query = bleveQuery.NewQueryStringQuery(k + ":" + v)
