@@ -9,9 +9,9 @@ until you remove it.
 
 ### OpenSearch
 
-The new index is `opencloud-resource-v4`. Fill it by indexing all spaces
-again; copying the old index over would miss the search sibling fields the
-service writes at index time, so copied documents would not be found.
+Fill the new index by indexing all spaces again; do not copy the old index
+over (`_reindex`), the service writes search fields at index time that a copy
+would miss, copied documents would not be found.
 
 ```shell
 # the service keeps running while it happens
@@ -26,7 +26,7 @@ curl -X DELETE "https://os.example.com:9200/opencloud-resource"
 
 ### bleve
 
-The new index is the `bleve-v4` directory next to the old `bleve` one, both in
+The new index is a directory next to the old `bleve` one, both in
 `$OC_BASE_DATA_PATH/search` by default (`SEARCH_ENGINE_BLEVE_DATA_PATH`). A
 bleve index cannot be copied, index all spaces again:
 
