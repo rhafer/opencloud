@@ -25,4 +25,17 @@ var _ = DescribeTable("PinnedRootID",
 	Entry("restrictions inside groups do not pin", `(driveId:"1$2") AND name:x`, ""),
 	Entry("two different roots disable pruning", `driveId:"1$2" AND driveId:"1$3"`, ""),
 	Entry("invalid query, no pin", `((`, ""),
+	Entry("a wildcard drive id does not pin", `driveId:"1$*" AND name:x`, ""),
+	Entry("a wildcard space id does not pin", `driveId:"1$2*"`, ""),
+)
+
+var _ = DescribeTable("CompleteRootID",
+	func(in, want string) {
+		Expect(search.CompleteRootID(in)).To(Equal(want))
+	},
+	Entry("bare drive id gains the space id", "1$2", "1$2!2"),
+	Entry("complete id passes through", "1$2!4", "1$2!4"),
+	Entry("wildcards pass through", "1$*", "1$*"),
+	Entry("question marks pass through", "1$2?", "1$2?"),
+	Entry("no separator passes through", "abc", "abc"),
 )
