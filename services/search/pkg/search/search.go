@@ -226,7 +226,9 @@ func convertToWebDAVPermissions(isShared, isMountpoint, isDir bool, p *provider.
 }
 
 // CompleteRootID completes a bare driveId ("storage$space") to the root
-// resource id stored in the index; a root's opaque id is its space id.
+// resource id stored in the index. Assumes a space root's opaque id equals
+// its space id (true for decomposedfs); elsewhere a bare driveId matches
+// nothing, the pinning stays safe either way.
 func CompleteRootID(v string) string {
 	// leave wildcards alone, "1$*!*" would match nothing
 	if strings.Contains(v, "!") || strings.ContainsAny(v, "*?") {
