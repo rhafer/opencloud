@@ -2,14 +2,11 @@
 title: "5. Unified Search Index Mapping"
 ---
 
-* Status: proposed
-* Deciders: []
-* Date: 2026-04-23
+* Status: accepted
+* Deciders: @aduffeck, @butonic, @dschmidt, @fschade
+* Date: 2026-04-23, accepted and updated to the implemented state 2026-08-31
 
-Reference: https://github.com/opencloud-eu/opencloud/pull/2659, a
-proof-of-concept that demonstrates the proposal end-to-end. It is
-not presumed accepted by this ADR; scope and APIs there will be
-revisited once the decision here lands.
+Reference: implemented by https://github.com/opencloud-eu/opencloud/pull/3345 (reflection-based mapping, search siblings, shared query lowering) and https://github.com/opencloud-eu/opencloud/pull/3197 (schema versioning and startup checks). https://github.com/opencloud-eu/opencloud/pull/2659 was the original proof-of-concept.
 
 ## Context and Problem Statement
 
@@ -157,9 +154,9 @@ construction, because there is no second place to edit.
 The overrides surface stays small. Each entry declares one of a
 handful of things per field: a semantic type for fields whose
 intent cannot be inferred from the Go type (for example a path-
-analyzed field, a fulltext field, a wildcard field, a geopoint
-field), an analyzer name where one is needed, or a backend-
-specific inclusion knob. Any field that needs something beyond the
+analyzed field, a fulltext field, a geopoint field), or search-
+behavior flags (case-insensitivity, word breaking, inclusion in
+the catch-all field). Any field that needs something beyond the
 inferred defaults gets one line in the overrides map and that one
 line flows through every derived piece. Overrides are validated at
 startup so a typo fails loudly instead of silently disabling a
@@ -177,11 +174,7 @@ through coordinated per-site edits.
 
 ### Facet values are indexed as case-preserving keywords
 
-All facet sub-fields, meaning any leaf inside `audio`, `photo`,
-`image`, `location`, are indexed as plain keywords on both
-backends. No tokenization, no case folding. The raw value the
-extractor saw, or the CS3 ArbitraryMetadata string, is what lands
-in the index.
+All facet sub-fields, meaning any leaf inside `audio`, `photo`, `image`, `location` and the facets that followed (`video`, `motionPhoto`, `livePhoto`), keep a case-preserving keyword as their stored base field on both backends. The raw value the extractor saw, or the CS3 ArbitraryMetadata string, is what lands in the index, and it is what returning, sorting and aggregations read.
 
 This is the single intended semantic for facets across bleve and
 OpenSearch, and it is driven by what aggregations need.
@@ -197,39 +190,13 @@ single bucket labelled `motörhead`. For a metadata display use
 case (thumbnails, facet filters in the UI, distinct lists) that
 behavior is not what we want.
 
-Keyword-indexed values preserve case and produce correctly-
-labelled buckets on both backends. If, in the future, case-
-insensitive search on a facet property is also wanted alongside
-the case-preserving bucket view, that is a strict superset and
-can be added on top. It is much easier to bolt onto one
-consistent backend-agnostic state than to retrofit it onto the
-current divergent, implicit per-backend behavior.
+Searching is layered on top as exactly the strict superset the proposal reserved for later, and it shipped with the implementation: every keyword field additionally gets search-only sibling fields derived from the same definition, a `_lowercase` keyword sibling (doc values disabled; serves wildcards and `=` whole-value matches) and a `_words` text sibling (`words` analyzer: dots to spaces, unicode tokenization, lowercasing, no stemming; serves token and phrase matches). Case-insensitive, word-broken search is the default for every keyword field including facets; fields opt out per override where that is wrong: opaque ids (`ID`, `RootID`, `ParentID`, `Favorites`, `livePhoto.contentId`), the POSIX `Path`, the normalized `MimeType`, and `Content`, which is a fulltext field of its own. Aggregation buckets keep their display casing because they read the base field, never the siblings.
 
-The query side lines up with this: the KQL parser preserves the
-user's casing, and the per-backend compiler decides per field
-whether to fold that value to lowercase before handing it to the
-backend, based on the same overrides map the index mapping uses.
-Fields whose override selects a lowercasing analyzer (Name, Tags,
-Favorites, Content) get their query value folded so user input
-matches the tokens the index produced; everything else, including
-all facet sub-fields, compares case-sensitive on both sides. The
-case-sensitivity alignment of the compiler with the index mapping
-was started in #2633; this ADR completes it by deriving both
-sides from the same source.
+The query side derives from the same source: the shared lowering pass resolves field names case-insensitively, folds values and routes each match to the right sibling (wildcards to `_lowercase`, tokens and phrases to `_words`, `=` as a whole-value term on `_lowercase`), and both backend compilers consume that one decision. The engine parity suite pins the resulting behavior against bleve and OpenSearch, so a divergence fails CI instead of surfacing in production. The case-sensitivity alignment started in #2633 is completed by deriving both sides from the same source.
 
-### Behavior changes, applied to newly-created indexes
+### Schema versioning and upgrades
 
-Existing indexes keep their stored mapping; the new shape applies
-only to indexes created after the proposal lands.
-
-- OpenSearch `Tags` and `Favorites` change from dynamic `keyword`
-  to `text + lowercaseKeyword`, matching the bleve mapping. The
-  analyzer is registered in the new index settings.
-- OpenSearch facet sub-strings (`audio.*`, `photo.*`, `image.*`,
-  `location.*`) change from the dynamic `text + keyword` multi-field to
-  `keyword`-only, implementing the principle above. As noted in
-  the context section, the tokenized leg is not actually reachable
-  from user queries today, so no working path regresses.
+Index names carry a schema version derived from the single `search.SchemaVersion` constant (`opencloud-resource-v4`, `bleve-v4`). On startup the service classifies the stored mapping against the code: additive changes (new fields, unchanged analyzers) are reconciled in place without a version bump, breaking changes make the service refuse to start and name the reindex steps. The upgrade path is a plain reindex (`opencloud search index --all-spaces`) into the new versioned index; older indexes stay untouched and can be deleted afterwards (services/search/MIGRATION.md). Golden mapping tests on both backends pin the rendered mappings and reuse the same classifier to tell a contributor whether a change needs only a golden regeneration or a version bump.
 
 ### Known trade-off
 
@@ -250,11 +217,10 @@ any call site.
   endpoint renders none of the facet fields back to the client.
   This is a missing feature, not a regression of the proposal;
   its natural resolution is to let the graph-search endpoint
-  (not yet in tree) take over once graph search lands.
-- **Graph search hit conversion.** Once graph search is wired up,
-  it needs to translate proto hits back into libregraph DriveItems.
-  The same facet-copy helper used internally on the search service
-  side is reusable.
+  (proposed in #3211) take over once graph search lands.
+- **Graph search hit conversion.** Graph search (#3211) translates
+  proto hits back into libregraph DriveItems with the same
+  facet-copy helper the search service uses internally.
 - **reva's PROPFIND facet listing** uses its own hand-maintained
   per-facet key lists. reva deliberately does not depend on the
   libregraph Go types, so unifying those key sets is a reva-side
