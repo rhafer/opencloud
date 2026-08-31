@@ -92,9 +92,9 @@ var _ = Describe("OpenSearchBuildMapping", func() {
 			"MimeType": {Type: TypeWildcard},
 		})
 		Expect(err).ToNot(HaveOccurred())
-		// Name: case-preserved keyword base + lowercased keyword sibling.
+		// Name: case-preserved keyword base + lowercased search-only sibling.
 		Expect(props["Name"]).To(Equal(map[string]any{"type": "keyword"}))
-		Expect(props["Name_lowercase"]).To(Equal(map[string]any{"type": "keyword"}))
+		Expect(props["Name_lowercase"]).To(Equal(map[string]any{"type": "keyword", "doc_values": false}))
 		content := props["Content"].(map[string]any)
 		Expect(content["type"]).To(Equal("text"), "Content: %#v", content)
 		Expect(content["term_vector"]).To(Equal("with_positions_offsets"), "Content: %#v", content)
@@ -114,7 +114,7 @@ var _ = Describe("OpenSearchBuildMapping", func() {
 		Expect(err).ToNot(HaveOccurred())
 		// the base stays a keyword, the words go to their own sibling
 		Expect(props["Name"]).To(Equal(map[string]any{"type": "keyword"}))
-		Expect(props["Name_lowercase"]).To(Equal(map[string]any{"type": "keyword"}))
+		Expect(props["Name_lowercase"]).To(Equal(map[string]any{"type": "keyword", "doc_values": false}))
 		Expect(props["Name_words"]).To(Equal(map[string]any{"type": "text", "analyzer": WordsAnalyzer}))
 	})
 

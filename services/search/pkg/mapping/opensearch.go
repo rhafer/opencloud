@@ -2,6 +2,7 @@ package mapping
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 )
 
@@ -64,9 +65,15 @@ func buildOpenSearchProperties(t reflect.Type, overrides map[string]FieldOpts, p
 			}
 			props[fi.Name] = m
 			if opts.caseInsensitive() {
-				props[fi.Name+LowercaseSuffix] = m
+				// search-only, like the bleve sibling: never sorted or
+				// aggregated on, so no doc_values
+				sibling := maps.Clone(m)
+				if sibling["type"] == "keyword" {
+					sibling["doc_values"] = false
+				}
+				props[fi.Name+LowercaseSuffix] = sibling
 			}
-			if opts.wordBroken() {
+			if fieldType == TypeKeyword && opts.wordBroken() {
 				props[fi.Name+WordsSuffix] = map[string]any{"type": "text", "analyzer": WordsAnalyzer}
 			}
 			return nil

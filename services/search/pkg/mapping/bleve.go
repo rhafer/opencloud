@@ -66,7 +66,7 @@ func buildBleveDocMapping(t reflect.Type, overrides map[string]FieldOpts, prefix
 			if opts.caseInsensitive() {
 				doc.AddFieldMappingsAt(fi.Name+LowercaseSuffix, searchSibling(base))
 			}
-			if opts.wordBroken() {
+			if fieldType == TypeKeyword && opts.wordBroken() {
 				words := searchSibling(base)
 				words.Analyzer = WordsAnalyzer
 				doc.AddFieldMappingsAt(fi.Name+WordsSuffix, words)
