@@ -3,6 +3,8 @@ package content
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	gateway "github.com/cs3org/go-cs3apis/cs3/gateway/v1beta1"
@@ -20,6 +22,7 @@ type Tika struct {
 	*Basic
 	Retriever
 	tika                       *tika.Client
+	tikaURL                    string
 	ContentExtractionSizeLimit uint64
 	CleanStopWords             bool
 }
@@ -42,6 +45,7 @@ func NewTikaExtractor(gatewaySelector pool.Selectable[gateway.GatewayAPIClient],
 		Basic:                      basic,
 		Retriever:                  newCS3Retriever(gatewaySelector, logger, cfg.Extractor.CS3AllowInsecure),
 		tika:                       tika.NewClient(nil, cfg.Extractor.Tika.TikaURL),
+		tikaURL:                    cfg.Extractor.Tika.TikaURL,
 		ContentExtractionSizeLimit: cfg.ContentExtractionSizeLimit,
 		CleanStopWords:             cfg.Extractor.Tika.CleanStopWords,
 	}, nil
@@ -110,9 +114,31 @@ func (t Tika) Extract(ctx context.Context, ri *provider.ResourceInfo) (Document,
 		}
 	}
 
-	if langCode, _ := t.tika.LanguageString(ctx, doc.Content); langCode != "" && t.CleanStopWords {
+	if langCode := t.detectLanguage(ctx, doc.Content); langCode != "" && t.CleanStopWords {
 		doc.Content = CleanString(doc.Content, langCode)
 	}
 
 	return doc, nil
+}
+
+// detectLanguage asks tika for the language of content. Tika 4 moved the
+// endpoint from /language/string to /language, so try the new path first and
+// fall back for an older tika.
+func (t Tika) detectLanguage(ctx context.Context, content string) string {
+	for _, path := range []string{"/language", "/language/string"} {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPut, t.tikaURL+path, strings.NewReader(content))
+		if err != nil {
+			return ""
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return ""
+		}
+		lang, err := io.ReadAll(res.Body)
+		_ = res.Body.Close()
+		if err == nil && res.StatusCode == http.StatusOK && len(lang) > 0 {
+			return string(lang)
+		}
+	}
+	return ""
 }

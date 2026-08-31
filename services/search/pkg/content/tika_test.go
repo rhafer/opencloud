@@ -23,17 +23,19 @@ import (
 var _ = Describe("Tika", func() {
 	Describe("extract", func() {
 		var (
-			body         string
-			fullResponse string
-			language     string
-			version      string
-			srv          *httptest.Server
-			tika         *content.Tika
+			body          string
+			fullResponse  string
+			language      string
+			tika4Language bool
+			version       string
+			srv           *httptest.Server
+			tika          *content.Tika
 		)
 
 		BeforeEach(func() {
 			body = ""
 			language = ""
+			tika4Language = false
 			version = ""
 			fullResponse = ""
 			srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -41,6 +43,13 @@ var _ = Describe("Tika", func() {
 				switch req.URL.Path {
 				case "/version":
 					out = version
+				case "/language":
+					if tika4Language {
+						out = language
+					} else {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
 				case "/language/string":
 					out = language
 				case "/rmeta/text":
@@ -121,6 +130,19 @@ var _ = Describe("Tika", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(doc.Title).To(Equal("quarterly report"))
+		})
+
+		It("removes stop words with a tika 4 language endpoint", func() {
+			body = "body to test stop words!!! against almost everyone"
+			language = "en"
+			tika4Language = true
+
+			doc, err := tika.Extract(context.TODO(), &provider.ResourceInfo{
+				Type: provider.ResourceType_RESOURCE_TYPE_FILE,
+				Size: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(doc.Content).To(Equal("body test stop words!!!"))
 		})
 
 		It("removes stop words", func() {
