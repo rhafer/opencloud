@@ -25,7 +25,7 @@ var (
 )
 
 // VersionedIndexName suffixes the base index name with the schema version, e.g.
-// "opencloud-resource" -> "opencloud-resource-v3".
+// "opencloud-resource" -> the name suffixed with the current schema version.
 func VersionedIndexName(base string) string {
 	return fmt.Sprintf("%s-v%d", base, search.SchemaVersion)
 }
