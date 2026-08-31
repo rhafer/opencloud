@@ -9,7 +9,7 @@
         "fields": [
           {
             "type": "text",
-            "analyzer": "fulltext",
+            "analyzer": "words",
             "store": true,
             "index": true,
             "include_term_vectors": true,
@@ -41,18 +41,6 @@
             "index": true,
             "include_term_vectors": true,
             "docvalues": true
-          }
-        ]
-      },
-      "Favorites_lowercase": {
-        "enabled": true,
-        "dynamic": true,
-        "fields": [
-          {
-            "type": "text",
-            "analyzer": "keyword",
-            "index": true,
-            "include_term_vectors": true
           }
         ]
       },
@@ -177,18 +165,6 @@
             "index": true,
             "include_term_vectors": true,
             "docvalues": true
-          }
-        ]
-      },
-      "Path_words": {
-        "enabled": true,
-        "dynamic": true,
-        "fields": [
-          {
-            "type": "text",
-            "analyzer": "words",
-            "index": true,
-            "include_term_vectors": true
           }
         ]
       },
@@ -978,14 +954,6 @@
       }
     },
     "analyzers": {
-      "fulltext": {
-        "token_filters": [
-          "to_lower",
-          "stemmer_porter"
-        ],
-        "tokenizer": "unicode",
-        "type": "custom"
-      },
       "words": {
         "char_filters": [
           "dot_to_space"

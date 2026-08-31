@@ -25,7 +25,7 @@ var _ = Describe("Index", func() {
 		It("puts the index into a directory of its own generation", func() {
 			root := GinkgoT().TempDir()
 
-			index, _, err := bleve.NewIndex(root)
+			index, _, err := bleve.NewIndex(root, log.NopLogger())
 			Expect(err).ToNot(HaveOccurred())
 			DeferCleanup(index.Close)
 
@@ -36,11 +36,11 @@ var _ = Describe("Index", func() {
 		It("opens the index that is already there", func() {
 			root := GinkgoT().TempDir()
 
-			index, _, err := bleve.NewIndex(root)
+			index, _, err := bleve.NewIndex(root, log.NopLogger())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(index.Close()).To(Succeed())
 
-			reopened, _, err := bleve.NewIndex(root)
+			reopened, _, err := bleve.NewIndex(root, log.NopLogger())
 			Expect(err).ToNot(HaveOccurred())
 			DeferCleanup(reopened.Close)
 
@@ -163,7 +163,7 @@ var _ = Describe("NewIndex", func() {
 		name := old.DefaultMapping.Properties["Name"]
 		Expect(name).ToNot(BeNil())
 		Expect(name.Fields).ToNot(BeEmpty())
-		name.Fields[0].Analyzer = "fulltext"
+		name.Fields[0].Analyzer = "standard"
 		buildIndex(old, nil)
 
 		_, _, err := bleve.NewIndex(root, log.NopLogger())
@@ -190,8 +190,8 @@ var _ = Describe("NewIndex", func() {
 
 	It("refuses on a changed analyzer definition", func() {
 		old := codeMapping()
-		Expect(old.CustomAnalysis.Analyzers).To(HaveKey("fulltext"))
-		old.CustomAnalysis.Analyzers["fulltext"] = map[string]any{
+		Expect(old.CustomAnalysis.Analyzers).To(HaveKey(searchmapping.WordsAnalyzer))
+		old.CustomAnalysis.Analyzers[searchmapping.WordsAnalyzer] = map[string]any{
 			"type":          custom.Name,
 			"tokenizer":     unicode.Name,
 			"token_filters": []string{lowercase.Name},
@@ -222,6 +222,12 @@ var _ = Describe("NewMapping", func() {
 		Expect(err).ToNot(HaveOccurred())
 		var got, golden map[string]any
 		Expect(json.Unmarshal(b, &got)).To(Succeed())
+
+		if os.Getenv("UPDATE_GOLDEN") != "" {
+			pretty, err := json.MarshalIndent(m, "", "  ")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(os.WriteFile("testdata/mapping.golden.json", append(pretty, '\n'), 0o644)).To(Succeed())
+		}
 
 		goldenB, err := os.ReadFile("testdata/mapping.golden.json")
 		Expect(err).ToNot(HaveOccurred())
