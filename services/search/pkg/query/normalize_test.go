@@ -73,8 +73,10 @@ var _ = Describe("Normalize", func() {
 			&ast.OperatorNode{Value: "AND"},
 			&ast.StringNode{Key: "photo.cameraMake", Value: "canon", CaseInsensitive: true},
 			&ast.OperatorNode{Value: "AND"},
-			&ast.OperatorNode{Value: "NOT"},
-			&ast.StringNode{Key: "MimeType", Value: "httpd/unix-directory"},
+			&ast.GroupNode{Nodes: []ast.Node{
+				&ast.OperatorNode{Value: "NOT"},
+				&ast.StringNode{Key: "MimeType", Value: "httpd/unix-directory"},
+			}},
 			&ast.OperatorNode{Value: "AND"},
 			&ast.NumberNode{Key: "Size", Value: 100},
 		}))

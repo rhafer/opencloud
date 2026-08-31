@@ -269,10 +269,7 @@ func walk(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 
 func nextNode(offset int, nodes []ast.Node) (bleveQuery.Query, int, error) {
 	if n, ok := nodes[offset].(*ast.GroupNode); ok {
-		if n.Key != "" {
-			n = normalizeGroupingProperty(n)
-		}
-
+		// keys are resolved and group keys propagated by normalize
 		gq, _, err := walk(0, n.Nodes)
 		if err != nil {
 			return nil, 0, err
@@ -358,13 +355,4 @@ func numberRange(field string, operator *ast.OperatorNode, value float64) bleveQ
 	q.SetField(field)
 
 	return q
-}
-
-func normalizeGroupingProperty(group *ast.GroupNode) *ast.GroupNode {
-	for _, n := range group.Nodes {
-		if onode, ok := n.(*ast.StringNode); ok {
-			onode.Key = group.Key
-		}
-	}
-	return group
 }

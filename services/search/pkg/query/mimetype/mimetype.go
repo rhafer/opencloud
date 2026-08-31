@@ -23,9 +23,13 @@ func Expand(key, value string) []ast.Node {
 	value = strings.ToLower(value)
 	switch value {
 	case "file":
+		// grouped so the negation stays atomic when it composes with other
+		// terms (mediatype:file OR ...)
 		return []ast.Node{
-			&ast.OperatorNode{Value: kql.BoolNOT},
-			&ast.StringNode{Key: field, Value: "httpd/unix-directory"},
+			&ast.GroupNode{Nodes: []ast.Node{
+				&ast.OperatorNode{Value: kql.BoolNOT},
+				&ast.StringNode{Key: field, Value: "httpd/unix-directory"},
+			}},
 		}
 	case "folder":
 		return term("httpd/unix-directory")
