@@ -1,6 +1,6 @@
 # Engine parity
 
-Written by the parity suite (`UPDATE_MATRIX=true go test ./services/search/pkg/parity/`), do not edit.
+Written by the parity suite (`UPDATE_SEARCH_PARITY_MATRIX=true go test ./services/search/pkg/parity/`), do not edit.
 Every case runs against bleve and OpenSearch. `same?` is ✅ when both answer as
 expected, `❌ known` when an engine's divergence is documented in the case
 (`engineOverrides`), `❌` when it is not. `✅ stale` when every engine
