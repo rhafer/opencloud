@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	settingsmsg "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/settings/v0"
 	settings "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
@@ -73,8 +74,9 @@ var _ = Describe("Groups", func() {
 		)
 		permissionService = &mocks.Permissions{}
 
+		logger := log.NewLogger()
 		identityBackend = &identitymocks.Backend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 		newGroup = libregraph.NewGroup()
 		newGroup.SetMembersodataBind([]string{"/users/user1"})
 		newGroup.SetId("group1")
@@ -417,7 +419,8 @@ var _ = Describe("Groups", func() {
 				updatedGroupJson, err := json.Marshal(updatedGroup)
 				Expect(err).ToNot(HaveOccurred())
 
-				metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+				logger := log.NewLogger()
+				metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 				cfg.API.GroupMembersPatchLimit = 21
 				svc, err = service.NewService(

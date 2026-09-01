@@ -81,7 +81,7 @@ var _ = Describe("Users changing their own password", func() {
 		reg := prometheus.NewRegistry()
 		identityBackend, err = identity.NewLDAPBackend(ldapClient, ldapConfig, &logger, "opencloud", "test", reg)
 		Expect(err).To(BeNil())
-		metrics := metrics.New(reg, func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(reg, &logger, func([]string) (string, string) { return "", "" })
 
 		eventsPublisher = mocks.Publisher{}
 

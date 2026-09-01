@@ -26,6 +26,7 @@ import (
 	"github.com/opencloud-eu/reva/v2/pkg/utils"
 	cs3mocks "github.com/opencloud-eu/reva/v2/tests/cs3mocks/mocks"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/graph/mocks"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
@@ -73,8 +74,9 @@ var _ = Describe("Driveitems", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityBackend = &identitymocks.Backend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 		newGroup = libregraph.NewGroup()
 		newGroup.SetMembersodataBind([]string{"/users/user1"})
 		newGroup.SetId("group1")

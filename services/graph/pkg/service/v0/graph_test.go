@@ -30,6 +30,7 @@ import (
 	"github.com/tidwall/gjson"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	v0 "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/settings/v0"
 	settingssvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
@@ -63,7 +64,8 @@ var _ = Describe("Graph", func() {
 	BeforeEach(func() {
 		rr = httptest.NewRecorder()
 
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		logger := log.NewLogger()
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 		ctx = revactx.ContextSetUser(context.Background(), &userprovider.User{Id: &userprovider.UserId{Type: userprovider.UserType_USER_TYPE_PRIMARY, OpaqueId: "testuser"}, Username: "testuser"})
 		cfg = defaults.FullDefaultConfig()

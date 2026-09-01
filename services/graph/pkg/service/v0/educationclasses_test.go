@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/graph/mocks"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
@@ -66,9 +67,10 @@ var _ = Describe("EducationClass", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityEducationBackend = &identitymocks.EducationBackend{}
 		identityBackend = &identitymocks.Backend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 		newClass = libregraph.NewEducationClass("math", "course")
 		newClass.SetMembersodataBind([]string{"/users/user1"})
 		newClass.SetId("math")
@@ -332,7 +334,8 @@ var _ = Describe("EducationClass", func() {
 				updatedClassJson, err := json.Marshal(updatedClass)
 				Expect(err).ToNot(HaveOccurred())
 
-				metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+				logger := log.NewLogger()
+				metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 				cfg.API.GroupMembersPatchLimit = 21
 

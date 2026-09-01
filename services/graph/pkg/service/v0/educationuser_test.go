@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	settingssvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
 	"github.com/opencloud-eu/opencloud/services/graph/mocks"
@@ -72,8 +73,9 @@ var _ = Describe("EducationUsers", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityEducationBackend = &identitymocks.EducationBackend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 		roleService = &mocks.RoleService{}
 
 		rr = httptest.NewRecorder()

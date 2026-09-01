@@ -1,11 +1,14 @@
 package metrics
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
+	ocmetrics "github.com/opencloud-eu/opencloud/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -62,14 +65,9 @@ const (
 )
 
 // New initializes the available metrics.
-func New(registerer prometheus.Registerer, httpPathSplitter func(pieces []string) (string, string)) *Metrics {
+func New(registerer prometheus.Registerer, logger *log.Logger, httpPathSplitter func(pieces []string) (string, string)) (*Metrics, error) {
 	m := &Metrics{
-		BuildInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: Namespace,
-			Subsystem: Subsystem,
-			Name:      "build_info",
-			Help:      "Build information",
-		}, []string{"version"}),
+		BuildInfo: ocmetrics.BuildInfo(Namespace, Subsystem),
 		EventsEnabled: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: Namespace,
 			Subsystem: Subsystem,
@@ -118,18 +116,10 @@ func New(registerer prometheus.Registerer, httpPathSplitter func(pieces []string
 		httpPathSplitter: httpPathSplitter,
 	}
 
-	_ = prometheus.Register(m.BuildInfo)
-	_ = prometheus.Register(m.EventsEnabled)
-	_ = prometheus.Register(m.HttpEnabled)
-	_ = prometheus.Register(m.EventsProcessed)
-	_ = prometheus.Register(m.InvalidEvents)
-	_ = prometheus.Register(m.UnsupportedEvents)
-	_ = prometheus.Register(m.UserPasswordChanges)
-	_ = prometheus.Register(m.httpRequestDuration)
-
-	// TODO: implement more metrics
-
-	return m
+	m, err := ocmetrics.Register(registerer, m, logger)
+	// must additionally register unexported metrics:
+	err = errors.Join(err, ocmetrics.RegisterMetric(registerer, m.httpRequestDuration, logger))
+	return m, err
 }
 
 func (m Metrics) InitHttpInFlightGauge(inFlight *atomic.Int64) {

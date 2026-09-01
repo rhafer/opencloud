@@ -29,6 +29,7 @@ import (
 
 	libregraph "github.com/opencloud-eu/libre-graph-api-go"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config/defaults"
@@ -61,8 +62,9 @@ var _ = Describe("SharedWithMe", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityBackend = &identitymocks.Backend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 		tape = httptest.NewRecorder()
 		ctx = context.Background()

@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/graph/mocks"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
@@ -237,8 +238,9 @@ var _ = Describe("sharedbyme", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityBackend = &identitymocks.Backend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 		rr = httptest.NewRecorder()
 		ctx = context.Background()

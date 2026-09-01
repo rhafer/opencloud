@@ -32,6 +32,7 @@ import (
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/metrics"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/userstate"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	settingsmsg "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/settings/v0"
 	settings "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
@@ -84,12 +85,13 @@ var _ = Describe("Users", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityBackend = &identitymocks.Backend{}
 		roleService = &mocks.RoleService{}
 		natsKeyValueMock = &mocks.KeyValue{}
 		valueService = &settingsmocks.ValueService{}
 		permissionService = &mocks.Permissions{}
-		mtrics = metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		mtrics, _ = metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 		rr = httptest.NewRecorder()
 		ctx = context.Background()

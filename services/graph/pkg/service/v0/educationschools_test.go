@@ -25,6 +25,7 @@ import (
 
 	libregraph "github.com/opencloud-eu/libre-graph-api-go"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config/defaults"
@@ -68,8 +69,9 @@ var _ = Describe("Schools", func() {
 			},
 		)
 
+		logger := log.NewLogger()
 		identityEducationBackend = &identitymocks.EducationBackend{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 		newSchool = libregraph.NewEducationSchool()
 		newSchool.SetId("school1")
 

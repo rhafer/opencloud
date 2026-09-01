@@ -41,10 +41,11 @@ func TestSuccessfulCall(t *testing.T) {
 		return nil
 	})
 
-	reg := prometheus.NewRegistry()
-	m := metrics.New(reg, func(_ []string) (string, string) { return "", "" })
-
 	logger := log.NewLogger()
+
+	reg := prometheus.NewRegistry()
+	m, err := metrics.New(reg, &logger, func(_ []string) (string, string) { return "", "" })
+	require.NoError(err)
 
 	svc, err := g.NewService(ctx, bus, backend, m, &logger)
 	require.NoError(err)
@@ -91,10 +92,11 @@ func TestBackendReturningAnError(t *testing.T) {
 		return errors.New("test")
 	})
 
-	reg := prometheus.NewRegistry()
-	m := metrics.New(reg, func(_ []string) (string, string) { return "", "" })
-
 	logger := log.NewLogger()
+
+	reg := prometheus.NewRegistry()
+	m, err := metrics.New(reg, &logger, func(_ []string) (string, string) { return "", "" })
+	require.NoError(err)
 
 	svc, err := g.NewService(ctx, bus, backend, m, &logger)
 	require.NoError(err)

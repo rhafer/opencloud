@@ -12,7 +12,6 @@ import (
 	natspkg "github.com/opencloud-eu/opencloud/pkg/nats"
 	"github.com/opencloud-eu/opencloud/pkg/runner"
 	"github.com/opencloud-eu/opencloud/pkg/tracing"
-	"github.com/opencloud-eu/opencloud/pkg/version"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/config/parser"
 	"github.com/opencloud-eu/opencloud/services/graph/pkg/identity"
@@ -60,8 +59,10 @@ func Server(cfg *config.Config) *cobra.Command {
 			// to track HTTP request processing durations, and it is located there to be close
 			// to the HTTP API route definitions, to improve chances of adapting it accordingly
 			// whenever those routes should change in the future
-			mtrcs := metrics.New(prom, svc.DecomposeGraphApiRequestPattern)
-			mtrcs.BuildInfo.WithLabelValues(version.GetString()).Set(1)
+			mtrcs, err := metrics.New(prom, &logger, svc.DecomposeGraphApiRequestPattern)
+			if err != nil {
+				return err
+			}
 
 			var kv jetstream.KeyValue
 			// Allow to run without a NATS store (e.g. for the standalone Education provisioning service)

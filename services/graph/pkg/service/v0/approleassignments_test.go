@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
+	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	settingsmsg "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/settings/v0"
 	settings "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/settings/v0"
@@ -60,9 +61,10 @@ var _ = Describe("AppRoleAssignments", func() {
 	BeforeEach(func() {
 		eventsPublisher.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
+		logger := log.NewLogger()
 		identityBackend = &identitymocks.Backend{}
 		roleService = &mocks.RoleService{}
-		metrics := metrics.New(prometheus.NewRegistry(), func([]string) (string, string) { return "", "" })
+		metrics, _ := metrics.New(prometheus.NewRegistry(), &logger, func([]string) (string, string) { return "", "" })
 
 		pool.RemoveSelector("GatewaySelector" + "eu.opencloud.api.gateway")
 		gatewayClient = &cs3mocks.GatewayAPIClient{}
