@@ -73,7 +73,7 @@ The current implementation has three concrete problems:
 That the facet fields were unreachable at decision time has a
 useful corollary for this ADR: **changing the indexed shape of the
 facet fields cannot break any existing client of the search
-service**, because no client successfully read them. The behavior changes
+service**, because no client could successfully read them. The behavior changes
 discussed below are therefore additive in a literal sense; nothing
 that works today stops working as a result.
 
