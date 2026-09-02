@@ -42,6 +42,7 @@ type DriveItem struct {
 	// An eTag for the content of the item. This eTag is not changed if only the metadata is changed. Note This property is not returned if the item is a folder. Read-only.
 	CTag *string `json:"cTag,omitempty"`
 	Deleted *Deleted `json:"deleted,omitempty"`
+	PendingOperations *PendingOperations `json:"pendingOperations,omitempty"`
 	File *OpenGraphFile `json:"file,omitempty"`
 	FileSystemInfo *FileSystemInfo `json:"fileSystemInfo,omitempty"`
 	Folder *Folder `json:"folder,omitempty"`
@@ -79,6 +80,8 @@ type DriveItem struct {
 	LibreGraphTags []string `json:"@libre.graph.tags,omitempty"`
 	// A list of actions the caller is allowed to perform on this item.  Only returned when explicitly requested via `$select` on endpoints that support it. Mirrors the annotation of the same name on the `/permissions` endpoint, allowing clients to learn a caller's effective actions on an item without a separate round-trip. 
 	LibreGraphPermissionsActionsAllowedValues []string `json:"@libre.graph.permissions.actions.allowedValues,omitempty"`
+	// The types of shares existing on this item, aggregated over all of its grants. Absent or empty if the item is not shared.  This is a summary of the item's `permissions` collection. For the full grants use the permissions endpoints, for the caller's own capabilities use `@libre.graph.permissions.actions.allowedValues`.  Only returned when explicitly requested via `$select`. 
+	LibreGraphShareTypes []string `json:"@libre.graph.shareTypes,omitempty"`
 }
 
 // NewDriveItem instantiates a new DriveItem object
@@ -512,6 +515,38 @@ func (o *DriveItem) HasDeleted() bool {
 // SetDeleted gets a reference to the given Deleted and assigns it to the Deleted field.
 func (o *DriveItem) SetDeleted(v Deleted) {
 	o.Deleted = &v
+}
+
+// GetPendingOperations returns the PendingOperations field value if set, zero value otherwise.
+func (o *DriveItem) GetPendingOperations() PendingOperations {
+	if o == nil || IsNil(o.PendingOperations) {
+		var ret PendingOperations
+		return ret
+	}
+	return *o.PendingOperations
+}
+
+// GetPendingOperationsOk returns a tuple with the PendingOperations field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DriveItem) GetPendingOperationsOk() (*PendingOperations, bool) {
+	if o == nil || IsNil(o.PendingOperations) {
+		return nil, false
+	}
+	return o.PendingOperations, true
+}
+
+// HasPendingOperations returns a boolean if a field has been set.
+func (o *DriveItem) HasPendingOperations() bool {
+	if o != nil && !IsNil(o.PendingOperations) {
+		return true
+	}
+
+	return false
+}
+
+// SetPendingOperations gets a reference to the given PendingOperations and assigns it to the PendingOperations field.
+func (o *DriveItem) SetPendingOperations(v PendingOperations) {
+	o.PendingOperations = &v
 }
 
 // GetFile returns the File field value if set, zero value otherwise.
@@ -1314,6 +1349,38 @@ func (o *DriveItem) SetLibreGraphPermissionsActionsAllowedValues(v []string) {
 	o.LibreGraphPermissionsActionsAllowedValues = v
 }
 
+// GetLibreGraphShareTypes returns the LibreGraphShareTypes field value if set, zero value otherwise.
+func (o *DriveItem) GetLibreGraphShareTypes() []string {
+	if o == nil || IsNil(o.LibreGraphShareTypes) {
+		var ret []string
+		return ret
+	}
+	return o.LibreGraphShareTypes
+}
+
+// GetLibreGraphShareTypesOk returns a tuple with the LibreGraphShareTypes field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DriveItem) GetLibreGraphShareTypesOk() ([]string, bool) {
+	if o == nil || IsNil(o.LibreGraphShareTypes) {
+		return nil, false
+	}
+	return o.LibreGraphShareTypes, true
+}
+
+// HasLibreGraphShareTypes returns a boolean if a field has been set.
+func (o *DriveItem) HasLibreGraphShareTypes() bool {
+	if o != nil && !IsNil(o.LibreGraphShareTypes) {
+		return true
+	}
+
+	return false
+}
+
+// SetLibreGraphShareTypes gets a reference to the given []string and assigns it to the LibreGraphShareTypes field.
+func (o *DriveItem) SetLibreGraphShareTypes(v []string) {
+	o.LibreGraphShareTypes = v
+}
+
 func (o DriveItem) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -1362,6 +1429,9 @@ func (o DriveItem) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Deleted) {
 		toSerialize["deleted"] = o.Deleted
+	}
+	if !IsNil(o.PendingOperations) {
+		toSerialize["pendingOperations"] = o.PendingOperations
 	}
 	if !IsNil(o.File) {
 		toSerialize["file"] = o.File
@@ -1437,6 +1507,9 @@ func (o DriveItem) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.LibreGraphPermissionsActionsAllowedValues) {
 		toSerialize["@libre.graph.permissions.actions.allowedValues"] = o.LibreGraphPermissionsActionsAllowedValues
+	}
+	if !IsNil(o.LibreGraphShareTypes) {
+		toSerialize["@libre.graph.shareTypes"] = o.LibreGraphShareTypes
 	}
 	return toSerialize, nil
 }

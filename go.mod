@@ -22,7 +22,6 @@ require (
 	github.com/ggwhite/go-masker v1.1.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/render v1.0.3
-	github.com/go-jose/go-jose/v3 v3.0.5
 	github.com/go-ldap/ldap/v3 v3.4.14
 	github.com/go-ldap/ldif v0.0.0-20200320164324-fd88d9b715b3
 	github.com/go-micro/plugins/v4/client/grpc v1.2.1
@@ -63,13 +62,14 @@ require (
 	github.com/onsi/gomega v1.42.1
 	github.com/open-policy-agent/opa v1.19.1
 	github.com/opencloud-eu/icap-client v0.0.0-20250930132611-28a2afe62d89
-	github.com/opencloud-eu/libre-graph-api-go v1.0.8-0.20260818063016-69f82a7dde55
+	github.com/opencloud-eu/libre-graph-api-go v1.0.8-0.20260902093522-448c55fc0d69
 	github.com/opencloud-eu/reva/v2 v2.49.0
 	github.com/opensearch-project/opensearch-go/v4 v4.7.3
 	github.com/orcaman/concurrent-map v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/xattr v0.4.12
 	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/client_model v0.6.2
 	github.com/r3labs/sse/v2 v2.10.0
 	github.com/riandyrn/otelchi v0.12.3
 	github.com/rogpeppe/go-internal v1.16.0
@@ -207,6 +207,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-git/go-git/v5 v5.19.2 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
@@ -324,7 +325,6 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pquerna/cachecontrol v0.2.0 // indirect
 	github.com/prometheus/alertmanager v0.33.1 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/prometheus/statsd_exporter v0.22.8 // indirect
