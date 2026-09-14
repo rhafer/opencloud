@@ -262,21 +262,6 @@ ci-node-save-licenses:
         $(MAKE) --no-print-directory -C $$mod ci-node-save-licenses || exit 1; \
     done
 
-CHANGELOG_VERSION =
-
-.PHONY: changelog
-changelog: $(CALENS)
-ifndef CHANGELOG_VERSION
-	$(error CHANGELOG_VERSION is undefined)
-endif
-	mkdir -p opencloud/dist
-	$(CALENS) --version $(CHANGELOG_VERSION) -o opencloud/dist/CHANGELOG.md
-
-.PHONY: changelog-csv
-changelog-csv: $(CALENS)
-	mkdir -p opencloud/dist
-	$(CALENS) -t changelog/changelog-csv.tmpl -o opencloud/dist/changelog.csv
-
 .PHONY: govulncheck
 govulncheck: $(GOVULNCHECK)
 	$(GOVULNCHECK) ./...
