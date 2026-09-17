@@ -172,7 +172,7 @@ var _ = Describe("DriveItemPermissionsService", func() {
 			gatewayClient.On("GetUser", mock.Anything, mock.Anything).Return(getUserResponse, nil)
 			gatewayClient.On("CreateShare", mock.Anything, mock.Anything).Return(createShareResponse, nil)
 			driveItemInvite.Recipients = []libregraph.DriveRecipient{
-				{Email: libregraph.PtrString("Test User <guest@example.com>")},
+				{Email: libregraph.PtrString("guest@example.com")},
 			}
 			createShareResponse.Share = &collaboration.Share{
 				Id: &collaboration.ShareId{OpaqueId: "guest123"},
@@ -183,28 +183,7 @@ var _ = Describe("DriveItemPermissionsService", func() {
 			Expect(permission.GetId()).To(Equal("guest123"))
 			Expect(permission.GrantedToV2.User.GetDisplayName()).To(Equal("guest@example.com"))
 			Expect(permission.GrantedToV2.User.GetId()).To(Equal("guest@example.com"))
-			Expect(permission.GrantedToV2.User.GetLibreGraphUserType()).To(Equal("Mail"))
-		})
-		It("verifies that invalid email addresses are handled", func() {
-			cfg.EnableGuestInvites = true
-			driveItemInvite.Recipients = []libregraph.DriveRecipient{
-				{Email: libregraph.PtrString("invalid")},
-			}
-
-			_, err := driveItemPermissionsService.Invite(ctx, driveItemId, driveItemInvite)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid mail recipient"))
-		})
-
-		It("verifies that empty email addresses are handled", func() {
-			cfg.EnableGuestInvites = true
-			driveItemInvite.Recipients = []libregraph.DriveRecipient{
-				{Email: libregraph.PtrString(" ")},
-			}
-
-			_, err := driveItemPermissionsService.Invite(ctx, driveItemId, driveItemInvite)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid mail recipient"))
+			Expect(permission.GrantedToV2.User.GetLibreGraphUserType()).To(Equal("Guest"))
 		})
 
 		It("rejects guest shares when guest invites are disabled by default", func() {

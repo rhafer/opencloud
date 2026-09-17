@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/mail"
 	"net/url"
 	"slices"
 	"strings"
@@ -168,21 +167,6 @@ func (s DriveItemPermissionsService) Invite(ctx context.Context, resourceId *sto
 		if !s.config.EnableGuestInvites {
 			return libregraph.Permission{}, errorcode.New(errorcode.NotSupported, "sharing with mail recipients is not enabled")
 		}
-		email = strings.TrimSpace(email)
-		if len(email) == 0 {
-			return libregraph.Permission{}, errorcode.New(errorcode.InvalidRequest, "invalid mail recipient")
-		}
-
-		parsedMail, err := mail.ParseAddress(email)
-		if err != nil {
-			s.logger.Debug().Err(err).Msg("failed to parse mail recipient")
-			return libregraph.Permission{}, errorcode.New(errorcode.InvalidRequest, "invalid mail recipient")
-		}
-
-		// we're only interested in the Address part of the mail address (this is what reva uses as the user id
-		// for the created share and grants) let's strip on any "Name" part that might be existing
-		email = parsedMail.Address
-
 		createShareRequest := createShareRequestToMail(email, statResponse.GetInfo(), cs3ResourcePermissions)
 
 		if invite.ExpirationDateTime != nil {
@@ -198,14 +182,14 @@ func (s DriveItemPermissionsService) Invite(ctx context.Context, resourceId *sto
 		cTime = createShareResponse.GetShare().GetCtime()
 		expiration = createShareResponse.GetShare().GetExpiration()
 
-		identity := &libregraph.Identity{
-			Id:                 conversions.ToPointer(email),
-			DisplayName:        email,
-			LibreGraphUserType: conversions.ToPointer("Mail"),
+		guestIdentity, err := cs3UserIdToIdentity(ctx, s.identityCache, createShareRequest.GetGrant().GetGrantee().GetUserId())
+		if err != nil {
+			s.logger.Debug().Err(err).Msg("failed to convert guest user id to identity")
+			return libregraph.Permission{}, err
 		}
 
 		permission.GrantedToV2 = &libregraph.SharePointIdentitySet{
-			User: identity,
+			User: &guestIdentity,
 		}
 
 	} else {
