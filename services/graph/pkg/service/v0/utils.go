@@ -126,10 +126,9 @@ func federatedIdToIdentity(ctx context.Context, cache cache.IdentityCache, cs3Us
 func guestMailToIdentity(cs3UserID *cs3User.UserId) (libregraph.Identity, error) {
 	lgIdentity := libregraph.Identity{
 		Id:                 libregraph.PtrString(cs3UserID.GetOpaqueId()),
+		DisplayName:        cs3UserID.GetOpaqueId(),
 		LibreGraphUserType: libregraph.PtrString(identity.UserTypeGuest),
 	}
-	lgIdentity.SetDisplayName(cs3UserID.GetOpaqueId())
-	lgIdentity.SetLibreGraphUserType(identity.UserTypeGuest)
 	return lgIdentity, nil
 }
 
