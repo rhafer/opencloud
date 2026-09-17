@@ -204,5 +204,21 @@ var _ = Describe("libregraph", func() {
 				return driveRecipient, false
 			},
 		),
+		Entry("fail: empty email",
+			func() (libregraph.DriveRecipient, bool) {
+				driveRecipient.ObjectId = nil
+				driveRecipient.Email = conversions.ToPointer(" ")
+				driveRecipient.LibreGraphRecipientType = nil
+				return driveRecipient, false
+			},
+		),
+		Entry("fail: email with display name",
+			func() (libregraph.DriveRecipient, bool) {
+				driveRecipient.ObjectId = nil
+				driveRecipient.Email = conversions.ToPointer("Test User <guest@example.com>")
+				driveRecipient.LibreGraphRecipientType = nil
+				return driveRecipient, false
+			},
+		),
 	)
 })
