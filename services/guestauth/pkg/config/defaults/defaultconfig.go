@@ -52,9 +52,8 @@ func DefaultConfig() *config.Config {
 			RootDirectory: path.Join(defaults.BaseDataPath(), "guestauth"),
 		},
 		JWT: config.JWT{
-			CookieName:   "oc_guest_session",
-			CookieSecure: true,
-			TTL:          24 * time.Hour,
+			CookieName: "oc_guest_session",
+			TTL:        24 * time.Hour,
 		},
 	}
 }
