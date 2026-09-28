@@ -80,8 +80,8 @@ type Options struct {
 	// tenant ID in the OIDC claims via the gateway's TenantAPI before comparing it to the user's stored tenant ID.
 	TenantIDMappingEnabled bool
 	// ServiceAccount holds credentials used to authenticate internal service calls (e.g. TenantAPI lookups).
-	ServiceAccount         config.ServiceAccount
-	EventsPublisher        events.Publisher
+	ServiceAccount  config.ServiceAccount
+	EventsPublisher events.Publisher
 }
 
 // newOptions initializes the available default options.

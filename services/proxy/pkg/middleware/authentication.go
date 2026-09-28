@@ -42,12 +42,63 @@ const (
 	WwwAuthenticate = "Www-Authenticate"
 )
 
+// AuthenticationState represents the outcome of an authentication attempt.
+type AuthenticationState int
+
+const (
+	// AuthenticationNotApplicable means the authenticator does not apply to this request
+	// (e.g., no relevant credentials present, or not the right path).
+	AuthenticationNotApplicable AuthenticationState = iota
+	// AuthenticationFailed means the authenticator found applicable credentials but
+	// they were rejected (e.g., wrong password, invalid token).
+	AuthenticationFailed
+	// AuthenticationSucceeded means authentication was successful and the request
+	// has been augmented with identity information.
+	AuthenticationSucceeded
+	// AuthenticationError means authentication encountered an internal/dependency failure
+	// (e.g., backend unavailable, transport error).
+	AuthenticationError
+)
+
+// AuthenticationResult represents the typed result of an authentication attempt.
+type AuthenticationResult struct {
+	Request *http.Request
+	State   AuthenticationState
+	Err     error
+}
+
+// NotApplicable returns a result indicating the authenticator does not apply to the request.
+func NotApplicable() AuthenticationResult {
+	return AuthenticationResult{State: AuthenticationNotApplicable}
+}
+
+// Failed returns a result indicating credentials were present but rejected.
+func Failed() AuthenticationResult {
+	return AuthenticationResult{State: AuthenticationFailed}
+}
+
+// FailedWithErr returns a result indicating credentials were present but rejected,
+// with an associated error for logging/classification.
+func FailedWithErr(err error) AuthenticationResult {
+	return AuthenticationResult{State: AuthenticationFailed, Err: err}
+}
+
+// Succeeded returns a result indicating successful authentication with the augmented request.
+func Succeeded(r *http.Request) AuthenticationResult {
+	return AuthenticationResult{Request: r, State: AuthenticationSucceeded}
+}
+
+// AuthenticationErrorResult returns a result indicating an internal/dependency failure.
+func AuthenticationErrorResult(err error) AuthenticationResult {
+	return AuthenticationResult{State: AuthenticationError, Err: err}
+}
+
 // Authenticator is the common interface implemented by all request authenticators.
 type Authenticator interface {
 	// Authenticate is used to authenticate incoming HTTP requests.
-	// The Authenticator may augment the request with user info or anything related to the
-	// authentication and return the augmented request.
-	Authenticate(*http.Request) (*http.Request, bool)
+	// The Authenticator returns a typed result indicating whether the request was
+	// authenticated, not applicable, failed, or encountered an error.
+	Authenticate(*http.Request) AuthenticationResult
 }
 
 type authenticationChallengeSuppressor interface {
@@ -82,9 +133,10 @@ func Authentication(auths []Authenticator, opts ...Option) func(next http.Handle
 
 			suppressAuthenticationChallenge := false
 			for _, a := range auths {
-				if req, ok := a.Authenticate(r); ok {
+				result := a.Authenticate(r)
+				if result.State == AuthenticationSucceeded {
 					span.End()
-					next.ServeHTTP(w, req)
+					next.ServeHTTP(w, result.Request)
 					return
 				}
 				if suppressor, ok := a.(authenticationChallengeSuppressor); ok && suppressor.SuppressAuthenticationChallenge(r) {
