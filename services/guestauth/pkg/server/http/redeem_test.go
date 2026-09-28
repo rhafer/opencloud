@@ -24,7 +24,6 @@ func newRedeemHandler(t *testing.T, svc guestauth.GuestAuth) http.HandlerFunc {
 	cfg := &config.Config{
 		JWT: config.JWT{
 			CookieName:   "oc_guest_session",
-			CookieSecure: true,
 			TTL:          time.Hour,
 		},
 	}
