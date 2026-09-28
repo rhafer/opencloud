@@ -61,7 +61,7 @@ func RedeemHandler(log log.Logger, s guestauth.GuestAuth, cfg *config.Config) fu
 			Value:    sessionToken,
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   cfg.JWT.CookieSecure,
+			Secure:   true,
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   int(cfg.JWT.TTL.Seconds()),
 		})

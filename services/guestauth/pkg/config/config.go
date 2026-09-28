@@ -82,7 +82,6 @@ type TokenManager struct {
 
 // JWT defines the configuration for guest session tokens.
 type JWT struct {
-	CookieName   string        `yaml:"cookie_name" env:"GUESTAUTH_JWT_COOKIE_NAME" desc:"The name of the session cookie set when a guest token is redeemed." introductionVersion:"1.0.0"`
-	CookieSecure bool          `yaml:"cookie_secure" env:"GUESTAUTH_JWT_COOKIE_SECURE" desc:"Whether the session cookie should be flagged as secure (only sent over HTTPS)." introductionVersion:"1.0.0"`
-	TTL          time.Duration `yaml:"ttl" env:"GUESTAUTH_JWT_TTL" desc:"The lifetime of a redeemed guest session token." introductionVersion:"1.0.0"`
+	CookieName string        `yaml:"cookie_name" env:"GUESTAUTH_JWT_COOKIE_NAME" desc:"The name of the session cookie set when a guest token is redeemed." introductionVersion:"1.0.0"`
+	TTL        time.Duration `yaml:"ttl" env:"GUESTAUTH_JWT_TTL" desc:"The lifetime of a redeemed guest session token." introductionVersion:"1.0.0"`
 }
