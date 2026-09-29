@@ -38,6 +38,8 @@ func writeRedeemError(w http.ResponseWriter, err error) {
 		status, errorType = http.StatusUnauthorized, "token_invalid"
 	case errors.Is(re.ErrorType, storage.ErrNotFound):
 		status, errorType = http.StatusNotFound, "token_not_found"
+	case errors.Is(re.ErrorType, storage.ErrInvalidHash):
+		status, errorType = http.StatusUnauthorized, "token_invalid"
 	case errors.Is(re.ErrorType, guestauth.ErrAlreadyRedeemed):
 		status, errorType = http.StatusConflict, "token_already_redeemed"
 	case errors.Is(re.ErrorType, guestauth.ErrShareNotFound):

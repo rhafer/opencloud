@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"io/fs"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -41,7 +44,7 @@ func TestFileManagerGetMissing(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestFileManagerAddOverwrites(t *testing.T) {
+func TestFileManagerAddExisting(t *testing.T) {
 	dir := t.TempDir()
 	s := NewFileManager(dir)
 
@@ -49,11 +52,21 @@ func TestFileManagerAddOverwrites(t *testing.T) {
 	require.NoError(t, s.Add(rec))
 
 	rec.SecretHash = "other"
-	require.NoError(t, s.Add(rec))
+	require.ErrorIs(t, s.Add(rec), fs.ErrExist)
+}
 
-	got, err := s.Get(rec.ShareIDHash)
-	require.NoError(t, err)
-	assert.Equal(t, "other", got.SecretHash)
+func TestFileManagerInvalidHash(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFileManager(dir)
+
+	_, err := s.Get("ab")
+	require.ErrorIs(t, err, ErrInvalidHash)
+
+	_, err = s.Get("../../etc/passwd-xyz")
+	require.ErrorIs(t, err, ErrInvalidHash)
+
+	require.ErrorIs(t, s.Remove("ab"), ErrInvalidHash)
+	require.ErrorIs(t, s.Add(Record{ShareIDHash: "ab"}), ErrInvalidHash)
 }
 
 func TestFileManagerRemove(t *testing.T) {
@@ -100,4 +113,55 @@ func TestFileManagerRedeemMissing(t *testing.T) {
 
 	err := s.Redeem("doesnotexist")
 	assert.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestFileManagerAddConcurrent(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFileManager(dir)
+
+	rec := newRecord("e0123456-7890-abcd-ef01-234567890abc")
+
+	const workers = 20
+	var (
+		wg      sync.WaitGroup
+		success atomic.Int32
+	)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.Add(rec); err == nil {
+				success.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), success.Load())
+}
+
+func TestFileManagerRedeemConcurrent(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFileManager(dir)
+
+	rec := newRecord("e0123456-7890-abcd-ef01-234567890abc")
+	require.NoError(t, s.Add(rec))
+
+	const workers = 20
+	var (
+		wg      sync.WaitGroup
+		success atomic.Int32
+	)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.Redeem(rec.ShareIDHash); err == nil {
+				success.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), success.Load())
 }
