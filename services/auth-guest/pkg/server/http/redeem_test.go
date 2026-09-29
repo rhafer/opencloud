@@ -26,7 +26,7 @@ func newRedeemHandler(t *testing.T, svc authguest.AuthGuest) http.HandlerFunc {
 	t.Helper()
 	cfg := &config.Config{
 		JWT: config.JWT{
-			CookieName: "oc_guest_session",
+			CookieName: "__Host-oc_guest_session",
 			TTL:        time.Hour,
 		},
 	}
@@ -47,13 +47,14 @@ func TestRedeemHandler(t *testing.T) {
 
 	var cookie *http.Cookie
 	for _, c := range rr.Result().Cookies() {
-		if c.Name == "oc_guest_session" {
+		if c.Name == "__Host-oc_guest_session" {
 			cookie = c
 		}
 	}
 	require.NotNil(t, cookie)
 	assert.Equal(t, "session-token", cookie.Value)
 	assert.True(t, cookie.HttpOnly)
+	assert.True(t, cookie.Secure)
 	assert.Equal(t, "/", cookie.Path)
 }
 
