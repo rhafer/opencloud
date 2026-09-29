@@ -30,6 +30,7 @@ OC_MODULES = \
 	services/auth-app \
 	services/auth-basic \
 	services/auth-bearer \
+	services/auth-guest \
 	services/auth-machine \
 	services/auth-service \
 	services/clientlog \
@@ -39,7 +40,6 @@ OC_MODULES = \
 	services/gateway \
 	services/graph \
 	services/groups \
-	services/guestauth \
 	services/idm \
 	services/idp \
 	services/invitations \
