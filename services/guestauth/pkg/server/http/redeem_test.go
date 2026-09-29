@@ -59,13 +59,46 @@ func TestRedeemHandlerErrorMapping(t *testing.T) {
 		name       string
 		err        error
 		wantStatus int
+		wantType   string
+		wantShare  string
 	}{
-		{name: "already redeemed", err: guestauth.ErrAlreadyRedeemed, wantStatus: http.StatusConflict},
-		{name: "token expired", err: guestauth.ErrExpired, wantStatus: http.StatusGone},
-		{name: "token not found", err: storage.ErrNotFound, wantStatus: http.StatusNotFound},
-		{name: "invalid token", err: token.ErrInvalidToken, wantStatus: http.StatusUnauthorized},
-		{name: "share not found", err: guestauth.ErrShareNotFound, wantStatus: http.StatusNotFound},
-		{name: "share expired", err: guestauth.ErrShareExpired, wantStatus: http.StatusGone},
+		{
+			name:       "token expired",
+			err:        &guestauth.RedeemError{ErrorType: guestauth.ErrExpired, ShareID: "share-1"},
+			wantStatus: http.StatusUnauthorized,
+			wantType:   "token_expired",
+			wantShare:  "share-1",
+		},
+		{
+			name:       "token invalid",
+			err:        &guestauth.RedeemError{ErrorType: token.ErrInvalidToken},
+			wantStatus: http.StatusUnauthorized,
+			wantType:   "token_invalid",
+		},
+		{
+			name:       "token not found",
+			err:        &guestauth.RedeemError{ErrorType: storage.ErrNotFound},
+			wantStatus: http.StatusNotFound,
+			wantType:   "token_not_found",
+		},
+		{
+			name:       "token already redeemed",
+			err:        &guestauth.RedeemError{ErrorType: guestauth.ErrAlreadyRedeemed},
+			wantStatus: http.StatusConflict,
+			wantType:   "token_already_redeemed",
+		},
+		{
+			name:       "share not found",
+			err:        &guestauth.RedeemError{ErrorType: guestauth.ErrShareNotFound},
+			wantStatus: http.StatusNotFound,
+			wantType:   "share_not_found",
+		},
+		{
+			name:       "share expired",
+			err:        &guestauth.RedeemError{ErrorType: guestauth.ErrShareExpired},
+			wantStatus: http.StatusGone,
+			wantType:   "share_expired",
+		},
 	}
 
 	for _, tt := range tests {
@@ -80,6 +113,11 @@ func TestRedeemHandlerErrorMapping(t *testing.T) {
 			newRedeemHandler(t, svcMock)(rr, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(string(body))))
 
 			assert.Equal(t, tt.wantStatus, rr.Code)
+
+			var resp errorResponse
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.Equal(t, tt.wantType, resp.ErrorType)
+			assert.Equal(t, tt.wantShare, resp.ShareID)
 		})
 	}
 }
@@ -91,4 +129,8 @@ func TestRedeemHandlerMalformedBody(t *testing.T) {
 	newRedeemHandler(t, svcMock)(rr, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not-json")))
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var resp errorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "invalid_request", resp.ErrorType)
 }

@@ -143,12 +143,14 @@ func TestVerifyToken(t *testing.T) {
 
 			got, err := s.verifyToken(tok)
 			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
+				var re *RedeemError
+				require.ErrorAs(t, err, &re)
+				assert.ErrorIs(t, re.ErrorType, tt.wantErr)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, rec, got)
+			assert.Equal(t, rec, *got)
 		})
 	}
 }
@@ -200,7 +202,9 @@ func TestValidateShare(t *testing.T) {
 
 			got, err := s.validateShare(context.Background(), testShareID)
 			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
+				var re *RedeemError
+				require.ErrorAs(t, err, &re)
+				assert.ErrorIs(t, re.ErrorType, tt.wantErr)
 				return
 			}
 
@@ -242,5 +246,7 @@ func TestRedeemAlreadyRedeemed(t *testing.T) {
 	}))
 
 	_, err := s.Redeem(context.Background(), tok)
-	assert.ErrorIs(t, err, ErrAlreadyRedeemed)
+	var re *RedeemError
+	require.ErrorAs(t, err, &re)
+	assert.ErrorIs(t, re.ErrorType, ErrAlreadyRedeemed)
 }
