@@ -10,6 +10,7 @@ import (
 	authapp "github.com/opencloud-eu/opencloud/services/auth-app/pkg/config"
 	authbasic "github.com/opencloud-eu/opencloud/services/auth-basic/pkg/config"
 	authbearer "github.com/opencloud-eu/opencloud/services/auth-bearer/pkg/config"
+	authguest "github.com/opencloud-eu/opencloud/services/auth-guest/pkg/config"
 	authmachine "github.com/opencloud-eu/opencloud/services/auth-machine/pkg/config"
 	authservice "github.com/opencloud-eu/opencloud/services/auth-service/pkg/config"
 	clientlog "github.com/opencloud-eu/opencloud/services/clientlog/pkg/config"
@@ -19,7 +20,6 @@ import (
 	gateway "github.com/opencloud-eu/opencloud/services/gateway/pkg/config"
 	graph "github.com/opencloud-eu/opencloud/services/graph/pkg/config"
 	groups "github.com/opencloud-eu/opencloud/services/groups/pkg/config"
-	guestauth "github.com/opencloud-eu/opencloud/services/guestauth/pkg/config"
 	idm "github.com/opencloud-eu/opencloud/services/idm/pkg/config"
 	idp "github.com/opencloud-eu/opencloud/services/idp/pkg/config"
 	invitations "github.com/opencloud-eu/opencloud/services/invitations/pkg/config"
@@ -100,7 +100,7 @@ type Config struct {
 	Gateway           *gateway.Config        `yaml:"gateway"`
 	Graph             *graph.Config          `yaml:"graph"`
 	Groups            *groups.Config         `yaml:"groups"`
-	GuestAuth         *guestauth.Config      `yaml:"guestauth"`
+	AuthGuest         *authguest.Config      `yaml:"auth_guest"`
 	IDM               *idm.Config            `yaml:"idm"`
 	IDP               *idp.Config            `yaml:"idp"`
 	Invitations       *invitations.Config    `yaml:"invitations"`

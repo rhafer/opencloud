@@ -69,7 +69,7 @@ func CreateConfig(insecure, forceOverwrite, diff bool, configPath, adminPassword
 		idmServicePassword, idpServicePassword, ocAdminServicePassword, revaServicePassword  string
 		tokenManagerJwtSecret, collaborationWOPISecret, machineAuthAPIKey, systemUserAPIKey  string
 		revaTransferSecret, thumbnailsTransferSecret, serviceAccountSecret, urlSigningSecret string
-		guestAuthJWTSecret                                                                   string
+		authGuestJWTSecret                                                                   string
 		adminPasswdwordGenerated                                                             bool
 	)
 
@@ -104,11 +104,11 @@ func CreateConfig(insecure, forceOverwrite, diff bool, configPath, adminPassword
 				return fmt.Errorf("could not generate random secret for urlSigningSecret: %s", err)
 			}
 		}
-		guestAuthJWTSecret = oldCfg.GuestAuth.TokenManager.JWTSecret
-		if guestAuthJWTSecret == "" {
-			guestAuthJWTSecret, err = generators.GenerateRandomPassword(passwordLength)
+		authGuestJWTSecret = oldCfg.AuthGuest.TokenManager.JWTSecret
+		if authGuestJWTSecret == "" {
+			authGuestJWTSecret, err = generators.GenerateRandomPassword(passwordLength)
 			if err != nil {
-				return fmt.Errorf("could not generate random secret for guestAuthJWTSecret: %s", err)
+				return fmt.Errorf("could not generate random secret for authGuestJWTSecret: %s", err)
 			}
 		}
 	} else {
@@ -163,9 +163,9 @@ func CreateConfig(insecure, forceOverwrite, diff bool, configPath, adminPassword
 		if err != nil {
 			return fmt.Errorf("could not generate random secret for urlSigningSecret: %s", err)
 		}
-		guestAuthJWTSecret, err = generators.GenerateRandomPassword(passwordLength)
+		authGuestJWTSecret, err = generators.GenerateRandomPassword(passwordLength)
 		if err != nil {
-			return fmt.Errorf("could not generate random secret for guestAuthJWTSecret: %s", err)
+			return fmt.Errorf("could not generate random secret for authGuestJWTSecret: %s", err)
 		}
 		thumbnailsTransferSecret, err = generators.GenerateRandomPassword(passwordLength)
 		if err != nil {
@@ -224,9 +224,9 @@ func CreateConfig(insecure, forceOverwrite, diff bool, configPath, adminPassword
 				},
 			},
 		},
-		GuestAuth: GuestAuth{
+		AuthGuest: AuthGuest{
 			ServiceAccount: serviceAccount,
-			TokenManager:   TokenManager{JWTSecret: guestAuthJWTSecret},
+			TokenManager:   TokenManager{JWTSecret: authGuestJWTSecret},
 		},
 		Users: UsersAndGroupsService{
 			Drivers: LdapBasedService{

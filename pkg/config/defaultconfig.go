@@ -10,6 +10,7 @@ import (
 	authapp "github.com/opencloud-eu/opencloud/services/auth-app/pkg/config/defaults"
 	authbasic "github.com/opencloud-eu/opencloud/services/auth-basic/pkg/config/defaults"
 	authbearer "github.com/opencloud-eu/opencloud/services/auth-bearer/pkg/config/defaults"
+	authguest "github.com/opencloud-eu/opencloud/services/auth-guest/pkg/config/defaults"
 	authmachine "github.com/opencloud-eu/opencloud/services/auth-machine/pkg/config/defaults"
 	authservice "github.com/opencloud-eu/opencloud/services/auth-service/pkg/config/defaults"
 	clientlog "github.com/opencloud-eu/opencloud/services/clientlog/pkg/config/defaults"
@@ -19,7 +20,6 @@ import (
 	gateway "github.com/opencloud-eu/opencloud/services/gateway/pkg/config/defaults"
 	graph "github.com/opencloud-eu/opencloud/services/graph/pkg/config/defaults"
 	groups "github.com/opencloud-eu/opencloud/services/groups/pkg/config/defaults"
-	guestauth "github.com/opencloud-eu/opencloud/services/guestauth/pkg/config/defaults"
 	idm "github.com/opencloud-eu/opencloud/services/idm/pkg/config/defaults"
 	idp "github.com/opencloud-eu/opencloud/services/idp/pkg/config/defaults"
 	invitations "github.com/opencloud-eu/opencloud/services/invitations/pkg/config/defaults"
@@ -75,7 +75,7 @@ func DefaultConfig() *Config {
 		Gateway:           gateway.DefaultConfig(),
 		Graph:             graph.DefaultConfig(),
 		Groups:            groups.DefaultConfig(),
-		GuestAuth:         guestauth.DefaultConfig(),
+		AuthGuest:         authguest.DefaultConfig(),
 		IDM:               idm.DefaultConfig(),
 		IDP:               idp.DefaultConfig(),
 		Invitations:       invitations.DefaultConfig(),
