@@ -25,6 +25,7 @@ type Config struct {
 	RevaGateway   string                `yaml:"reva_gateway" env:"OC_REVA_GATEWAY" desc:"CS3 gateway used to look up user metadata" introductionVersion:"%%NEXT%%"`
 	GRPCClientTLS *shared.GRPCClientTLS `yaml:"grpc_client_tls"`
 
+	GRPC         GRPCConfig    `yaml:"grpc"`
 	HTTP         HTTP          `yaml:"http"`
 	Storage      Storage       `yaml:"storage"`
 	TokenManager *TokenManager `yaml:"token_manager"`
@@ -71,6 +72,14 @@ type HTTP struct {
 	Root      string                `yaml:"root" env:"AUTH_GUEST_HTTP_ROOT" desc:"Subdirectory that serves as the root for this HTTP service." introductionVersion:"%%NEXT%%"`
 	CORS      CORS                  `yaml:"cors"`
 	TLS       shared.HTTPServiceTLS `yaml:"tls"`
+}
+
+// GRPCConfig defines the GRPC configuration
+type GRPCConfig struct {
+	Addr      string                 `yaml:"addr" env:"GUESTAUTH_GRPC_ADDR" desc:"The bind address of the GRPC service." introductionVersion:"%%NEXT%%"`
+	TLS       *shared.GRPCServiceTLS `yaml:"tls"`
+	Namespace string                 `yaml:"-"`
+	Protocol  string                 `yaml:"protocol" env:"OC_GRPC_PROTOCOL;GUESTAUTH_GRPC_PROTOCOL" desc:"The transport protocol of the GRPC service." introductionVersion:"%%NEXT%%"`
 }
 
 // Storage defines the configuration for the token storage.
