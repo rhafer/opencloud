@@ -56,7 +56,7 @@ func TestHandleShareCreated(t *testing.T) {
 		Sharer:        &user.UserId{OpaqueId: "sharer"},
 		ItemID:        &provider.ResourceId{StorageId: "storage", OpaqueId: "item"},
 		ResourceName:  "resource",
-		GranteeUserID: &user.UserId{OpaqueId: "guest", Type: user.UserType_USER_TYPE_GUEST},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
 	}
 
 	require.NoError(t, svc.handleShareCreated(context.Background(), ev))
@@ -68,6 +68,7 @@ func TestHandleShareCreated(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, testShareID, published.ShareID.GetOpaqueId())
 	assert.Equal(t, ev.Sharer, published.Sharer)
+	assert.Equal(t, "guest@example.org", published.GranteeEmail)
 	assert.Equal(t, ev.ItemID, published.ItemID)
 	assert.Equal(t, ev.ResourceName, published.ResourceName)
 	assert.Equal(t, tok.String(), published.Token)

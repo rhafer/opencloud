@@ -25,6 +25,7 @@ func (ResourceMention) Unmarshal(v []byte) (interface{}, error) {
 type GuestTokenCreated struct {
 	ShareID      *collaboration.ShareId
 	Sharer       *user.UserId
+	GranteeEmail string
 	ItemID       *provider.ResourceId
 	ResourceName string
 	Token        string
