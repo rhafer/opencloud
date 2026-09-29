@@ -19,12 +19,15 @@ var ErrInvalidToken = errors.New("invalid token")
 
 type Token struct {
 	ShareIDHash string
-	SecretHash  string
 	secret      string
 }
 
 func (t *Token) String() string {
 	return strings.Join([]string{tokenVersion, t.ShareIDHash, t.secret}, ".")
+}
+
+func (t *Token) SecretHash() string {
+	return Hash(t.secret)
 }
 
 type TokenService struct{}
@@ -42,7 +45,6 @@ func (s *TokenService) Generate(shareID string) (*Token, error) {
 	secret := base64.RawURLEncoding.EncodeToString(secretBytes)
 	return &Token{
 		ShareIDHash: Hash(shareID),
-		SecretHash:  Hash(secret),
 		secret:      secret,
 	}, nil
 }
@@ -55,14 +57,12 @@ func (s *TokenService) Parse(encoded string) (*Token, error) {
 
 	return &Token{
 		ShareIDHash: parts[1],
-		SecretHash:  Hash(parts[2]),
 		secret:      parts[2],
 	}, nil
 }
 
 func (s *TokenService) Verify(candidate Token, storedSecretHash string) error {
-	secretHash := Hash(candidate.secret)
-	if candidate.ShareIDHash == "" || candidate.secret == "" || candidate.SecretHash != secretHash || secretHash != storedSecretHash {
+	if candidate.ShareIDHash == "" || candidate.secret == "" || candidate.SecretHash() != storedSecretHash {
 		return ErrInvalidToken
 	}
 
