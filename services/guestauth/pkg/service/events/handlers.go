@@ -27,6 +27,7 @@ func (s *EventConsumer) handleShareCreated(ctx context.Context, ev events.ShareC
 	return events.Publish(ctx, s.stream, ocEvents.GuestTokenCreated{
 		ShareID:      ev.ShareID,
 		Sharer:       ev.Sharer,
+		GranteeEmail: ev.GranteeUserID.GetOpaqueId(),
 		ItemID:       ev.ItemID,
 		ResourceName: ev.ResourceName,
 		Token:        tok.String(),
