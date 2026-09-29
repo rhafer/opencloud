@@ -73,7 +73,7 @@ func Server(cfg *config.Config) *cobra.Command {
 			mtrcs.BuildInfo.WithLabelValues(version.GetString()).Set(1)
 
 			tokenSvc := token.NewTokenService()
-			store := storage.NewFileStorage(cfg.Storage.RootDirectory)
+			store := storage.NewFileManager(cfg.Storage.RootDirectory)
 			jwtService := jwt.NewJwtService(cfg.TokenManager.JWTSecret, cfg.JWT.TTL)
 
 			guestAuth := guestauth.NewGuestAuthService(tokenSvc, store,

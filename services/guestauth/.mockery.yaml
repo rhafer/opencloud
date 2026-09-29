@@ -11,4 +11,4 @@ packages:
       GuestAuth: {}
   github.com/opencloud-eu/opencloud/services/guestauth/pkg/service/storage:
     interfaces:
-      Storage: {}
+      Manager: {}

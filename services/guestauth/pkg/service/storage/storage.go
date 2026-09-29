@@ -17,7 +17,7 @@ type Record struct {
 	Redeemed    bool      `json:"redeemed"`
 }
 
-type Storage interface {
+type Manager interface {
 	Add(rec Record) error
 	Get(shareIDHash string) (Record, error)
 	Remove(shareIDHash string) error
