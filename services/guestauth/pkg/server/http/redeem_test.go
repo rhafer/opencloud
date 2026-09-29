@@ -23,8 +23,8 @@ func newRedeemHandler(t *testing.T, svc guestauth.GuestAuth) http.HandlerFunc {
 	t.Helper()
 	cfg := &config.Config{
 		JWT: config.JWT{
-			CookieName:   "oc_guest_session",
-			TTL:          time.Hour,
+			CookieName: "oc_guest_session",
+			TTL:        time.Hour,
 		},
 	}
 	return RedeemHandler(log.NopLogger(), svc, cfg)
