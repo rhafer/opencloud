@@ -23,6 +23,8 @@ var ErrAlreadyRedeemed = errors.New("token already redeemed")
 var ErrShareNotFound = errors.New("share not found")
 var ErrShareExpired = errors.New("share expired")
 
+const invitationTokenTTL = 30 * time.Minute
+
 // GuestAuth is the domain service used by the transport and event layers.
 type GuestAuth interface {
 	CreateToken(ctx context.Context, shareID string) (*token.Token, error)
@@ -62,16 +64,11 @@ func (s *GuestAuthService) CreateToken(ctx context.Context, shareID string) (*to
 		return nil, err
 	}
 
-	share, err := s.getShare(ctx, shareID)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := s.store.Add(storage.Record{
 		ShareID:     shareID,
 		ShareIDHash: tok.ShareIDHash,
 		SecretHash:  tok.SecretHash(),
-		Expiry:      utils.TSToTime(share.GetExpiration()),
+		Expiry:      time.Now().Add(invitationTokenTTL),
 		Redeemed:    false,
 	}); err != nil {
 		return nil, err
