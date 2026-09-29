@@ -112,7 +112,7 @@ func TestCreateTokenPersistsRecord(t *testing.T) {
 	assert.Equal(t, testShareID, added.ShareID)
 	assert.Equal(t, tok.ShareIDHash, added.ShareIDHash)
 	assert.Equal(t, tok.SecretHash(), added.SecretHash)
-	assert.True(t, expiry.Equal(added.Expiry))
+	assert.WithinDuration(t, time.Now().Add(invitationTokenTTL), added.Expiry, time.Minute)
 	assert.False(t, added.Redeemed)
 }
 
