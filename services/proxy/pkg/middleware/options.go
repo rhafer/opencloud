@@ -82,6 +82,8 @@ type Options struct {
 	// ServiceAccount holds credentials used to authenticate internal service calls (e.g. TenantAPI lookups).
 	ServiceAccount  config.ServiceAccount
 	EventsPublisher events.Publisher
+	// GuestLinkAuth configures guest-link cookie authentication.
+	GuestLinkAuth config.GuestLinkAuth
 }
 
 // newOptions initializes the available default options.
@@ -283,5 +285,12 @@ func TenantIDMappingEnabled(val bool) Option {
 func EventsPublisher(ep events.Publisher) Option {
 	return func(o *Options) {
 		o.EventsPublisher = ep
+	}
+}
+
+// GuestLinkAuth sets the guest-link authentication configuration.
+func GuestLinkAuth(cfg config.GuestLinkAuth) Option {
+	return func(o *Options) {
+		o.GuestLinkAuth = cfg
 	}
 }
