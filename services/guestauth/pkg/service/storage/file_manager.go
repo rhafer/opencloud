@@ -12,13 +12,13 @@ import (
 	"github.com/google/renameio/v2"
 )
 
-func NewFileStorage(root string) *FileStorage {
-	return &FileStorage{
+func NewFileManager(root string) *FileManager {
+	return &FileManager{
 		root: root,
 	}
 }
 
-type FileStorage struct {
+type FileManager struct {
 	root string
 	mu   sync.Mutex
 }
@@ -26,7 +26,7 @@ type FileStorage struct {
 const dirPerm = 0700
 const filePerm = 0600
 
-func (s *FileStorage) Add(rec Record) error {
+func (s *FileManager) Add(rec Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -34,11 +34,11 @@ func (s *FileStorage) Add(rec Record) error {
 }
 
 // Get returns the record for the given share id hash.
-func (s *FileStorage) Get(shareIDHash string) (Record, error) {
+func (s *FileManager) Get(shareIDHash string) (Record, error) {
 	return s.get(shareIDHash)
 }
 
-func (s *FileStorage) Remove(shareIDHash string) error {
+func (s *FileManager) Remove(shareIDHash string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -57,7 +57,7 @@ func (s *FileStorage) Remove(shareIDHash string) error {
 	return nil
 }
 
-func (s *FileStorage) Redeem(shareIDHash string) error {
+func (s *FileManager) Redeem(shareIDHash string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -74,7 +74,7 @@ func (s *FileStorage) Redeem(shareIDHash string) error {
 	return s.add(rec)
 }
 
-func (s *FileStorage) add(rec Record) error {
+func (s *FileManager) add(rec Record) error {
 	data, err := json.Marshal(rec)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (s *FileStorage) add(rec Record) error {
 	return renameio.WriteFile(p, data, filePerm)
 }
 
-func (s *FileStorage) get(shareIDHash string) (Record, error) {
+func (s *FileManager) get(shareIDHash string) (Record, error) {
 	data, err := os.ReadFile(s.path(shareIDHash))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -106,6 +106,6 @@ func (s *FileStorage) get(shareIDHash string) (Record, error) {
 	return rec, nil
 }
 
-func (s *FileStorage) path(shareIDHash string) string {
+func (s *FileManager) path(shareIDHash string) string {
 	return filepath.Join(s.root, shareIDHash[:2], shareIDHash[2:4], shareIDHash[4:]+".json")
 }

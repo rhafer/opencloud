@@ -21,9 +21,9 @@ func newRecord(shareID string) Record {
 	}
 }
 
-func TestFileStorageAddGet(t *testing.T) {
+func TestFileManagerAddGet(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	rec := newRecord("e0123456-7890-abcd-ef01-234567890abc")
 	require.NoError(t, s.Add(rec))
@@ -33,17 +33,17 @@ func TestFileStorageAddGet(t *testing.T) {
 	assert.Equal(t, rec, got)
 }
 
-func TestFileStorageGetMissing(t *testing.T) {
+func TestFileManagerGetMissing(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	_, err := s.Get("doesnotexist")
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestFileStorageAddOverwrites(t *testing.T) {
+func TestFileManagerAddOverwrites(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	rec := newRecord("e0123456-7890-abcd-ef01-234567890abc")
 	require.NoError(t, s.Add(rec))
@@ -56,9 +56,9 @@ func TestFileStorageAddOverwrites(t *testing.T) {
 	assert.Equal(t, "other", got.SecretHash)
 }
 
-func TestFileStorageRemove(t *testing.T) {
+func TestFileManagerRemove(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	rec := newRecord("e0123456-7890-abcd-ef01-234567890abc")
 	require.NoError(t, s.Add(rec))
@@ -69,17 +69,17 @@ func TestFileStorageRemove(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestFileStorageRemoveMissing(t *testing.T) {
+func TestFileManagerRemoveMissing(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	err := s.Remove("doesnotexist")
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestFileStorageRedeem(t *testing.T) {
+func TestFileManagerRedeem(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	rec := newRecord("e0123456-7890-abcd-ef01-234567890abc")
 	require.NoError(t, s.Add(rec))
@@ -94,9 +94,9 @@ func TestFileStorageRedeem(t *testing.T) {
 	assert.ErrorIs(t, err, ErrAlreadyRedeemed)
 }
 
-func TestFileStorageRedeemMissing(t *testing.T) {
+func TestFileManagerRedeemMissing(t *testing.T) {
 	dir := t.TempDir()
-	s := NewFileStorage(dir)
+	s := NewFileManager(dir)
 
 	err := s.Redeem("doesnotexist")
 	assert.ErrorIs(t, err, ErrNotFound)

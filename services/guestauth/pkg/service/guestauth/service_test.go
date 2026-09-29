@@ -65,13 +65,13 @@ func newShareService(t *testing.T, gwc *cs3mocks.GatewayAPIClient) *GuestAuthSer
 	t.Helper()
 	return NewGuestAuthService(
 		token.NewTokenService(),
-		storagemocks.NewStorage(t),
+		storagemocks.NewManager(t),
 		GatewaySelector(newGatewayTestSelector(gwc)),
 		ServiceAccount(config.ServiceAccount{ServiceAccountID: "sa-id", ServiceAccountSecret: "sa-secret"}),
 	)
 }
 
-func newRedeemService(t *testing.T, store storage.Storage, gwc *cs3mocks.GatewayAPIClient) *GuestAuthService {
+func newRedeemService(t *testing.T, store storage.Manager, gwc *cs3mocks.GatewayAPIClient) *GuestAuthService {
 	t.Helper()
 	return NewGuestAuthService(
 		token.NewTokenService(),
@@ -83,7 +83,7 @@ func newRedeemService(t *testing.T, store storage.Storage, gwc *cs3mocks.Gateway
 }
 
 func TestCreateTokenPersistsRecord(t *testing.T) {
-	store := storagemocks.NewStorage(t)
+	store := storagemocks.NewManager(t)
 	expiry := time.Date(2027, 1, 2, 3, 4, 5, 0, time.UTC)
 	gwc := newGatewayMock(&collaboration.GetShareResponse{
 		Status: &rpc.Status{Code: rpc.Code_CODE_OK},
@@ -130,7 +130,7 @@ func TestVerifyToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := storagemocks.NewStorage(t)
+			store := storagemocks.NewManager(t)
 			s := NewGuestAuthService(token.NewTokenService(), store)
 			tok, rec := newToken(t)
 			if tt.expired {
@@ -211,7 +211,7 @@ func TestValidateShare(t *testing.T) {
 }
 
 func TestRedeem(t *testing.T) {
-	store := storagemocks.NewStorage(t)
+	store := storagemocks.NewManager(t)
 	tok, rec := newToken(t)
 	store.On("Get", rec.ShareIDHash).Return(rec, nil)
 	store.On("Redeem", rec.ShareIDHash).Return(nil)
@@ -230,7 +230,7 @@ func TestRedeem(t *testing.T) {
 }
 
 func TestRedeemAlreadyRedeemed(t *testing.T) {
-	store := storagemocks.NewStorage(t)
+	store := storagemocks.NewManager(t)
 	tok, rec := newToken(t)
 	store.On("Get", rec.ShareIDHash).Return(rec, nil)
 	store.On("Redeem", rec.ShareIDHash).Return(storage.ErrAlreadyRedeemed)

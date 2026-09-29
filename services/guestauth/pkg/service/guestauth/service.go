@@ -35,13 +35,13 @@ var _ GuestAuth = (*GuestAuthService)(nil)
 // GuestAuthService contains the business logic shared by guestauth transport services.
 type GuestAuthService struct {
 	tokenSvc        *token.TokenService
-	store           storage.Storage
+	store           storage.Manager
 	gatewaySelector pool.Selectable[gateway.GatewayAPIClient]
 	serviceAccount  config.ServiceAccount
 	jwtService      *jwt.JwtService
 }
 
-func NewGuestAuthService(tokenSvc *token.TokenService, store storage.Storage, opts ...Option) *GuestAuthService {
+func NewGuestAuthService(tokenSvc *token.TokenService, store storage.Manager, opts ...Option) *GuestAuthService {
 	o := &Options{}
 	for _, opt := range opts {
 		opt(o)
