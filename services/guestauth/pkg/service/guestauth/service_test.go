@@ -54,7 +54,7 @@ func newToken(t *testing.T) (string, storage.Record) {
 	rec := storage.Record{
 		ShareID:     testShareID,
 		ShareIDHash: tok.ShareIDHash,
-		SecretHash:  tok.SecretHash,
+		SecretHash:  tok.SecretHash(),
 		Expiry:      time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
 	}
 
@@ -111,7 +111,7 @@ func TestCreateTokenPersistsRecord(t *testing.T) {
 	store.AssertCalled(t, "Add", mock.Anything)
 	assert.Equal(t, testShareID, added.ShareID)
 	assert.Equal(t, tok.ShareIDHash, added.ShareIDHash)
-	assert.Equal(t, tok.SecretHash, added.SecretHash)
+	assert.Equal(t, tok.SecretHash(), added.SecretHash)
 	assert.True(t, expiry.Equal(added.Expiry))
 	assert.False(t, added.Redeemed)
 }

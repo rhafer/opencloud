@@ -70,7 +70,7 @@ func (s *GuestAuthService) CreateToken(ctx context.Context, shareID string) (*to
 	if err := s.store.Add(storage.Record{
 		ShareID:     shareID,
 		ShareIDHash: tok.ShareIDHash,
-		SecretHash:  tok.SecretHash,
+		SecretHash:  tok.SecretHash(),
 		Expiry:      utils.TSToTime(share.GetExpiration()),
 		Redeemed:    false,
 	}); err != nil {

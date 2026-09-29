@@ -15,7 +15,7 @@ func TestGenerateAndString(t *testing.T) {
 	tok, err := svc.Generate(testShareID)
 	require.NoError(t, err)
 	assert.Equal(t, Hash(testShareID), tok.ShareIDHash)
-	assert.NotEmpty(t, tok.SecretHash)
+	assert.NotEmpty(t, tok.SecretHash())
 	assert.NotEmpty(t, tok.String())
 }
 
@@ -28,7 +28,7 @@ func TestGenerateRandomizesSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, tok1.ShareIDHash, tok2.ShareIDHash)
-	assert.NotEqual(t, tok1.SecretHash, tok2.SecretHash)
+	assert.NotEqual(t, tok1.SecretHash(), tok2.SecretHash())
 	assert.NotEqual(t, tok1.String(), tok2.String())
 
 	other, err := svc.Generate("9f9f9f9-9f9f-9f9f-9f9f-9f9f9f9f9f9f")
@@ -64,7 +64,7 @@ func TestParse(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, original.ShareIDHash, parsed.ShareIDHash)
-			assert.Equal(t, original.SecretHash, parsed.SecretHash)
+			assert.Equal(t, original.SecretHash(), parsed.SecretHash())
 			assert.Equal(t, original.String(), parsed.String())
 		})
 	}
@@ -81,9 +81,9 @@ func TestVerify(t *testing.T) {
 		storedSecretHash string
 		wantErr          bool
 	}{
-		{name: "valid", token: *tok, storedSecretHash: tok.SecretHash},
+		{name: "valid", token: *tok, storedSecretHash: tok.SecretHash()},
 		{name: "wrong stored secret", token: *tok, storedSecretHash: Hash("other-secret"), wantErr: true},
-		{name: "missing fields", token: Token{ShareIDHash: tok.ShareIDHash}, storedSecretHash: tok.SecretHash, wantErr: true},
+		{name: "missing fields", token: Token{ShareIDHash: tok.ShareIDHash}, storedSecretHash: tok.SecretHash(), wantErr: true},
 	}
 
 	for _, tt := range tests {
