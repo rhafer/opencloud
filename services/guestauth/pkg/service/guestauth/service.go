@@ -25,6 +25,15 @@ var ErrShareExpired = errors.New("share expired")
 
 const invitationTokenTTL = 30 * time.Minute
 
+// RedeemError wraps a redeem failure together with the share id. The HTTP
+// transport inspects ErrorType to choose a status code and message.
+type RedeemError struct {
+	ErrorType error
+	ShareID   string
+}
+
+func (e *RedeemError) Error() string { return e.ErrorType.Error() }
+
 // GuestAuth is the domain service used by the transport and event layers.
 type GuestAuth interface {
 	CreateToken(ctx context.Context, shareID string) (*token.Token, error)
@@ -90,7 +99,7 @@ func (s *GuestAuthService) Redeem(ctx context.Context, tokenString string) (stri
 
 	if err := s.store.Redeem(rec.ShareIDHash); err != nil {
 		if errors.Is(err, storage.ErrAlreadyRedeemed) {
-			return "", ErrAlreadyRedeemed
+			return "", &RedeemError{ErrorType: ErrAlreadyRedeemed, ShareID: rec.ShareID}
 		}
 		return "", err
 	}
@@ -110,41 +119,41 @@ func (s *GuestAuthService) CleanupShare(shareID string) error {
 }
 
 // VerifyToken validates a token and returns its stored record.
-func (s *GuestAuthService) verifyToken(tokenString string) (storage.Record, error) {
+func (s *GuestAuthService) verifyToken(tokenString string) (*storage.Record, error) {
 	tok, err := s.tokenSvc.Parse(tokenString)
 	if err != nil {
-		return storage.Record{}, err
+		return nil, &RedeemError{ErrorType: err}
 	}
 
 	rec, err := s.store.Get(tok.ShareIDHash)
 	if err != nil {
-		return storage.Record{}, err
+		return nil, &RedeemError{ErrorType: err}
 	}
 
 	if err := s.tokenSvc.Verify(*tok, rec.SecretHash); err != nil {
-		return storage.Record{}, err
+		return nil, &RedeemError{ErrorType: err, ShareID: rec.ShareID}
 	}
 
 	if !rec.Expiry.IsZero() && rec.Expiry.Before(time.Now()) {
-		return storage.Record{}, ErrExpired
+		return nil, &RedeemError{ErrorType: ErrExpired, ShareID: rec.ShareID}
 	}
 
 	if rec.Redeemed {
-		return storage.Record{}, ErrAlreadyRedeemed
+		return nil, &RedeemError{ErrorType: ErrAlreadyRedeemed, ShareID: rec.ShareID}
 	}
 
-	return rec, nil
+	return &rec, nil
 }
 
 // validateShare extracts the share information from the gateway and checks its existence and expiration.
 func (s *GuestAuthService) validateShare(ctx context.Context, shareID string) (*collaboration.Share, error) {
 	share, err := s.getShare(ctx, shareID)
 	if err != nil {
-		return nil, err
+		return nil, &RedeemError{ErrorType: err, ShareID: shareID}
 	}
 
 	if exp := utils.TSToTime(share.GetExpiration()); !exp.IsZero() && exp.Before(time.Now()) {
-		return nil, ErrShareExpired
+		return nil, &RedeemError{ErrorType: ErrShareExpired, ShareID: shareID}
 	}
 
 	return share, nil
