@@ -10,7 +10,7 @@ import (
 )
 
 type jwtClaims struct {
-	ShareID string `json:"share_id"`
+	ShareID string `json:"permissionId"`
 	jwt.RegisteredClaims
 }
 

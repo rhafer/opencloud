@@ -14,9 +14,9 @@ import (
 )
 
 type errorResponse struct {
-	ErrorType string `json:"error_type"`
-	Message   string `json:"message"`
-	ShareID   string `json:"share_id"`
+	ErrorType    string `json:"errorType"`
+	Message      string `json:"message"`
+	PermissionID string `json:"permissionId"`
 }
 
 func writeError(w http.ResponseWriter, status int, body errorResponse) {
@@ -28,33 +28,33 @@ func writeError(w http.ResponseWriter, status int, body errorResponse) {
 func writeRedeemError(w http.ResponseWriter, err error) {
 	var re *authguest.RedeemError
 	if !errors.As(err, &re) {
-		writeError(w, http.StatusInternalServerError, errorResponse{ErrorType: "internal_error", Message: "An internal error occurred."})
+		writeError(w, http.StatusInternalServerError, errorResponse{ErrorType: "internalError", Message: "An internal error occurred."})
 		return
 	}
 
 	status := http.StatusInternalServerError
-	errorType := "internal_error"
+	errorType := "internalError"
 	switch {
 	case errors.Is(re.ErrorType, authguest.ErrExpired):
-		status, errorType = http.StatusUnauthorized, "token_expired"
+		status, errorType = http.StatusUnauthorized, "tokenExpired"
 	case errors.Is(re.ErrorType, token.ErrInvalidToken):
-		status, errorType = http.StatusUnauthorized, "token_invalid"
+		status, errorType = http.StatusUnauthorized, "tokenInvalid"
 	case errors.Is(re.ErrorType, storage.ErrNotFound):
-		status, errorType = http.StatusNotFound, "token_not_found"
+		status, errorType = http.StatusNotFound, "tokenNotFound"
 	case errors.Is(re.ErrorType, storage.ErrInvalidHash):
-		status, errorType = http.StatusUnauthorized, "token_invalid"
+		status, errorType = http.StatusUnauthorized, "tokenInvalid"
 	case errors.Is(re.ErrorType, authguest.ErrAlreadyRedeemed):
-		status, errorType = http.StatusConflict, "token_already_redeemed"
+		status, errorType = http.StatusConflict, "tokenAlreadyRedeemed"
 	case errors.Is(re.ErrorType, authguest.ErrShareNotFound):
-		status, errorType = http.StatusNotFound, "share_not_found"
+		status, errorType = http.StatusNotFound, "shareNotFound"
 	case errors.Is(re.ErrorType, authguest.ErrShareExpired):
-		status, errorType = http.StatusGone, "share_expired"
+		status, errorType = http.StatusGone, "shareExpired"
 	}
 
 	message := re.ErrorType.Error()
-	if errorType == "internal_error" {
+	if errorType == "internalError" {
 		message = "An internal error occurred."
 	}
 
-	writeError(w, status, errorResponse{ErrorType: errorType, Message: message, ShareID: re.ShareID})
+	writeError(w, status, errorResponse{ErrorType: errorType, Message: message, PermissionID: re.ShareID})
 }

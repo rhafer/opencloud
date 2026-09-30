@@ -17,17 +17,21 @@ type RedeemRequest struct {
 	Token string `json:"token"`
 }
 
+type redeemResponse struct {
+	PermissionID string `json:"permissionId"`
+}
+
 // RedeemHandler validates the token submitted to the redeem endpoint.
 func RedeemHandler(log log.Logger, s authguest.AuthGuest, cfg *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req RedeemRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			log.Debug().Err(err).Msg("request body is malformed")
-			writeError(w, http.StatusBadRequest, errorResponse{ErrorType: "invalid_request", Message: "The request body is malformed."})
+			writeError(w, http.StatusBadRequest, errorResponse{ErrorType: "invalidRequest", Message: "The request body is malformed."})
 			return
 		}
 
-		sessionToken, err := s.Redeem(r.Context(), req.Token)
+		result, err := s.Redeem(r.Context(), req.Token)
 		if err != nil {
 			log.Debug().Err(err).Msg("redeem failed")
 			writeRedeemError(w, err)
@@ -36,13 +40,15 @@ func RedeemHandler(log log.Logger, s authguest.AuthGuest, cfg *config.Config) fu
 
 		http.SetCookie(w, &http.Cookie{
 			Name:     cfg.JWT.CookieName,
-			Value:    sessionToken,
+			Value:    result.SessionToken,
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   true,
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   int(cfg.JWT.TTL.Seconds()),
 		})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(redeemResponse{PermissionID: result.ShareID})
 	}
 }
