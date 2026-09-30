@@ -29,7 +29,8 @@ It is part of the default service set and does not need to be enabled with
 2. **Redeem** — the guest posts the token to
    `POST /graph/v1beta1/extensions/org.libregraph/guestInvitations/redeem`.
     The service validates the token and the share, marks the token as used
-    and returns a signed JWT session token in a cookie. Tokens are single-use.
+    and returns a signed JWT session token in a cookie plus the share's
+    `permissionId` in the response body. Tokens are single-use.
 3. **Cleanup** — on the consumed `ShareRemoved` or `ShareExpired` event, the
    stored record is deleted.
 

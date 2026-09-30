@@ -35,7 +35,7 @@ func newRedeemHandler(t *testing.T, svc authguest.AuthGuest) http.HandlerFunc {
 
 func TestRedeemHandler(t *testing.T) {
 	svcMock := mocks.NewAuthGuest(t)
-	svcMock.On("Redeem", mock.Anything, "valid-token").Return("session-token", nil)
+	svcMock.On("Redeem", mock.Anything, "valid-token").Return(&authguest.RedeemResponse{SessionToken: "session-token", ShareID: "share-1"}, nil)
 
 	body, err := json.Marshal(RedeemRequest{Token: "valid-token"})
 	require.NoError(t, err)
@@ -56,59 +56,63 @@ func TestRedeemHandler(t *testing.T) {
 	assert.True(t, cookie.HttpOnly)
 	assert.True(t, cookie.Secure)
 	assert.Equal(t, "/", cookie.Path)
+
+	var resp redeemResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "share-1", resp.PermissionID)
 }
 
 func TestRedeemHandlerErrorMapping(t *testing.T) {
 	tests := []struct {
-		name       string
-		err        error
-		wantStatus int
-		wantType   string
-		wantShare  string
+		name           string
+		err            error
+		wantStatus     int
+		wantType       string
+		wantPermission string
 	}{
 		{
-			name:       "token expired",
-			err:        &authguest.RedeemError{ErrorType: authguest.ErrExpired, ShareID: "share-1"},
-			wantStatus: http.StatusUnauthorized,
-			wantType:   "token_expired",
-			wantShare:  "share-1",
+			name:           "token expired",
+			err:            &authguest.RedeemError{ErrorType: authguest.ErrExpired, ShareID: "share-1"},
+			wantStatus:     http.StatusUnauthorized,
+			wantType:       "tokenExpired",
+			wantPermission: "share-1",
 		},
 		{
 			name:       "token invalid",
 			err:        &authguest.RedeemError{ErrorType: token.ErrInvalidToken},
 			wantStatus: http.StatusUnauthorized,
-			wantType:   "token_invalid",
+			wantType:   "tokenInvalid",
 		},
 		{
 			name:       "token not found",
 			err:        &authguest.RedeemError{ErrorType: storage.ErrNotFound},
 			wantStatus: http.StatusNotFound,
-			wantType:   "token_not_found",
+			wantType:   "tokenNotFound",
 		},
 		{
 			name:       "token already redeemed",
 			err:        &authguest.RedeemError{ErrorType: authguest.ErrAlreadyRedeemed},
 			wantStatus: http.StatusConflict,
-			wantType:   "token_already_redeemed",
+			wantType:   "tokenAlreadyRedeemed",
 		},
 		{
 			name:       "share not found",
 			err:        &authguest.RedeemError{ErrorType: authguest.ErrShareNotFound},
 			wantStatus: http.StatusNotFound,
-			wantType:   "share_not_found",
+			wantType:   "shareNotFound",
 		},
 		{
 			name:       "share expired",
 			err:        &authguest.RedeemError{ErrorType: authguest.ErrShareExpired},
 			wantStatus: http.StatusGone,
-			wantType:   "share_expired",
+			wantType:   "shareExpired",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svcMock := mocks.NewAuthGuest(t)
-			svcMock.On("Redeem", mock.Anything, "token").Return("", tt.err)
+			svcMock.On("Redeem", mock.Anything, "token").Return(nil, tt.err)
 
 			body, err := json.Marshal(RedeemRequest{Token: "token"})
 			require.NoError(t, err)
@@ -121,7 +125,7 @@ func TestRedeemHandlerErrorMapping(t *testing.T) {
 			var resp errorResponse
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 			assert.Equal(t, tt.wantType, resp.ErrorType)
-			assert.Equal(t, tt.wantShare, resp.ShareID)
+			assert.Equal(t, tt.wantPermission, resp.PermissionID)
 		})
 	}
 }
@@ -136,5 +140,5 @@ func TestRedeemHandlerMalformedBody(t *testing.T) {
 
 	var resp errorResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Equal(t, "invalid_request", resp.ErrorType)
+	assert.Equal(t, "invalidRequest", resp.ErrorType)
 }

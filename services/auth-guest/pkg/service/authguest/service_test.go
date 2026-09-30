@@ -229,9 +229,10 @@ func TestRedeem(t *testing.T) {
 		Share:  share,
 	}))
 
-	sessionToken, err := s.Redeem(context.Background(), tok)
+	result, err := s.Redeem(context.Background(), tok)
 	require.NoError(t, err)
-	require.NotEmpty(t, sessionToken)
+	require.NotEmpty(t, result.SessionToken)
+	assert.Equal(t, testShareID, result.ShareID)
 
 	store.AssertCalled(t, "Redeem", rec.ShareIDHash)
 }

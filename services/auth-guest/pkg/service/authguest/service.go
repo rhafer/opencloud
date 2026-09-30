@@ -37,10 +37,16 @@ type RedeemError struct {
 
 func (e *RedeemError) Error() string { return e.ErrorType.Error() }
 
+// RedeemResponse is the result of a successful token redemption.
+type RedeemResponse struct {
+	SessionToken string
+	ShareID      string
+}
+
 // AuthGuest is the domain service used by the transport and event layers.
 type AuthGuest interface {
 	CreateToken(ctx context.Context, shareID string) (*token.Token, error)
-	Redeem(ctx context.Context, tokenString string) (string, error)
+	Redeem(ctx context.Context, tokenString string) (*RedeemResponse, error)
 	CleanupShare(shareID string) error
 }
 
@@ -89,25 +95,31 @@ func (s *AuthGuestService) CreateToken(ctx context.Context, shareID string) (*to
 	return tok, nil
 }
 
-// Redeem validates a token and its share and exchanges them for a session token.
-func (s *AuthGuestService) Redeem(ctx context.Context, tokenString string) (string, error) {
+// Redeem validates a token and its share and exchanges them for a session token
+// and the share id.
+func (s *AuthGuestService) Redeem(ctx context.Context, tokenString string) (*RedeemResponse, error) {
 	rec, err := s.verifyToken(tokenString)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if _, err := s.validateShare(ctx, rec.ShareID); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if err := s.store.Redeem(rec.ShareIDHash); err != nil {
 		if errors.Is(err, storage.ErrAlreadyRedeemed) {
-			return "", &RedeemError{ErrorType: ErrAlreadyRedeemed, ShareID: rec.ShareID}
+			return nil, &RedeemError{ErrorType: ErrAlreadyRedeemed, ShareID: rec.ShareID}
 		}
-		return "", err
+		return nil, err
 	}
 
-	return s.jwtService.Sign(rec.ShareID)
+	sessionToken, err := s.jwtService.Sign(rec.ShareID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RedeemResponse{SessionToken: sessionToken, ShareID: rec.ShareID}, nil
 }
 
 // CleanupShare removes a share's token record from storage. Missing records are ignored.

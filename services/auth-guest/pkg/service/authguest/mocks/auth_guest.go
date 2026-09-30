@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/authguest"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/token"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -158,22 +159,24 @@ func (_c *AuthGuest_CreateToken_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // Redeem provides a mock function for the type AuthGuest
-func (_mock *AuthGuest) Redeem(ctx context.Context, tokenString string) (string, error) {
+func (_mock *AuthGuest) Redeem(ctx context.Context, tokenString string) (*authguest.RedeemResponse, error) {
 	ret := _mock.Called(ctx, tokenString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Redeem")
 	}
 
-	var r0 string
+	var r0 *authguest.RedeemResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*authguest.RedeemResponse, error)); ok {
 		return returnFunc(ctx, tokenString)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *authguest.RedeemResponse); ok {
 		r0 = returnFunc(ctx, tokenString)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*authguest.RedeemResponse)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = returnFunc(ctx, tokenString)
@@ -213,12 +216,12 @@ func (_c *AuthGuest_Redeem_Call) Run(run func(ctx context.Context, tokenString s
 	return _c
 }
 
-func (_c *AuthGuest_Redeem_Call) Return(s string, err error) *AuthGuest_Redeem_Call {
-	_c.Call.Return(s, err)
+func (_c *AuthGuest_Redeem_Call) Return(redeemResponse *authguest.RedeemResponse, err error) *AuthGuest_Redeem_Call {
+	_c.Call.Return(redeemResponse, err)
 	return _c
 }
 
-func (_c *AuthGuest_Redeem_Call) RunAndReturn(run func(ctx context.Context, tokenString string) (string, error)) *AuthGuest_Redeem_Call {
+func (_c *AuthGuest_Redeem_Call) RunAndReturn(run func(ctx context.Context, tokenString string) (*authguest.RedeemResponse, error)) *AuthGuest_Redeem_Call {
 	_c.Call.Return(run)
 	return _c
 }
