@@ -6,8 +6,8 @@ OpenCloud account. When a share is created for a user of type
 that token exchanges it for a signed session cookie that authenticates the
 guest.
 
-It is part of the default service set and does not need to be enabled with
-`OC_ADD_RUN_SERVICES`.
+It is disabled by default. Set `OC_ENABLE_GUEST_LINKS=true` to enable the guest
+links feature and start the service.
 
 ## Overview
 
@@ -19,6 +19,53 @@ It is part of the default service set and does not need to be enabled with
   session cookie.
 - Stores only hashes of the token and deletes the stored record when the share
   is removed or expires.
+
+## Guest links flow
+
+The following sequence diagram describes the guest links flow:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Guest user
+    participant Web as Web client
+    participant Redeem as Redeem endpoint
+    participant Proxy as OpenCloud proxy
+    participant Graph as Graph / sharedWithMe
+    participant DAV as WebDAV
+    participant Reva as Reva
+
+    User->>Web: Open guest link with valid token
+    Web->>+Redeem: Redeem Token
+    Note right of Redeem: Validate Token
+    Redeem->>+Reva: Get Share
+    Reva->>-Redeem: Share
+    Note right of Redeem: Validate Share, Mark Token used
+    Redeem->>-Web: Set Cookie, return shareid 
+    Note right of Web: HTTP only cookie with signed JWT (JWT lifetime 24h)
+    Web->>+Proxy: "/graph/me/drives/sharedWithMe"
+    Proxy->>+Reva: validate token extracted from JWT
+    Note right of Reva: Sign Reva Token for Guest User
+    Reva->>-Proxy: Authenticated
+    Proxy->>+Graph: "/graph/me/drives/sharedWithMe"
+    Note right of Proxy: Using Reva Token
+    Graph->>+Reva: Requests to ShareProvider
+    Reva->>-Graph: Shares
+    Graph->>-Proxy: driveItems (all shares for the Guest User)
+    Proxy->>-Web: driveItems
+    Note right of Web: Extracts driveItem for the specific share
+    Web->>+Proxy: PROPFIND (resource id extracted from driveItem)
+    Note right of Web: Using Cookie
+    Proxy->>+Reva: validate token extracted from JWT
+    Note right of Reva: Sign Reva Token for Guest User
+    Reva->>-Proxy: Authenticated
+    Proxy->>+DAV: PROPFIND
+    Note right of Proxy: Using Reva Token
+    DAV->>+Reva: Requests to StorageProvider
+    Reva->>-DAV: StorageProvider Responses
+    DAV->>-Proxy: PROPFIND Response
+    Proxy->>-Web: PROPFIND Response
+```
 
 ## Token lifecycle
 
