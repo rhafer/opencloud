@@ -27,7 +27,7 @@ It is part of the default service set and does not need to be enabled with
    the hash of the share id. It then publishes the `GuestTokenCreated` event
    with the token.
 2. **Redeem** — the guest posts the token to
-   `POST /graph/v1beta1/extensions/org.libregraph/guestInvitations/redeem`.
+   `POST /graph/v1beta1/extensions/org.libregraph/guestLinks/redeem`.
     The service validates the token and the share, marks the token as used
     and returns a signed JWT session token in a cookie plus the share's
     `permissionId` in the response body. Tokens are single-use.

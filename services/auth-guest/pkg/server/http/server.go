@@ -59,7 +59,7 @@ func Server(opts ...Option) (ohttp.Service, error) {
 	mux.Use(middlewares...)
 
 	mux.Route(options.Config.HTTP.Root, func(r chi.Router) {
-		r.Post("/v1beta1/extensions/org.libregraph/guestInvitations/redeem", RedeemHandler(options.Logger, options.Service, options.Config))
+		r.Post("/v1beta1/extensions/org.libregraph/guestLinks/redeem", RedeemHandler(options.Logger, options.Service, options.Config))
 	})
 
 	err = micro.RegisterHandler(newService.Server(), mux)

@@ -199,11 +199,13 @@ func NewService(ctx context.Context, options ...Option) (*Service, error) {
 		cfg.Groups.Commons = cfg.Commons
 		return groups.Execute(cfg.Groups)
 	})
-	reg(3, opts.Config.AuthGuest.Service.Name, func(ctx context.Context, cfg *occfg.Config) error {
-		cfg.AuthGuest.Context = ctx
-		cfg.AuthGuest.Commons = cfg.Commons
-		return authguest.Execute(cfg.AuthGuest)
-	})
+	if opts.Config.Commons != nil && opts.Config.Commons.EnableGuestLinks {
+		reg(3, opts.Config.AuthGuest.Service.Name, func(ctx context.Context, cfg *occfg.Config) error {
+			cfg.AuthGuest.Context = ctx
+			cfg.AuthGuest.Commons = cfg.Commons
+			return authguest.Execute(cfg.AuthGuest)
+		})
+	}
 	reg(3, opts.Config.IDM.Service.Name, func(ctx context.Context, cfg *occfg.Config) error {
 		cfg.IDM.Context = ctx
 		cfg.IDM.Commons = cfg.Commons
