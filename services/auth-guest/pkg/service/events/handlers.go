@@ -43,6 +43,11 @@ func (s *EventConsumer) handleShareRemoved(ctx context.Context, ev events.ShareR
 	_, span := tracer.Start(ctx, "handleShareRemoved")
 	defer span.End()
 
+	if ev.GranteeUserID == nil || ev.GranteeUserID.GetType() != user.UserType_USER_TYPE_GUEST {
+		s.log.Debug().Msg("share removed event is not for a guest, skipping")
+		return nil
+	}
+
 	s.log.Debug().Interface("event", ev).Msg("share removed event received")
 
 	return s.authGuest.CleanupShare(ev.ShareID.GetOpaqueId())
@@ -52,6 +57,11 @@ func (s *EventConsumer) handleShareRemoved(ctx context.Context, ev events.ShareR
 func (s *EventConsumer) handleShareExpired(ctx context.Context, ev events.ShareExpired) error {
 	_, span := tracer.Start(ctx, "handleShareExpired")
 	defer span.End()
+
+	if ev.GranteeUserID == nil || ev.GranteeUserID.GetType() != user.UserType_USER_TYPE_GUEST {
+		s.log.Debug().Msg("share expired event is not for a guest, skipping")
+		return nil
+	}
 
 	s.log.Debug().Interface("event", ev).Msg("share expired event received")
 
