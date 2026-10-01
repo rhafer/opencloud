@@ -33,7 +33,7 @@ const filePerm = 0600
 const minHashLength = 4
 
 func (s *FileManager) Add(rec Record) error {
-	lock, err := s.lockStore()
+	lock, err := s.lockRecord(rec.ShareIDHash)
 	if err != nil {
 		return err
 	}
@@ -59,11 +59,14 @@ func (s *FileManager) Get(shareIDHash string) (Record, error) {
 }
 
 func (s *FileManager) Remove(shareIDHash string) error {
-	lock, err := s.lockStore()
+	lock, err := s.lockRecord(shareIDHash)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = lock.Unlock() }()
+	defer func() {
+		_ = lock.Unlock()
+		_ = os.Remove(lock.Path())
+	}()
 
 	p, err := s.path(shareIDHash)
 	if err != nil {
@@ -81,7 +84,7 @@ func (s *FileManager) Remove(shareIDHash string) error {
 }
 
 func (s *FileManager) Redeem(shareIDHash string) error {
-	lock, err := s.lockStore()
+	lock, err := s.lockRecord(shareIDHash)
 	if err != nil {
 		return err
 	}
@@ -100,12 +103,17 @@ func (s *FileManager) Redeem(shareIDHash string) error {
 	return s.add(rec)
 }
 
-func (s *FileManager) lockStore() (*flock.Flock, error) {
-	if err := os.MkdirAll(s.root, dirPerm); err != nil {
-		return nil, fmt.Errorf("could not create directory %s: %w", s.root, err)
+func (s *FileManager) lockRecord(shareIDHash string) (*flock.Flock, error) {
+	p, err := s.path(shareIDHash)
+	if err != nil {
+		return nil, err
 	}
 
-	lock := flock.New(filepath.Join(s.root, ".lock"))
+	if err := os.MkdirAll(filepath.Dir(p), dirPerm); err != nil {
+		return nil, fmt.Errorf("could not create directory %s: %w", filepath.Dir(p), err)
+	}
+
+	lock := flock.New(p + ".lock")
 	if err := lock.Lock(); err != nil {
 		return nil, err
 	}

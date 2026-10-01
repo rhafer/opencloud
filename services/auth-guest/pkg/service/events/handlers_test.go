@@ -98,12 +98,27 @@ func TestHandleShareRemoved(t *testing.T) {
 	svc, _ := newConsumer(t, svcMock)
 
 	ev := events.ShareRemoved{
-		ShareID: &collaboration.ShareId{OpaqueId: testShareID},
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
 	}
 
 	require.NoError(t, svc.handleShareRemoved(context.Background(), ev))
 
 	svcMock.AssertCalled(t, "CleanupShare", testShareID)
+}
+
+func TestHandleShareRemovedSkipsNonGuest(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.ShareRemoved{
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		GranteeUserID: &user.UserId{OpaqueId: "user", Type: user.UserType_USER_TYPE_PRIMARY},
+	}
+
+	require.NoError(t, svc.handleShareRemoved(context.Background(), ev))
+
+	svcMock.AssertNotCalled(t, "CleanupShare", mock.Anything)
 }
 
 func TestHandleShareExpired(t *testing.T) {
@@ -112,10 +127,25 @@ func TestHandleShareExpired(t *testing.T) {
 	svc, _ := newConsumer(t, svcMock)
 
 	ev := events.ShareExpired{
-		ShareID: &collaboration.ShareId{OpaqueId: testShareID},
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
 	}
 
 	require.NoError(t, svc.handleShareExpired(context.Background(), ev))
 
 	svcMock.AssertCalled(t, "CleanupShare", testShareID)
+}
+
+func TestHandleShareExpiredSkipsNonGuest(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.ShareExpired{
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		GranteeUserID: &user.UserId{OpaqueId: "user", Type: user.UserType_USER_TYPE_PRIMARY},
+	}
+
+	require.NoError(t, svc.handleShareExpired(context.Background(), ev))
+
+	svcMock.AssertNotCalled(t, "CleanupShare", mock.Anything)
 }
