@@ -2,7 +2,7 @@
 
 The `auth-guest` service gives guest users access to a share without a full
 OpenCloud account. When a share is created for a user of type
-`USER_TYPE_GUEST`, the service issues a one-time invitation token; redeeming
+`USER_TYPE_GUEST`, the service issues a one-time guest link token; redeeming
 that token exchanges it for a signed session cookie that authenticates the
 guest.
 
@@ -13,8 +13,8 @@ It is part of the default service set and does not need to be enabled with
 
 - **Consumes** the share lifecycle events `ShareCreated`, `ShareRemoved` and
   `ShareExpired`.
-- **Publishes** the `GuestTokenCreated` event carrying the invitation token,
-  so the invitation can be delivered to the guest.
+- **Publishes** the `GuestTokenCreated` event carrying the guest link token,
+  so the link can be delivered to the guest.
 - Exposes an unauthenticated endpoint that redeems the token and sets a
   session cookie.
 - Stores only hashes of the token and deletes the stored record when the share
@@ -47,7 +47,7 @@ Relevant options:
 - `AUTH_GUEST_JWT_SECRET` — secret used to sign session tokens.
 - `AUTH_GUEST_JWT_COOKIE_NAME`, `AUTH_GUEST_JWT_TTL` — session cookie name and
   lifetime.
-- `AUTH_GUEST_TOKENS_STORAGE_ROOT` — where invitation token records are stored.
+- `AUTH_GUEST_TOKENS_STORAGE_ROOT` — where guest link token records are stored.
 - `AUTH_GUEST_SERVICE_ACCOUNT_ID`, `AUTH_GUEST_SERVICE_ACCOUNT_SECRET` — service
   account used to query the gateway for share metadata.
 - `AUTH_GUEST_NUM_CONSUMERS` — number of concurrent event consumers.
