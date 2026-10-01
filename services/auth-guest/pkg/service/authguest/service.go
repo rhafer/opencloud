@@ -26,7 +26,7 @@ var ErrAlreadyRedeemed = errors.New("token already redeemed")
 var ErrShareNotFound = errors.New("share not found")
 var ErrShareExpired = errors.New("share expired")
 
-const invitationTokenTTL = 30 * time.Minute
+const guestLinkTokenTTL = 30 * time.Minute
 
 // RedeemError wraps a redeem failure together with the share id. The HTTP
 // transport inspects ErrorType to choose a status code and message.
@@ -86,7 +86,7 @@ func (s *AuthGuestService) CreateToken(ctx context.Context, shareID string) (*to
 		ShareID:     shareID,
 		ShareIDHash: tok.ShareIDHash,
 		SecretHash:  tok.SecretHash(),
-		Expiry:      time.Now().Add(invitationTokenTTL),
+		Expiry:      time.Now().Add(guestLinkTokenTTL),
 		Redeemed:    false,
 	}); err != nil {
 		return nil, err
