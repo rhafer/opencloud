@@ -89,11 +89,12 @@ type Storage struct {
 
 // TokenManager is the config for using the reva token manager
 type TokenManager struct {
-	JWTSecret string `yaml:"jwt_secret" env:"AUTH_GUEST_JWT_SECRET" desc:"The secret to mint and validate jwt tokens." introductionVersion:"%%NEXT%%"`
+	JWTSecret string `yaml:"jwt_secret" env:"OC_JWT_SECRET;AUTH_GUEST_JWT_SECRET" desc:"The secret to mint and validate jwt tokens." introductionVersion:"%%NEXT%%"`
 }
 
 // JWT defines the configuration for guest session tokens.
 type JWT struct {
+	Secret     string        `yaml:"secret" env:"AUTH_GUEST_SESSION_JWT_SECRET" desc:"The secret used to sign and validate guest session tokens. It must differ from OC_JWT_SECRET." introductionVersion:"%%NEXT%%" mask:"password"`
 	CookieName string        `yaml:"cookie_name" env:"AUTH_GUEST_JWT_COOKIE_NAME" desc:"The name of the session cookie set when a guest token is redeemed." introductionVersion:"%%NEXT%%"`
 	TTL        time.Duration `yaml:"ttl" env:"AUTH_GUEST_JWT_TTL" desc:"The lifetime of a redeemed guest session token." introductionVersion:"%%NEXT%%"`
 }
