@@ -354,13 +354,15 @@ func loadMiddlewares(logger log.Logger, cfg *config.Config,
 	}
 	authenticators = append(authenticators, oidcAuthenticator)
 
-	authenticators = append(authenticators, &middleware.GuestLinkAuthenticator{
-		Logger:              logger,
-		RevaGatewaySelector: gatewaySelector,
-		Config: middleware.GuestLinkAuthConfig{
-			CookieName: cfg.GuestLinkAuth.CookieName,
-		},
-	})
+	if cfg.Commons != nil && cfg.Commons.EnableGuestLinks {
+		authenticators = append(authenticators, &middleware.GuestLinkAuthenticator{
+			Logger:              logger,
+			RevaGatewaySelector: gatewaySelector,
+			Config: middleware.GuestLinkAuthConfig{
+				CookieName: cfg.GuestLinkAuth.CookieName,
+			},
+		})
+	}
 
 	authenticators = append(authenticators, middleware.PublicShareAuthenticator{
 		Logger:              logger,
