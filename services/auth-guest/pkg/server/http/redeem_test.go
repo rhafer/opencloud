@@ -123,6 +123,17 @@ func TestRedeemHandlerErrorMapping(t *testing.T) {
 	}
 }
 
+func TestRedeemHandlerBodyTooLarge(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+
+	body := `{"token":"` + strings.Repeat("a", maxRedeemBodySize) + `"}`
+	rr := httptest.NewRecorder()
+	newRedeemHandler(t, svcMock)(rr, httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body)))
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	svcMock.AssertNotCalled(t, "Redeem", mock.Anything, mock.Anything)
+}
+
 func TestRedeemHandlerMalformedBody(t *testing.T) {
 	svcMock := mocks.NewAuthGuest(t)
 
