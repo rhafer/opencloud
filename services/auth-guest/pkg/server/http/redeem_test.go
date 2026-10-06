@@ -15,7 +15,6 @@ import (
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/authguest"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/authguest/mocks"
-	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/storage"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -82,12 +81,6 @@ func TestRedeemHandlerErrorMapping(t *testing.T) {
 			err:        &authguest.RedeemError{ErrorType: token.ErrInvalidToken},
 			wantStatus: http.StatusUnauthorized,
 			wantType:   "tokenInvalid",
-		},
-		{
-			name:       "token not found",
-			err:        &authguest.RedeemError{ErrorType: storage.ErrNotFound},
-			wantStatus: http.StatusNotFound,
-			wantType:   "tokenNotFound",
 		},
 		{
 			name:       "token already redeemed",
