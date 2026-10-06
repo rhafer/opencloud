@@ -76,10 +76,10 @@ type HTTP struct {
 
 // GRPCConfig defines the GRPC configuration
 type GRPCConfig struct {
-	Addr      string                 `yaml:"addr" env:"GUESTAUTH_GRPC_ADDR" desc:"The bind address of the GRPC service." introductionVersion:"%%NEXT%%"`
+	Addr      string                 `yaml:"addr" env:"AUTH_GUEST_GRPC_ADDR" desc:"The bind address of the GRPC service." introductionVersion:"%%NEXT%%"`
 	TLS       *shared.GRPCServiceTLS `yaml:"tls"`
 	Namespace string                 `yaml:"-"`
-	Protocol  string                 `yaml:"protocol" env:"OC_GRPC_PROTOCOL;GUESTAUTH_GRPC_PROTOCOL" desc:"The transport protocol of the GRPC service." introductionVersion:"%%NEXT%%"`
+	Protocol  string                 `yaml:"protocol" env:"OC_GRPC_PROTOCOL;AUTH_GUEST_GRPC_PROTOCOL" desc:"The transport protocol of the GRPC service." introductionVersion:"%%NEXT%%"`
 }
 
 // Storage defines the configuration for the token storage.

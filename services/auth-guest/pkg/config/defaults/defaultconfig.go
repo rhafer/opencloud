@@ -41,7 +41,7 @@ func DefaultConfig() *config.Config {
 		},
 		RevaGateway: shared.DefaultRevaConfig().Address,
 		GRPC: config.GRPCConfig{
-			Addr:      "127.0.0.1:9265",
+			Addr:      "127.0.0.1:9268",
 			Namespace: "eu.opencloud.api",
 			Protocol:  "tcp",
 		},
