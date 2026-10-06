@@ -2482,6 +2482,7 @@ def opencloudServer(storage = "decomposed", depends_on = [], deploy_type = "", e
         "OC_TRANSLATION_PATH": "%s/tests/config/translations" % dirs["base"],
         "ACTIVITYLOG_WRITE_BUFFER_DURATION": "0",  # Disable write buffer so that test expectations are met in time
         "OC_LDAP_LOOKUP_CACHE_TTL": "0",  # disable ldap lookup cache so that test fixture change are applied right away
+        "OC_ENABLE_GUEST_LINKS": True,
         # search grpc port needed for index cli tests
         "SEARCH_GRPC_ADDR": "0.0.0.0:9220",
         # debug addresses required for running services health tests
@@ -2521,7 +2522,6 @@ def opencloudServer(storage = "decomposed", depends_on = [], deploy_type = "", e
         "WEBFINGER_DEBUG_ADDR": "0.0.0.0:9279",
         "STORAGE_USERS_POSIX_SCAN_DEBOUNCE_DELAY": 0,
         "OC_MACHINE_AUTH_API_KEY": MACHINE_AUTH_API_KEY,
-        "GRAPH_ENABLE_GUEST_INVITES": True,
     }
 
     if storage == "posix":
