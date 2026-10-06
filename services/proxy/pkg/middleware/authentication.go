@@ -337,18 +337,17 @@ func renderTerminalFailure(w http.ResponseWriter, r *http.Request, result Authen
 	}
 
 	// Default: generic 401 without challenges.
-	w.WriteHeader(http.StatusUnauthorized)
-	if webdav.IsWebdavRequest(r) {
-		b, err := webdav.Marshal(webdav.Exception{
-			Code:    webdav.SabredavNotAuthenticated,
-			Message: "Authentication error",
-		})
-		if err != nil {
-			return err
-		}
-		_, _ = w.Write(b)
+	if !webdav.IsWebdavRequest(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil
 	}
-	return nil
+
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(http.StatusUnauthorized)
+	return webdav.Encode(w, webdav.Exception{
+		Code:    webdav.SabredavNotAuthenticated,
+		Message: "Authentication error",
+	})
 }
 
 // renderErrorDetails renders a response based on structured error details.
@@ -377,20 +376,16 @@ func renderJSONExpired(w http.ResponseWriter, permissionID string) error {
 		PermissionID: permissionID,
 	}
 
-	body, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	_, err = w.Write(body)
-	return err
+	return json.NewEncoder(w).Encode(resp)
 }
 
 // renderDAVExpired writes a SabreDAV-compatible XML response for expired guest sessions.
 func renderDAVExpired(w http.ResponseWriter, permissionID string) error {
-	xmlBody, err := xml.Marshal(davExpiredResponse{
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(http.StatusUnauthorized)
+	return webdav.EncodeXML(w, davExpiredResponse{
 		XmlnsD:    "DAV",
 		XmlnsS:    "http://sabredav.org/ns",
 		Exception: "Sabre\\DAV\\Exception\\NotAuthenticated",
@@ -401,14 +396,6 @@ func renderDAVExpired(w http.ResponseWriter, permissionID string) error {
 			ShareID:        permissionID,
 		},
 	})
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-	w.WriteHeader(http.StatusUnauthorized)
-	_, err = w.Write(append([]byte(xml.Header), xmlBody...))
-	return err
 }
 
 type davExpiredResponse struct {
