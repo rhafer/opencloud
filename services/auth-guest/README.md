@@ -16,8 +16,9 @@ rotated silently.
 The unauthenticated endpoints are protected against brute-force and abuse: the
 PIN is bound to a browser-held nonce, failed PIN attempts back off exponentially
 and invalidate the PIN after a maximum number of attempts, and `renew` is
-limited per share (cooldown and daily cap) when no session authorizes it. The
-magic link is never affected by a PIN lockout.
+limited per share (cooldown and daily cap), with separate quotas for renewals
+with and without a valid session. The magic link is never affected by a PIN
+lockout.
 
 It is disabled by default. Set `OC_ENABLE_GUEST_LINKS=true` to enable the guest
 links feature and start the service.
@@ -30,8 +31,8 @@ links feature and start the service.
   `GuestTokenRenewed` event (refresh, carrying the new token and, when
   authorized by a session, the PIN).
 - Exposes unauthenticated endpoints to redeem a token, renew it and verify a
-  PIN; redeeming a token or verifying a PIN sets a session cookie. `renew`
-  (when no session authorizes it) and `verify/pin` are rate-limited.
+  PIN; redeeming a token or verifying a PIN sets a session cookie. `renew` and
+  `verify/pin` are rate-limited.
 - Stores only hashes of the token secret, of the PIN and of the nonce, and
   deletes the stored record when the share is removed or expires.
 
@@ -95,29 +96,49 @@ answers `409`, and on an expired link `401`; the client still holds the link
 token.
 
 `renew` requires the share id (`permissionId`). When the request carries a
-session cookie with a session token for that share (expired or not), the service
+session cookie with a valid, unexpired session token for that share, the service
 validates the share, generates a new link token and a 6-digit PIN (30 minutes by
 default), overwrites the stored token, PIN and nonce hashes (invalidating the
 previous link and PIN), resets the redeemed flag, publishes `GuestTokenRenewed`
 carrying the PIN, and sets the nonce cookie that binds the PIN to the requesting
 browser.
 
-Without a session the renewal is *silent*: the service validates the share,
+Without a valid session (no cookie, an expired session token or one for
+another share) the renewal is *silent*: the service validates the share,
 rotates the stored token secret and expiry, resets the redeemed flag so the new
 link can be redeemed, and publishes `GuestTokenRenewed` without a PIN; it
 answers `200` and sets no nonce cookie. Because such a request is
 unauthenticated, it is rate-limited per share.
 
-Both paths require an existing token record for the share and work whether the
-record is unused, expired or already redeemed (the guest already redeemed an
-earlier link); if publishing fails, the previous record is restored.
+While the newest link can still be redeemed (it is neither used nor expired), a
+renewal without a valid session does nothing: it answers `200` like a real
+renewal, but does not rotate the link, publish an event or count against the
+quota. This path only needs the share id, so otherwise anyone who knows it
+could cancel the link the guest just received. Renewals with a valid session
+always issue a new link and PIN.
 
-When no session authorizes the renewal, `renew` is limited per share: a cooldown
-between two renewals (`AUTH_GUEST_QUOTA_COOLDOWN`, default 1 minute) and a daily
-cap (`AUTH_GUEST_QUOTA_DAILY_CAP`, default 20 per `AUTH_GUEST_QUOTA_WINDOW`,
-default 24 hours). A request within the cooldown or over the cap is rejected
-with `429` and a `Retry-After` header. A renewal authorized by a valid session is
-not rate-limited.
+Both paths require an existing token record for the share; if publishing fails,
+the previous record is restored.
+
+`renew` is limited per share, with a separate quota for each path so that
+neither can use up the other's:
+
+- **Without a valid session:** a cooldown between two renewals
+  (`AUTH_GUEST_QUOTA_COOLDOWN`, default 1 minute) and a daily cap
+  (`AUTH_GUEST_QUOTA_DAILY_CAP`, default 50 per `AUTH_GUEST_QUOTA_WINDOW`,
+  default 24 hours). A link is only replaced once it is used or expired, so
+  without anyone using a link there are at most 48 renewals a day. The default
+  cap stays above that, so that someone who only knows the share id can't use it
+  up and lock the guest out.
+- **With a valid session:** a cooldown (`AUTH_GUEST_SESSION_QUOTA_COOLDOWN`,
+  default 5 minutes) and a daily cap (`AUTH_GUEST_SESSION_QUOTA_DAILY_CAP`,
+  default 5 per `AUTH_GUEST_SESSION_QUOTA_WINDOW`, default 24 hours). Each of
+  these renewals issues a new PIN with fresh attempts, so this quota also limits
+  how many PINs someone holding a stolen session can guess. It is sized for
+  refreshing a session before it expires, plus a few retries.
+
+A request within the cooldown or over the cap is rejected with `429` and a
+`Retry-After` header.
 
 To turn the new credentials into a session the guest either redeems the link
 (`verify/token`) or enters the PIN (`verify/pin`); both return a session
@@ -143,7 +164,8 @@ sequenceDiagram
     Note over Web: Previous link used or expired
     Web->>+Renew: POST renew { permissionId } (+ session cookie)
     Note right of Renew: Validate session + share, rotate token
-    Note right of Renew: Valid session: new PIN + nonce; else rate-limited
+    Note right of Renew: Rate-limited per path; valid session: new PIN + nonce
+    Note right of Renew: No valid session and newest link unused: do nothing
     Renew->>Bus: publish GuestTokenRenewed
     Note right of Bus: With a new PIN only when the session is valid
     Renew->>-Web: 200 OK, Set-Cookie (nonce) only when the session is valid
@@ -177,18 +199,18 @@ sequenceDiagram
    (`AUTH_GUEST_JWT_TTL`).
 3. **Renew** — the guest posts the `permissionId` to
    `POST /graph/v1beta1/extensions/org.libregraph/guestLinks/renew`. If the
-   request carries a session cookie with a session token for that share (expired
-   or not), the service validates the share, generates a new link token and a
+   request carries a session cookie with a valid, unexpired session token for
+   that share, the service validates the share, generates a new link token and a
    6-digit PIN (30 minutes by default), overwrites the stored token, PIN and
    nonce hashes (invalidating the previous link and PIN), resets the redeemed
-   flag, publishes `GuestTokenRenewed` with the PIN and sets the nonce cookie;
-   such a renewal is not rate-limited. Without a session the renewal is silent:
-   the service validates the share, rotates the stored token secret and expiry,
-   resets the redeemed flag and publishes `GuestTokenRenewed` without a PIN; no
-   nonce cookie is set. Because it is unauthenticated, it is limited per share
-   (cooldown plus daily cap) and an exceeded limit fails with `429`. Both paths
-   require an existing record; otherwise the request fails with `tokenNotFound`.
-   This works whether the record is unused, expired or already redeemed. If
+   flag, publishes `GuestTokenRenewed` with the PIN and sets the nonce cookie.
+   Without a session the renewal is silent: the service validates the share,
+   rotates the stored token secret and expiry, resets the redeemed flag and
+   publishes `GuestTokenRenewed` without a PIN; no nonce cookie is set. Each
+   path is limited per share by its own quota (cooldown plus daily cap), and an
+   exceeded limit fails with `429`. Without a valid session nothing happens
+   while the newest link is neither used nor expired. Both paths require an
+   existing record; otherwise the request fails with `tokenNotFound`. If
    publishing fails, the previous record is restored.
 4. **Verify PIN** — the guest posts the PIN, the `permissionId` and the nonce
    cookie to
@@ -220,15 +242,16 @@ Rate-limited responses (`429`) also carry a `retryAfter` field (seconds) and a
 #### `POST .../guestLinks/renew`
 
 - **Request body:** `{ "permissionId": "<share-id>" }`
-- **Authorization:** the session cookie, when it carries a session token for the
-  given share; without it the renewal is silent (no PIN, no nonce cookie)
-- **Success:** `200` (no session cookie; when authorized by a session a new
-  link/PIN are delivered out of band and the nonce cookie is set, otherwise no
-  new link/PIN is generated and no nonce cookie is set)
+- **Authorization:** the session cookie, when it carries a valid, unexpired
+  session token for the given share; without it the renewal is silent (no PIN,
+  no nonce cookie)
+- **Success:** `200`, no session cookie. With a valid session a new link and
+  PIN are sent by mail and the nonce cookie is set. Without one a new link is
+  sent by mail, unless the newest link can still be redeemed, in which case
+  nothing happens; the response is the same either way.
 - **Errors:** `400 invalidRequest`, `404 tokenNotFound`, `404 shareNotFound`,
-  `409 conflict`, `410 shareExpired`, `429 tooManyRequests` (with `Retry-After`,
-  only when no session authorizes the renewal), `503 serviceUnavailable`,
-  `500 internalError`
+  `409 conflict`, `410 shareExpired`, `429 tooManyRequests` (with
+  `Retry-After`), `503 serviceUnavailable`, `500 internalError`
 
 #### `POST .../guestLinks/verify/pin`
 
@@ -264,6 +287,8 @@ in one browser without overwriting each other's nonce cookie.
 
 Client-side handling of the relevant responses:
 
+- `200` from `renew` without a session — a new link may or may not have been
+  sent; tell the guest to use the link from their newest mail.
 - `400 invalidRequest` "The nonce cookie is missing from the request." — the
   browser has no nonce (it never renewed, or the cookie expired): call `renew`
   again before `verify/pin`.
@@ -306,11 +331,15 @@ and nonce options are:
   `AUTH_GUEST_BACKOFF_BASE` (default `1s`),
   `AUTH_GUEST_BACKOFF_CAP` (default `30s`) — failed PIN attempts before the PIN
   is invalidated, and the exponential backoff between attempts.
-- `AUTH_GUEST_QUOTA_DAILY_CAP` (default `20`),
+- `AUTH_GUEST_QUOTA_DAILY_CAP` (default `50`),
   `AUTH_GUEST_QUOTA_COOLDOWN` (default `1m`),
   `AUTH_GUEST_QUOTA_WINDOW` (default `24h`) — maximum renewals per share per
   window and the minimum time between two renewals (applies to `renew` without a
-  session).
+  valid session).
+- `AUTH_GUEST_SESSION_QUOTA_DAILY_CAP` (default `5`),
+  `AUTH_GUEST_SESSION_QUOTA_COOLDOWN` (default `5m`),
+  `AUTH_GUEST_SESSION_QUOTA_WINDOW` (default `24h`) — the same for `renew` with a
+  valid session, which issues a new PIN; counted separately.
 
 Relevant options:
 

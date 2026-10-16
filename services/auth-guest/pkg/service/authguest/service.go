@@ -64,9 +64,10 @@ type AuthGuestService struct {
 // guards bundles the rate limiters and the nonce protecting the guest
 // endpoints. Their policies are fixed at construction from the service config.
 type guards struct {
-	backoffLimiter guard.BackoffLimiter
-	quotaLimiter   guard.QuotaLimiter
-	nonce          guard.Nonce
+	backoffLimiter      guard.BackoffLimiter
+	quotaLimiter        guard.QuotaLimiter
+	sessionQuotaLimiter guard.QuotaLimiter
+	nonce               guard.Nonce
 }
 
 func NewAuthGuestService(tokenSvc *token.TokenService, store storage.Manager, opts ...Option) *AuthGuestService {
@@ -84,9 +85,10 @@ func NewAuthGuestService(tokenSvc *token.TokenService, store storage.Manager, op
 		publisher:       o.Publisher,
 		pinAndNonceTTL:  o.PinAndNonceTTL,
 		guards: guards{
-			backoffLimiter: guard.NewBackoffLimiter(o.BackoffLimiter),
-			quotaLimiter:   guard.NewQuotaLimiter(o.QuotaLimiter),
-			nonce:          guard.NewNonce(o.PinAndNonceTTL),
+			backoffLimiter:      guard.NewBackoffLimiter(o.BackoffLimiter),
+			quotaLimiter:        guard.NewQuotaLimiter(o.QuotaLimiter),
+			sessionQuotaLimiter: guard.NewQuotaLimiter(o.SessionQuotaLimiter),
+			nonce:               guard.NewNonce(o.PinAndNonceTTL),
 		},
 	}
 }
@@ -139,9 +141,9 @@ func (s *AuthGuestService) VerifyToken(ctx context.Context, tokenString string) 
 }
 
 // Renew renews the guest link token for shareID. When the request is
-// authorized by a (possibly expired) session token, a new PIN and nonce are
-// also issued; otherwise the token is only rotated (rate limited) and no
-// PIN or nonce is issued.
+// authorized by a valid, unexpired session token, a new PIN and nonce are
+// also issued. Otherwise only the token is rotated (rate limited), and only
+// once the newest link can no longer be redeemed.
 func (s *AuthGuestService) Renew(ctx context.Context, shareID, sessionToken string) (string, error) {
 	if s.publisher == nil {
 		return "", ErrEventsNotConfigured
@@ -161,11 +163,17 @@ func (s *AuthGuestService) Renew(ctx context.Context, shareID, sessionToken stri
 		validSession = err == nil && sessionShareID == shareID
 	}
 
-	if !validSession {
-		// Reject an active cooldown before doing the (remote) share validation.
-		if wait := s.guards.quotaLimiter.RetryAfter(&current.QuotaLimiterState, now); wait > 0 {
-			return "", &GuestError{ErrorType: ErrTooManyAttempts, ShareID: shareID, RetryAfter: wait}
-		}
+	// Without a valid session the share id is all it takes to renew. Rotating a
+	// link that can still be redeemed would only cancel the link the guest just
+	// got, so leave it alone. The response is the same as for a renewal.
+	if !validSession && linkRedeemable(current, now) {
+		return "", nil
+	}
+
+	// Reject an active cooldown before doing the (remote) share validation.
+	quota, quotaState := s.renewQuota(current, validSession)
+	if wait := quota.RetryAfter(quotaState, now); wait > 0 {
+		return "", &GuestError{ErrorType: ErrTooManyAttempts, ShareID: shareID, RetryAfter: wait}
 	}
 
 	share, err := s.validateShare(ctx, shareID)
@@ -190,6 +198,10 @@ func (s *AuthGuestService) Renew(ctx context.Context, shareID, sessionToken stri
 
 	nonce, seen, updated, err := s.rotateGuestToken(hash, tok, pinHash, now, validSession)
 	if err != nil {
+		if errors.Is(err, errLinkRedeemable) {
+			// A concurrent renewal has issued a new link in the meantime.
+			return "", nil
+		}
 		var ge *GuestError
 		if !errors.As(err, &ge) {
 			return "", &GuestError{ErrorType: err, ShareID: shareID}
@@ -278,12 +290,12 @@ func (s *AuthGuestService) CleanupShare(shareID string) error {
 }
 
 // rotateGuestToken replaces the guest token's secret and expiry under the
-// record lock. When sessionValid, the PIN and nonce are replaced as well;
-// otherwise the quota limiter state is recorded. When the record is modified
-// concurrently it re-reads
-// and re-applies the rotation, up to renewMaxAttempts. It returns the issued
-// nonce, the record state seen before the successful update (for rollback) and
-// the updated record.
+// record lock and counts the renewal against the quota of its path (see
+// renewQuota). When sessionValid, the PIN and nonce are replaced as well;
+// otherwise it fails with errLinkRedeemable while the newest link can still be
+// redeemed. When the record is modified concurrently it re-reads and re-applies
+// the rotation, up to renewMaxAttempts. It returns the issued nonce, the record
+// state seen before the successful update (for rollback) and the updated record.
 func (s *AuthGuestService) rotateGuestToken(hash string, tok *token.Token, pinHash string, now time.Time, sessionValid bool) (string, storage.Record, storage.Record, error) {
 	var nonce string
 	for attempt := 1; ; attempt++ {
@@ -293,12 +305,17 @@ func (s *AuthGuestService) rotateGuestToken(hash string, tok *token.Token, pinHa
 		}
 
 		updated, err := s.store.UpdateFrom(*rec, func(record *storage.Record) error {
-			if !sessionValid {
-				if wait := s.guards.quotaLimiter.RetryAfter(&record.QuotaLimiterState, now); wait > 0 {
-					return &GuestError{ErrorType: ErrTooManyAttempts, ShareID: record.ShareID, RetryAfter: wait}
-				}
-				s.guards.quotaLimiter.Record(&record.QuotaLimiterState, now)
-			} else {
+			if !sessionValid && linkRedeemable(record, now) {
+				return errLinkRedeemable
+			}
+
+			quota, quotaState := s.renewQuota(record, sessionValid)
+			if wait := quota.RetryAfter(quotaState, now); wait > 0 {
+				return &GuestError{ErrorType: ErrTooManyAttempts, ShareID: record.ShareID, RetryAfter: wait}
+			}
+			quota.Record(quotaState, now)
+
+			if sessionValid {
 				n, err := s.guards.nonce.Issue(&record.NonceState, now)
 				if err != nil {
 					return err
@@ -323,6 +340,23 @@ func (s *AuthGuestService) rotateGuestToken(hash string, tok *token.Token, pinHa
 			return "", storage.Record{}, storage.Record{}, err
 		}
 	}
+}
+
+// linkRedeemable reports whether the newest link in rec can still be redeemed,
+// that is, it is neither used nor expired.
+func linkRedeemable(rec *storage.Record, now time.Time) bool {
+	return rec.SecretHash != "" && !rec.Redeemed && (rec.Expiry.IsZero() || !rec.Expiry.Before(now))
+}
+
+// renewQuota returns the quota limiter and its state in rec for a renewal with
+// or without a valid session. The two quotas are counted separately, so that
+// renewals without a session, which only need the share id, cannot use up the
+// quota for refreshing a session, and the other way round.
+func (s *AuthGuestService) renewQuota(rec *storage.Record, sessionValid bool) (guard.QuotaLimiter, *guard.QuotaLimiterState) {
+	if sessionValid {
+		return s.guards.sessionQuotaLimiter, &rec.SessionQuotaLimiterState
+	}
+	return s.guards.quotaLimiter, &rec.QuotaLimiterState
 }
 
 // checkPinRequest verifies the browser-bound nonce and then the PIN
