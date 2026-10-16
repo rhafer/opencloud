@@ -28,11 +28,15 @@ type Config struct {
 	RevaGateway   string                `yaml:"reva_gateway" env:"OC_REVA_GATEWAY" desc:"CS3 gateway used to look up user metadata" introductionVersion:"%%NEXT%%"`
 	GRPCClientTLS *shared.GRPCClientTLS `yaml:"grpc_client_tls"`
 
-	GRPC         GRPCConfig    `yaml:"grpc"`
-	HTTP         HTTP          `yaml:"http"`
-	Storage      Storage       `yaml:"storage"`
-	TokenManager *TokenManager `yaml:"token_manager"`
-	JWT          JWT           `yaml:"jwt"`
+	GRPC           GRPCConfig     `yaml:"grpc"`
+	HTTP           HTTP           `yaml:"http"`
+	Storage        Storage        `yaml:"storage"`
+	TokenManager   *TokenManager  `yaml:"token_manager"`
+	JWT            JWT            `yaml:"jwt"`
+	Nonce          Nonce          `yaml:"nonce"`
+	PinAndNonceTTL time.Duration  `yaml:"pin_and_nonce_ttl" env:"AUTH_GUEST_PIN_AND_NONCE_TTL" desc:"The lifetime of the one-time PIN and of the nonce that binds it to the browser. After it expires the PIN has to be renewed again. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
+	BackoffLimiter BackoffLimiter `yaml:"backoff_limiter"`
+	QuotaLimiter   QuotaLimiter   `yaml:"quota_limiter"`
 
 	ServiceAccount ServiceAccount `yaml:"service_account"`
 
@@ -99,6 +103,30 @@ type TokenManager struct {
 type JWT struct {
 	CookieName string        `yaml:"cookie_name" env:"AUTH_GUEST_JWT_COOKIE_NAME" desc:"The name of the session cookie set when a guest token is redeemed." introductionVersion:"%%NEXT%%"`
 	TTL        time.Duration `yaml:"ttl" env:"AUTH_GUEST_JWT_TTL" desc:"The lifetime of a redeemed guest session token." introductionVersion:"%%NEXT%%"`
+}
+
+// Nonce defines the configuration of the browser-bound nonce that is
+// created on renewal and required to verify a PIN. Its lifetime is shared
+// with the PIN and configured via PinAndNonceTTL.
+type Nonce struct {
+	CookieBaseName string `yaml:"cookie_base_name" env:"AUTH_GUEST_NONCE_COOKIE_BASE_NAME" desc:"The base name of the cookie that binds a nonce to the browser that requested the renewal. A short hash of the share id is appended per share, so the actual cookie is e.g. __Host-oc_guest_nonce_<hash>." introductionVersion:"%%NEXT%%"`
+}
+
+// BackoffLimiter defines the configuration of a limiter that counts events,
+// blocks after a maximum number of them and increases the wait between events
+// exponentially.
+type BackoffLimiter struct {
+	MaxAttempts int           `yaml:"max_attempts" env:"AUTH_GUEST_BACKOFF_MAX_ATTEMPTS" desc:"The maximum number of failed attempts before the PIN is invalidated." introductionVersion:"%%NEXT%%"`
+	BackoffBase time.Duration `yaml:"backoff_base" env:"AUTH_GUEST_BACKOFF_BASE" desc:"The base duration for the exponential backoff between failed attempts. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
+	BackoffCap  time.Duration `yaml:"backoff_cap" env:"AUTH_GUEST_BACKOFF_CAP" desc:"The maximum duration for the exponential backoff between failed attempts. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
+}
+
+// QuotaLimiter defines the configuration of a limiter that allows a maximum
+// number of events per window with a minimum cooldown between them.
+type QuotaLimiter struct {
+	DailyCap int           `yaml:"daily_cap" env:"AUTH_GUEST_QUOTA_DAILY_CAP" desc:"The maximum number of renewals for the same share within the window." introductionVersion:"%%NEXT%%"`
+	Cooldown time.Duration `yaml:"cooldown" env:"AUTH_GUEST_QUOTA_COOLDOWN" desc:"The minimum time between two renewals for the same share. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
+	Window   time.Duration `yaml:"window" env:"AUTH_GUEST_QUOTA_WINDOW" desc:"The window over which the renewal quota is counted. See the Environment Variable Types description for more details." introductionVersion:"%%NEXT%%"`
 }
 
 const (

@@ -19,6 +19,7 @@ import (
 	provider "github.com/cs3org/go-cs3apis/cs3/storage/provider/v1beta1"
 	ocEvents "github.com/opencloud-eu/opencloud/pkg/events"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/config"
+	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/guard"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/jwt"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/pin"
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/service/storage"
@@ -134,22 +135,6 @@ func newToken(t *testing.T) (string, storage.Record) {
 	return tok.String(), rec
 }
 
-func newTokenFor(t *testing.T, shareID string) (string, storage.Record) {
-	t.Helper()
-	ts := token.NewTokenService()
-	tok, err := ts.Generate(shareID)
-	require.NoError(t, err)
-
-	rec := storage.Record{
-		ShareID:     shareID,
-		ShareIDHash: tok.ShareIDHash,
-		SecretHash:  tok.SecretHash(),
-		Expiry:      time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-	}
-
-	return tok.String(), rec
-}
-
 func newShareService(t *testing.T, gwc *cs3mocks.GatewayAPIClient) *AuthGuestService {
 	t.Helper()
 	return NewAuthGuestService(
@@ -168,6 +153,17 @@ func newAuthGuestService(t *testing.T, store storage.Manager, gwc *cs3mocks.Gate
 		GatewaySelector(newGatewayTestSelector(gwc)),
 		ServiceAccount(config.ServiceAccount{ServiceAccountID: "sa-id", ServiceAccountSecret: "sa-secret"}),
 		JWT(jwt.NewJwtService("test-secret", time.Hour)),
+		PinAndNonceTTL(time.Minute),
+		BackoffLimiter(config.BackoffLimiter{
+			MaxAttempts: 5,
+			BackoffBase: time.Second,
+			BackoffCap:  30 * time.Second,
+		}),
+		QuotaLimiter(config.QuotaLimiter{
+			Cooldown: time.Minute,
+			Window:   24 * time.Hour,
+			DailyCap: 20,
+		}),
 	)
 }
 
@@ -373,6 +369,14 @@ func TestVerifyTokenConflictIsAlreadyRedeemed(t *testing.T) {
 
 func newRenewService(t *testing.T, store storage.Manager, gwc *cs3mocks.GatewayAPIClient, publisher revaevents.Publisher) *AuthGuestService {
 	t.Helper()
+	return newRenewServiceWithLimiter(t, store, gwc, publisher, config.QuotaLimiter{
+		Window:   24 * time.Hour,
+		DailyCap: 100,
+	})
+}
+
+func newRenewServiceWithLimiter(t *testing.T, store storage.Manager, gwc *cs3mocks.GatewayAPIClient, publisher revaevents.Publisher, quota config.QuotaLimiter) *AuthGuestService {
+	t.Helper()
 	return NewAuthGuestService(
 		token.NewTokenService(),
 		store,
@@ -380,6 +384,13 @@ func newRenewService(t *testing.T, store storage.Manager, gwc *cs3mocks.GatewayA
 		ServiceAccount(config.ServiceAccount{ServiceAccountID: "sa-id", ServiceAccountSecret: "sa-secret"}),
 		JWT(jwt.NewJwtService("test-secret", 24*time.Hour)),
 		EventsPublisher(publisher),
+		PinAndNonceTTL(time.Hour),
+		BackoffLimiter(config.BackoffLimiter{
+			MaxAttempts: 5,
+			BackoffBase: time.Second,
+			BackoffCap:  30 * time.Second,
+		}),
+		QuotaLimiter(quota),
 	)
 }
 
@@ -390,9 +401,45 @@ func existingRecord() storage.Record {
 	}
 }
 
+// pinRecord returns a record holding a freshly issued nonce, together with the
+// nonce to pass to VerifyPin.
+func pinRecord(t *testing.T, pinHash string, pinExpiry time.Time, backoff guard.BackoffLimiterState, nonceExpiry time.Time) (storage.Record, string) {
+	t.Helper()
+
+	var state guard.NonceState
+	nonce, err := guard.NewNonce(time.Hour).Issue(&state, time.Now())
+	require.NoError(t, err)
+	if !nonceExpiry.IsZero() {
+		state.Expiry = nonceExpiry
+	}
+
+	return storage.Record{
+		ShareID:             testShareID,
+		ShareIDHash:         token.Hash(testShareID),
+		PinHash:             pinHash,
+		PinExpiry:           pinExpiry,
+		NonceState:          state,
+		BackoffLimiterState: backoff,
+	}, nonce
+}
+
+func validShareResponse() *collaboration.GetShareResponse {
+	return &collaboration.GetShareResponse{
+		Status: &rpc.Status{Code: rpc.Code_CODE_OK},
+		Share:  newGuestShare(time.Now().Add(time.Hour)),
+	}
+}
+
+func validSessionToken(t *testing.T) string {
+	t.Helper()
+	tok, _, err := jwt.NewJwtService("test-secret", time.Hour).Sign(testShareID)
+	require.NoError(t, err)
+	return tok
+}
+
 func TestRenewPersistsRecordAndPublishesEvent(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, rec := newToken(t)
+	_, rec := newToken(t)
 	require.NoError(t, store.Add(rec))
 
 	publisher := &testPublisher{}
@@ -403,7 +450,8 @@ func TestRenewPersistsRecordAndPublishesEvent(t *testing.T) {
 
 	s := newRenewService(t, store, gwc, publisher)
 
-	require.NoError(t, s.Renew(context.Background(), testShareID, tok, ""))
+	nonce, err := s.Renew(context.Background(), testShareID, validSessionToken(t))
+	require.NoError(t, err)
 
 	replaced, err := store.Get(token.Hash(testShareID))
 	require.NoError(t, err)
@@ -413,8 +461,11 @@ func TestRenewPersistsRecordAndPublishesEvent(t *testing.T) {
 	assert.NotEmpty(t, replaced.SecretHash)
 	assert.True(t, strings.HasPrefix(replaced.PinHash, "$argon2id$"))
 	assert.WithinDuration(t, time.Now().Add(guestLinkTokenTTL), replaced.Expiry, time.Minute)
-	assert.WithinDuration(t, time.Now().Add(guestPinTTL), replaced.PinExpiry, time.Minute)
+	assert.WithinDuration(t, time.Now().Add(time.Hour), replaced.PinExpiry, time.Minute)
+	assert.Equal(t, token.Hash(nonce), replaced.NonceState.Hash)
+	assert.NoError(t, guard.NewNonce(time.Hour).Verify(&replaced.NonceState, nonce, time.Now()))
 	assert.False(t, replaced.Redeemed)
+	assert.Zero(t, replaced.QuotaLimiterState.Count)
 
 	require.Len(t, publisher.published, 1)
 	ev, ok := publisher.published[0].(ocEvents.GuestTokenRenewed)
@@ -438,30 +489,111 @@ func TestRenewWithExpiredSessionToken(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
 	require.NoError(t, store.Add(existingRecord()))
 
-	jwtSvc := jwt.NewJwtService("test-secret", -time.Hour)
-	sessionToken, _, err := jwtSvc.Sign(testShareID)
+	// Signed with the same secret the service uses, but already expired.
+	sessionToken, _, err := jwt.NewJwtService("test-secret", -time.Hour).Sign(testShareID)
 	require.NoError(t, err)
 
 	publisher := &testPublisher{}
-	s := NewAuthGuestService(
-		token.NewTokenService(),
-		store,
-		GatewaySelector(newGatewayTestSelector(newGatewayMock(&collaboration.GetShareResponse{
-			Status: &rpc.Status{Code: rpc.Code_CODE_OK},
-			Share:  newGuestShare(time.Now().Add(time.Hour)),
-		}))),
-		ServiceAccount(config.ServiceAccount{ServiceAccountID: "sa-id", ServiceAccountSecret: "sa-secret"}),
-		JWT(jwtSvc),
-		EventsPublisher(publisher),
-	)
+	s := newRenewService(t, store, newGatewayMock(validShareResponse()), publisher)
 
-	require.NoError(t, s.Renew(context.Background(), testShareID, "", sessionToken))
+	nonce, err := s.Renew(context.Background(), testShareID, sessionToken)
+	require.NoError(t, err)
+	assert.NotEmpty(t, nonce)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.NotEmpty(t, got.SecretHash)
+	assert.NotEmpty(t, got.PinHash)
+	assert.False(t, got.Redeemed)
+
 	require.Len(t, publisher.published, 1)
+	ev, ok := publisher.published[0].(ocEvents.GuestTokenRenewed)
+	require.True(t, ok)
+	assert.NotEmpty(t, ev.Pin)
 }
 
-func TestRenewLinkTokenIgnoresRedeemedAndExpiry(t *testing.T) {
+func TestRenewValidSessionBypassesCooldown(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, rec := newToken(t)
+	rec := existingRecord()
+	rec.QuotaLimiterState = guard.QuotaLimiterState{
+		Count:       1,
+		NotBefore:   time.Now().Add(time.Minute),
+		WindowStart: time.Now(),
+	}
+	require.NoError(t, store.Add(rec))
+
+	gwc := newGatewayMock(validShareResponse())
+	s := newRenewServiceWithLimiter(t, store, gwc, &testPublisher{}, config.QuotaLimiter{
+		Cooldown: time.Minute,
+		Window:   24 * time.Hour,
+		DailyCap: 20,
+	})
+
+	nonce, err := s.Renew(context.Background(), testShareID, validSessionToken(t))
+	require.NoError(t, err)
+	assert.NotEmpty(t, nonce)
+	gwc.AssertCalled(t, "GetShare", mock.Anything, mock.Anything)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.QuotaLimiterState.Count)
+}
+
+func TestRenewWithoutSessionRotatesSilently(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	_, rec := newToken(t)
+	require.NoError(t, store.Add(rec))
+
+	publisher := &testPublisher{}
+	s := newRenewService(t, store, newGatewayMock(validShareResponse()), publisher)
+
+	nonce, err := s.Renew(context.Background(), testShareID, "")
+	require.NoError(t, err)
+	assert.Empty(t, nonce)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.NotEmpty(t, got.SecretHash)
+	assert.Empty(t, got.PinHash)
+	assert.Equal(t, 1, got.QuotaLimiterState.Count)
+
+	require.Len(t, publisher.published, 1)
+	ev, ok := publisher.published[0].(ocEvents.GuestTokenRenewed)
+	require.True(t, ok)
+	assert.Empty(t, ev.Pin)
+}
+
+func TestRenewWithoutSessionBlockedDuringCooldown(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	rec := existingRecord()
+	rec.QuotaLimiterState = guard.QuotaLimiterState{
+		Count:       20,
+		NotBefore:   time.Now().Add(time.Minute),
+		WindowStart: time.Now(),
+	}
+	require.NoError(t, store.Add(rec))
+
+	gwc := newGatewayMock(validShareResponse())
+	s := newRenewServiceWithLimiter(t, store, gwc, &testPublisher{}, config.QuotaLimiter{
+		Cooldown: time.Minute,
+		Window:   24 * time.Hour,
+		DailyCap: 20,
+	})
+
+	_, err := s.Renew(context.Background(), testShareID, "")
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrTooManyAttempts)
+	assert.Greater(t, ge.RetryAfter, time.Duration(0))
+
+	gwc.AssertNotCalled(t, "GetShare", mock.Anything, mock.Anything)
+}
+
+func TestRenewIgnoresRedeemedAndExpiry(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	_, rec := newToken(t)
 	rec.Redeemed = true
 	rec.Expiry = time.Now().Add(-time.Hour)
 	require.NoError(t, store.Add(rec))
@@ -471,45 +603,52 @@ func TestRenewLinkTokenIgnoresRedeemedAndExpiry(t *testing.T) {
 		Share:  newGuestShare(time.Now().Add(time.Hour)),
 	}), &testPublisher{})
 
-	require.NoError(t, s.Renew(context.Background(), testShareID, tok, ""))
+	_, err := s.Renew(context.Background(), testShareID, "")
+	require.NoError(t, err)
 }
 
-func TestRenewInvalidCredentials(t *testing.T) {
+// conflictOnceStore returns ErrConflict on the first UpdateFrom, simulating a
+// concurrent modification, then delegates to the wrapped Manager.
+type conflictOnceStore struct {
+	storage.Manager
+	updates int
+}
+
+func (s *conflictOnceStore) UpdateFrom(seen storage.Record, fn func(*storage.Record) error) (*storage.Record, error) {
+	s.updates++
+	if s.updates == 1 {
+		return nil, storage.ErrConflict
+	}
+	return s.Manager.UpdateFrom(seen, fn)
+}
+
+func TestRenewRetriesOnConflict(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	s := newRenewService(t, store, newGatewayMock(&collaboration.GetShareResponse{}), &testPublisher{})
+	_, rec := newToken(t)
+	require.NoError(t, store.Add(rec))
 
-	otherSession, _, err := jwt.NewJwtService("test-secret", 24*time.Hour).Sign("other-share")
+	publisher := &testPublisher{}
+	gwc := newGatewayMock(validShareResponse())
+	flaky := &conflictOnceStore{Manager: store}
+	s := newRenewService(t, flaky, gwc, publisher)
+
+	nonce, err := s.Renew(context.Background(), testShareID, validSessionToken(t))
 	require.NoError(t, err)
-	otherToken, _ := newTokenFor(t, "other-share")
+	assert.NotEmpty(t, nonce)
+	assert.Equal(t, 2, flaky.updates)
 
-	tests := []struct {
-		name         string
-		shareID      string
-		token        string
-		sessionToken string
-		wantErr      error
-	}{
-		{name: "no credentials", shareID: testShareID, wantErr: jwt.ErrInvalidSession},
-		{name: "invalid session", shareID: testShareID, sessionToken: "garbage", wantErr: jwt.ErrInvalidSession},
-		{name: "invalid link token prefers token", shareID: testShareID, token: "garbage", sessionToken: "garbage", wantErr: token.ErrInvalidToken},
-		{name: "session for another share", shareID: testShareID, sessionToken: otherSession, wantErr: ErrPermissionMismatch},
-		{name: "token for another share", shareID: testShareID, token: otherToken, wantErr: ErrPermissionMismatch},
-	}
+	renewed, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.Equal(t, rec.Revision+1, renewed.Revision)
+	assert.NoError(t, guard.NewNonce(time.Hour).Verify(&renewed.NonceState, nonce, time.Now()))
+	require.Len(t, publisher.published, 1)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := s.Renew(context.Background(), tt.shareID, tt.token, tt.sessionToken)
-
-			var ge *GuestError
-			require.ErrorAs(t, err, &ge)
-			assert.ErrorIs(t, ge.ErrorType, tt.wantErr)
-		})
-	}
+	// The remote share is validated only once; the retry re-reads the record only.
+	gwc.AssertNumberOfCalls(t, "GetShare", 1)
 }
 
 func TestRenewRecordNotFound(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, _ := newToken(t)
 
 	publisher := &testPublisher{}
 	s := newRenewService(t, store, newGatewayMock(&collaboration.GetShareResponse{
@@ -517,7 +656,7 @@ func TestRenewRecordNotFound(t *testing.T) {
 		Share:  newGuestShare(time.Now().Add(time.Hour)),
 	}), publisher)
 
-	err := s.Renew(context.Background(), testShareID, tok, "")
+	_, err := s.Renew(context.Background(), testShareID, "")
 	require.Error(t, err)
 
 	var ge *GuestError
@@ -534,7 +673,7 @@ func TestRenewWithoutPublisher(t *testing.T) {
 
 	s := newRenewService(t, store, newGatewayMock(&collaboration.GetShareResponse{}), nil)
 
-	err := s.Renew(context.Background(), testShareID, "irrelevant", "")
+	_, err := s.Renew(context.Background(), testShareID, "")
 	require.ErrorIs(t, err, ErrEventsNotConfigured)
 
 	got, err := store.Get(token.Hash(testShareID))
@@ -545,7 +684,7 @@ func TestRenewWithoutPublisher(t *testing.T) {
 
 func TestRenewRollsBackOnPublishFailure(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, rec := newToken(t)
+	_, rec := newToken(t)
 	require.NoError(t, store.Add(rec))
 
 	publisher := &testPublisher{err: errors.New("publish failed")}
@@ -556,7 +695,7 @@ func TestRenewRollsBackOnPublishFailure(t *testing.T) {
 
 	s := newRenewService(t, store, gwc, publisher)
 
-	err := s.Renew(context.Background(), testShareID, tok, "")
+	_, err := s.Renew(context.Background(), testShareID, validSessionToken(t))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "publish failed")
 
@@ -570,7 +709,7 @@ func TestRenewRollsBackOnPublishFailure(t *testing.T) {
 
 func TestRenewRollbackConflictKeepsConcurrentChange(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, rec := newToken(t)
+	_, rec := newToken(t)
 	require.NoError(t, store.Add(rec))
 
 	publisher := &mutatingPublisher{testPublisher: testPublisher{err: errors.New("publish failed")}}
@@ -586,7 +725,7 @@ func TestRenewRollbackConflictKeepsConcurrentChange(t *testing.T) {
 		Share:  newGuestShare(time.Now().Add(time.Hour)),
 	}), publisher)
 
-	err := s.Renew(context.Background(), testShareID, tok, "")
+	_, err := s.Renew(context.Background(), testShareID, validSessionToken(t))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "publish failed")
 	assert.Contains(t, err.Error(), "rollback failed")
@@ -598,14 +737,14 @@ func TestRenewRollbackConflictKeepsConcurrentChange(t *testing.T) {
 
 func TestRenewShareNotFound(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, rec := newToken(t)
+	_, rec := newToken(t)
 	require.NoError(t, store.Add(rec))
 
 	s := newRenewService(t, store, newGatewayMock(&collaboration.GetShareResponse{
 		Status: &rpc.Status{Code: rpc.Code_CODE_NOT_FOUND},
 	}), &testPublisher{})
 
-	err := s.Renew(context.Background(), testShareID, tok, "")
+	_, err := s.Renew(context.Background(), testShareID, "")
 	require.Error(t, err)
 
 	var ge *GuestError
@@ -616,7 +755,7 @@ func TestRenewShareNotFound(t *testing.T) {
 
 func TestRenewShareExpired(t *testing.T) {
 	store := storage.NewFileManager(t.TempDir())
-	tok, rec := newToken(t)
+	_, rec := newToken(t)
 	require.NoError(t, store.Add(rec))
 
 	s := newRenewService(t, store, newGatewayMock(&collaboration.GetShareResponse{
@@ -624,7 +763,7 @@ func TestRenewShareExpired(t *testing.T) {
 		Share:  newGuestShare(time.Now().Add(-time.Hour)),
 	}), &testPublisher{})
 
-	err := s.Renew(context.Background(), testShareID, tok, "")
+	_, err := s.Renew(context.Background(), testShareID, "")
 	require.Error(t, err)
 
 	var ge *GuestError
@@ -633,24 +772,122 @@ func TestRenewShareExpired(t *testing.T) {
 	assert.Equal(t, testShareID, ge.ShareID)
 }
 
+func TestRenewRecordsCooldown(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	_, rec := newToken(t)
+	require.NoError(t, store.Add(rec))
+
+	s := newRenewServiceWithLimiter(t, store, newGatewayMock(validShareResponse()), &testPublisher{}, config.QuotaLimiter{
+		Cooldown: time.Minute,
+		Window:   24 * time.Hour,
+		DailyCap: 20,
+	})
+
+	_, err := s.Renew(context.Background(), testShareID, "")
+	require.NoError(t, err)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.QuotaLimiterState.Count)
+	assert.False(t, got.QuotaLimiterState.WindowStart.IsZero())
+	assert.WithinDuration(t, time.Now().Add(time.Minute), got.QuotaLimiterState.NotBefore, time.Second)
+}
+
+func TestRenewBlockedDuringCooldown(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	_, rec := newToken(t)
+	rec.QuotaLimiterState = guard.QuotaLimiterState{
+		Count:       1,
+		NotBefore:   time.Now().Add(time.Minute),
+		WindowStart: time.Now(),
+	}
+	require.NoError(t, store.Add(rec))
+
+	gwc := newGatewayMock(validShareResponse())
+	s := newRenewServiceWithLimiter(t, store, gwc, &testPublisher{}, config.QuotaLimiter{
+		Cooldown: time.Minute,
+		Window:   24 * time.Hour,
+		DailyCap: 20,
+	})
+
+	_, err := s.Renew(context.Background(), testShareID, "")
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrTooManyAttempts)
+	assert.Greater(t, ge.RetryAfter, time.Duration(0))
+
+	gwc.AssertNotCalled(t, "GetShare", mock.Anything, mock.Anything)
+}
+
+func TestRenewDailyCap(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	_, rec := newToken(t)
+	rec.QuotaLimiterState = guard.QuotaLimiterState{
+		Count:       20,
+		NotBefore:   time.Now().Add(time.Minute),
+		WindowStart: time.Now(),
+	}
+	require.NoError(t, store.Add(rec))
+
+	gwc := newGatewayMock(validShareResponse())
+	s := newRenewServiceWithLimiter(t, store, gwc, &testPublisher{}, config.QuotaLimiter{
+		Cooldown: time.Minute,
+		Window:   24 * time.Hour,
+		DailyCap: 20,
+	})
+
+	_, err := s.Renew(context.Background(), testShareID, "")
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrTooManyAttempts)
+	assert.Greater(t, ge.RetryAfter, time.Duration(0))
+
+	gwc.AssertNotCalled(t, "GetShare", mock.Anything, mock.Anything)
+}
+
+func TestRotateGuestTokenBlockedReturnsRetryAfter(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	tokStr, rec := newToken(t)
+	rec.QuotaLimiterState = guard.QuotaLimiterState{
+		Count:       1,
+		NotBefore:   time.Now().Add(time.Minute),
+		WindowStart: time.Now(),
+	}
+	require.NoError(t, store.Add(rec))
+
+	s := newRenewServiceWithLimiter(t, store, newGatewayMock(validShareResponse()), &testPublisher{}, config.QuotaLimiter{
+		Cooldown: time.Minute,
+		Window:   24 * time.Hour,
+		DailyCap: 20,
+	})
+
+	tok, err := s.tokenSvc.Parse(tokStr)
+	require.NoError(t, err)
+
+	_, _, _, err = s.rotateGuestToken(token.Hash(testShareID), tok, "pin-hash", time.Now(), false)
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrTooManyAttempts)
+	assert.Greater(t, ge.RetryAfter, time.Duration(0))
+}
+
 func TestVerifyPinSuccess(t *testing.T) {
 	pinHash, err := pin.Hash("123456")
 	require.NoError(t, err)
 
+	rec, nonce := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, time.Time{})
 	store := storage.NewFileManager(t.TempDir())
-	require.NoError(t, store.Add(storage.Record{
-		ShareID:     testShareID,
-		ShareIDHash: token.Hash(testShareID),
-		PinHash:     pinHash,
-		PinExpiry:   time.Now().Add(time.Minute),
-	}))
+	require.NoError(t, store.Add(rec))
 
-	s := newAuthGuestService(t, store, newGatewayMock(&collaboration.GetShareResponse{
-		Status: &rpc.Status{Code: rpc.Code_CODE_OK},
-		Share:  newGuestShare(time.Now().Add(time.Hour)),
-	}))
+	s := newAuthGuestService(t, store, newGatewayMock(validShareResponse()))
 
-	result, err := s.VerifyPin(context.Background(), testShareID, "123456")
+	result, err := s.VerifyPin(context.Background(), testShareID, "123456", nonce)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.SessionToken)
 	assert.WithinDuration(t, time.Now().Add(time.Hour), result.ExpiresAt, 2*time.Second)
@@ -660,57 +897,67 @@ func TestVerifyPinSuccess(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got.PinHash)
 	assert.True(t, got.PinExpiry.IsZero())
+	assert.Empty(t, got.NonceState.Hash)
 }
 
 func TestVerifyPinErrors(t *testing.T) {
 	pinHash, err := pin.Hash("123456")
 	require.NoError(t, err)
 
-	validRecord := storage.Record{
-		ShareID:     testShareID,
-		ShareIDHash: token.Hash(testShareID),
-		PinHash:     pinHash,
-		PinExpiry:   time.Now().Add(time.Minute),
+	validShare := validShareResponse()
+	shareNotFound := &collaboration.GetShareResponse{
+		Status: &rpc.Status{Code: rpc.Code_CODE_NOT_FOUND},
 	}
-	expiredRecord := storage.Record{
-		ShareID:     testShareID,
-		ShareIDHash: token.Hash(testShareID),
-		PinHash:     pinHash,
-		PinExpiry:   time.Now().Add(-time.Minute),
-	}
-	noPinRecord := storage.Record{ShareID: testShareID, ShareIDHash: token.Hash(testShareID)}
-
-	validShare := &collaboration.GetShareResponse{
+	shareExpired := &collaboration.GetShareResponse{
 		Status: &rpc.Status{Code: rpc.Code_CODE_OK},
-		Share:  newGuestShare(time.Now().Add(time.Hour)),
+		Share:  newGuestShare(time.Now().Add(-time.Hour)),
+	}
+
+	freshRecord := func(t *testing.T) (storage.Record, string) {
+		return pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, time.Time{})
 	}
 
 	tests := []struct {
 		name     string
 		pin      string
-		rec      storage.Record
+		build    func(t *testing.T) (storage.Record, string)
 		missing  bool
 		response *collaboration.GetShareResponse
 		wantErr  error
 	}{
 		{
-			name:     "invalid pin",
-			pin:      "000000",
-			rec:      validRecord,
+			name: "invalid pin",
+			pin:  "000000",
+			build: func(t *testing.T) (storage.Record, string) {
+				return freshRecord(t)
+			},
 			response: validShare,
 			wantErr:  ErrPinInvalid,
 		},
 		{
-			name:     "expired pin",
-			pin:      "123456",
-			rec:      expiredRecord,
+			name: "expired pin",
+			pin:  "123456",
+			build: func(t *testing.T) (storage.Record, string) {
+				return pinRecord(t, pinHash, time.Now().Add(-time.Minute), guard.BackoffLimiterState{}, time.Time{})
+			},
 			response: validShare,
 			wantErr:  ErrPinExpired,
 		},
 		{
-			name:     "no pin set",
-			pin:      "123456",
-			rec:      noPinRecord,
+			name: "expired nonce",
+			pin:  "123456",
+			build: func(t *testing.T) (storage.Record, string) {
+				return pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, time.Now().Add(-time.Minute))
+			},
+			response: validShare,
+			wantErr:  ErrNonceExpired,
+		},
+		{
+			name: "no pin set",
+			pin:  "123456",
+			build: func(t *testing.T) (storage.Record, string) {
+				return pinRecord(t, "", time.Time{}, guard.BackoffLimiterState{}, time.Time{})
+			},
 			response: validShare,
 			wantErr:  ErrPinInvalid,
 		},
@@ -719,39 +966,46 @@ func TestVerifyPinErrors(t *testing.T) {
 			pin:      "123456",
 			missing:  true,
 			response: validShare,
-			wantErr:  ErrPinInvalid,
+			wantErr:  storage.ErrNotFound,
 		},
 		{
 			name: "share not found",
 			pin:  "123456",
-			rec:  validRecord,
-			response: &collaboration.GetShareResponse{
-				Status: &rpc.Status{Code: rpc.Code_CODE_NOT_FOUND},
+			build: func(t *testing.T) (storage.Record, string) {
+				return freshRecord(t)
 			},
-			wantErr: ErrShareNotFound,
+			response: shareNotFound,
+			wantErr:  ErrShareNotFound,
 		},
 		{
 			name: "share expired",
 			pin:  "123456",
-			rec:  validRecord,
-			response: &collaboration.GetShareResponse{
-				Status: &rpc.Status{Code: rpc.Code_CODE_OK},
-				Share:  newGuestShare(time.Now().Add(-time.Hour)),
+			build: func(t *testing.T) (storage.Record, string) {
+				return freshRecord(t)
 			},
-			wantErr: ErrShareExpired,
+			response: shareExpired,
+			wantErr:  ErrShareExpired,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var (
+				rec   storage.Record
+				nonce string
+			)
+			if !tt.missing {
+				rec, nonce = tt.build(t)
+			}
+
 			store := storage.NewFileManager(t.TempDir())
 			if !tt.missing {
-				require.NoError(t, store.Add(tt.rec))
+				require.NoError(t, store.Add(rec))
 			}
 
 			s := newAuthGuestService(t, store, newGatewayMock(tt.response))
 
-			_, err := s.VerifyPin(context.Background(), testShareID, tt.pin)
+			_, err := s.VerifyPin(context.Background(), testShareID, tt.pin, nonce)
 			require.Error(t, err)
 
 			var ge *GuestError
@@ -762,30 +1016,219 @@ func TestVerifyPinErrors(t *testing.T) {
 			if !tt.missing {
 				got, err := store.Get(token.Hash(testShareID))
 				require.NoError(t, err)
-				assert.Equal(t, tt.rec.PinHash, got.PinHash)
-				assert.WithinDuration(t, tt.rec.PinExpiry, got.PinExpiry, time.Second)
-				assert.Equal(t, tt.rec.Redeemed, got.Redeemed)
+				assert.Equal(t, rec.PinHash, got.PinHash)
+				assert.WithinDuration(t, rec.PinExpiry, got.PinExpiry, time.Second)
+				assert.Equal(t, rec.Redeemed, got.Redeemed)
 			}
 		})
 	}
+}
+
+func TestVerifyPinNonceMismatch(t *testing.T) {
+	pinHash, err := pin.Hash("123456")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name  string
+		nonce string
+	}{
+		{name: "missing nonce", nonce: ""},
+		{name: "wrong nonce", nonce: "wrong-nonce"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec, _ := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, time.Time{})
+
+			store := storage.NewFileManager(t.TempDir())
+			require.NoError(t, store.Add(rec))
+
+			s := newAuthGuestService(t, store, newGatewayMock(validShareResponse()))
+
+			_, err := s.VerifyPin(context.Background(), testShareID, "123456", tt.nonce)
+			require.Error(t, err)
+
+			var ge *GuestError
+			require.ErrorAs(t, err, &ge)
+			assert.ErrorIs(t, ge.ErrorType, ErrNonceInvalid)
+
+			got, err := store.Get(token.Hash(testShareID))
+			require.NoError(t, err)
+			assert.Equal(t, rec.PinHash, got.PinHash)
+			assert.NotEmpty(t, got.NonceState.Hash)
+		})
+	}
+}
+
+func TestVerifyPinNonceRejectedBeforeGateway(t *testing.T) {
+	pinHash, err := pin.Hash("123456")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		override string
+		expiry   time.Time
+		wantErr  error
+	}{
+		{name: "wrong nonce", override: "wrong-nonce", wantErr: ErrNonceInvalid},
+		{name: "expired nonce", expiry: time.Now().Add(-time.Minute), wantErr: ErrNonceExpired},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec, issued := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, tt.expiry)
+
+			store := storage.NewFileManager(t.TempDir())
+			require.NoError(t, store.Add(rec))
+
+			gwc := newGatewayMock(validShareResponse())
+			s := newAuthGuestService(t, store, gwc)
+
+			nonce := tt.override
+			if nonce == "" {
+				nonce = issued
+			}
+
+			_, err := s.VerifyPin(context.Background(), testShareID, "123456", nonce)
+			require.Error(t, err)
+
+			var ge *GuestError
+			require.ErrorAs(t, err, &ge)
+			assert.ErrorIs(t, ge.ErrorType, tt.wantErr)
+
+			gwc.AssertNotCalled(t, "GetShare", mock.Anything, mock.Anything)
+			gwc.AssertNotCalled(t, "Authenticate", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestVerifyPinFailedAttemptSetsBackoff(t *testing.T) {
+	pinHash, err := pin.Hash("123456")
+	require.NoError(t, err)
+
+	rec, nonce := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, time.Time{})
+	store := storage.NewFileManager(t.TempDir())
+	require.NoError(t, store.Add(rec))
+
+	s := newAuthGuestService(t, store, newGatewayMock(validShareResponse()))
+
+	_, err = s.VerifyPin(context.Background(), testShareID, "000000", nonce)
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrPinInvalid)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.BackoffLimiterState.Count)
+	assert.WithinDuration(t, time.Now().Add(time.Second), got.BackoffLimiterState.NotBefore, time.Second)
+	assert.NotEmpty(t, got.PinHash, "PIN must not be invalidated before MaxAttempts")
+}
+
+func TestVerifyPinBlockedDuringBackoff(t *testing.T) {
+	pinHash, err := pin.Hash("123456")
+	require.NoError(t, err)
+
+	rec, nonce := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{
+		Count:     1,
+		NotBefore: time.Now().Add(time.Minute),
+	}, time.Time{})
+
+	store := storage.NewFileManager(t.TempDir())
+	require.NoError(t, store.Add(rec))
+
+	gwc := newGatewayMock(validShareResponse())
+	s := newAuthGuestService(t, store, gwc)
+
+	_, err = s.VerifyPin(context.Background(), testShareID, "123456", nonce)
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrTooManyAttempts)
+	assert.Greater(t, ge.RetryAfter, time.Duration(0))
+
+	gwc.AssertNotCalled(t, "GetShare", mock.Anything, mock.Anything)
+}
+
+func TestVerifyPinAttemptBlockedReturnsRetryAfter(t *testing.T) {
+	rec, nonce := pinRecord(t, "", time.Now().Add(time.Minute), guard.BackoffLimiterState{
+		Count:     1,
+		NotBefore: time.Now().Add(time.Minute),
+	}, time.Time{})
+	s := newAuthGuestService(t, storage.NewFileManager(t.TempDir()), newGatewayMock(validShareResponse()))
+
+	ok, err := s.verifyPinAttempt(&rec, "123456", nonce)
+	require.False(t, ok)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrTooManyAttempts)
+	assert.Greater(t, ge.RetryAfter, time.Duration(0))
+}
+
+func TestVerifyPinInvalidatedAfterMaxAttempts(t *testing.T) {
+	pinHash, err := pin.Hash("123456")
+	require.NoError(t, err)
+
+	rec, nonce := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{
+		Count:     4,
+		NotBefore: time.Now().Add(-time.Second),
+	}, time.Time{})
+
+	store := storage.NewFileManager(t.TempDir())
+	require.NoError(t, store.Add(rec))
+
+	s := newAuthGuestService(t, store, newGatewayMock(validShareResponse()))
+
+	_, err = s.VerifyPin(context.Background(), testShareID, "000000", nonce)
+	require.Error(t, err)
+
+	var ge *GuestError
+	require.ErrorAs(t, err, &ge)
+	assert.ErrorIs(t, ge.ErrorType, ErrPinInvalid)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.Empty(t, got.PinHash)
+	assert.Empty(t, got.NonceState.Hash)
+
+	// The cleared nonce rejects the next attempt.
+	_, err = s.VerifyPin(context.Background(), testShareID, "123456", nonce)
+	require.Error(t, err)
+
+	var ge2 *GuestError
+	require.ErrorAs(t, err, &ge2)
+	assert.ErrorIs(t, ge2.ErrorType, ErrNonceInvalid)
+}
+
+func TestRenewResetsPinAttempts(t *testing.T) {
+	store := storage.NewFileManager(t.TempDir())
+	_, rec := newToken(t)
+	rec.BackoffLimiterState = guard.BackoffLimiterState{Count: 3, NotBefore: time.Now().Add(time.Minute)}
+	require.NoError(t, store.Add(rec))
+
+	s := newRenewService(t, store, newGatewayMock(validShareResponse()), &testPublisher{})
+
+	_, err := s.Renew(context.Background(), testShareID, validSessionToken(t))
+	require.NoError(t, err)
+
+	got, err := store.Get(token.Hash(testShareID))
+	require.NoError(t, err)
+	assert.Zero(t, got.BackoffLimiterState.Count)
+	assert.True(t, got.BackoffLimiterState.NotBefore.IsZero())
 }
 
 func TestVerifyPinSingleUseConcurrent(t *testing.T) {
 	pinHash, err := pin.Hash("123456")
 	require.NoError(t, err)
 
+	rec, nonce := pinRecord(t, pinHash, time.Now().Add(time.Minute), guard.BackoffLimiterState{}, time.Time{})
 	store := storage.NewFileManager(t.TempDir())
-	require.NoError(t, store.Add(storage.Record{
-		ShareID:     testShareID,
-		ShareIDHash: token.Hash(testShareID),
-		PinHash:     pinHash,
-		PinExpiry:   time.Now().Add(time.Minute),
-	}))
+	require.NoError(t, store.Add(rec))
 
-	s := newAuthGuestService(t, store, newGatewayMock(&collaboration.GetShareResponse{
-		Status: &rpc.Status{Code: rpc.Code_CODE_OK},
-		Share:  newGuestShare(time.Now().Add(time.Hour)),
-	}))
+	s := newAuthGuestService(t, store, newGatewayMock(validShareResponse()))
 
 	const workers = 10
 	var (
@@ -796,7 +1239,7 @@ func TestVerifyPinSingleUseConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := s.VerifyPin(context.Background(), testShareID, "123456"); err == nil {
+			if _, err := s.VerifyPin(context.Background(), testShareID, "123456", nonce); err == nil {
 				success.Add(1)
 			}
 		}()

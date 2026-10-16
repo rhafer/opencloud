@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// ErrInvalidSession is returned when a session token cannot be verified.
 var ErrInvalidSession = errors.New("invalid session")
 
 type jwtClaims struct {

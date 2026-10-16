@@ -13,6 +13,19 @@ import (
 	"github.com/opencloud-eu/opencloud/services/auth-guest/pkg/config"
 )
 
+// Default values for the guard policies (nonce, backoff and quota limiters).
+const (
+	defaultSessionCookieName   = "__Host-oc_guest_session"
+	defaultNonceCookieBaseName = "__Host-oc_guest_nonce"
+	defaultPinAndNonceTTL      = 30 * time.Minute
+	defaultBackoffMaxAttempts  = 5
+	defaultBackoffBase         = time.Second
+	defaultBackoffCap          = 30 * time.Second
+	defaultQuotaCooldown       = time.Minute
+	defaultQuotaWindow         = 24 * time.Hour
+	defaultQuotaDailyCap       = 20
+)
+
 // FullDefaultConfig returns the full default config
 func FullDefaultConfig() *config.Config {
 	cfg := DefaultConfig()
@@ -60,8 +73,22 @@ func DefaultConfig() *config.Config {
 			RootDirectory: path.Join(defaults.BaseDataPath(), "auth-guest"),
 		},
 		JWT: config.JWT{
-			CookieName: "__Host-oc_guest_session",
+			CookieName: defaultSessionCookieName,
 			TTL:        24 * time.Hour,
+		},
+		Nonce: config.Nonce{
+			CookieBaseName: defaultNonceCookieBaseName,
+		},
+		PinAndNonceTTL: defaultPinAndNonceTTL,
+		BackoffLimiter: config.BackoffLimiter{
+			MaxAttempts: defaultBackoffMaxAttempts,
+			BackoffBase: defaultBackoffBase,
+			BackoffCap:  defaultBackoffCap,
+		},
+		QuotaLimiter: config.QuotaLimiter{
+			DailyCap: defaultQuotaDailyCap,
+			Cooldown: defaultQuotaCooldown,
+			Window:   defaultQuotaWindow,
 		},
 	}
 }
@@ -89,6 +116,31 @@ func EnsureDefaults(cfg *config.Config) {
 
 	if cfg.Commons != nil {
 		cfg.HTTP.TLS = cfg.Commons.HTTPServiceTLS
+	}
+
+	if cfg.Nonce.CookieBaseName == "" {
+		cfg.Nonce.CookieBaseName = defaultNonceCookieBaseName
+	}
+	if cfg.PinAndNonceTTL <= 0 {
+		cfg.PinAndNonceTTL = defaultPinAndNonceTTL
+	}
+	if cfg.BackoffLimiter.MaxAttempts <= 0 {
+		cfg.BackoffLimiter.MaxAttempts = defaultBackoffMaxAttempts
+	}
+	if cfg.BackoffLimiter.BackoffBase <= 0 {
+		cfg.BackoffLimiter.BackoffBase = defaultBackoffBase
+	}
+	if cfg.BackoffLimiter.BackoffCap <= 0 {
+		cfg.BackoffLimiter.BackoffCap = defaultBackoffCap
+	}
+	if cfg.QuotaLimiter.Cooldown <= 0 {
+		cfg.QuotaLimiter.Cooldown = defaultQuotaCooldown
+	}
+	if cfg.QuotaLimiter.Window <= 0 {
+		cfg.QuotaLimiter.Window = defaultQuotaWindow
+	}
+	if cfg.QuotaLimiter.DailyCap <= 0 {
+		cfg.QuotaLimiter.DailyCap = defaultQuotaDailyCap
 	}
 }
 
