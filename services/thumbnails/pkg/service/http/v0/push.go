@@ -40,18 +40,9 @@ var outputContentTypes = map[string]string{
 // encoder for, as opposed to an encode that went wrong.
 var errFormatUnsupported = fmt.Errorf("format not supported by this build")
 
-// pushHandler handles POST requests for the imagor-like push-based thumbnail endpoint.
-// Path patterns (operation and format are both optional; absent operation is the default
-// center-crop fill, absent format keeps the input's own format):
-//   - POST /unsafe(/fill|/fit-in|/stretch)/{W}x{H}(/filters:{filters})
-//
-// The filters segment is captured whole and parsed by outputFormatFromFilters; only the
-// format filter is meaningful to this executor, other filters are ignored. When no format
-// filter is present the input's own format is preserved, as imagor does it, and the
-// backend that will decode the image says which format that is. The answers are imagor's:
-// 400 for a malformed request, 406 for a source it cannot read or a format it cannot
-// write, 422 for an image above the configured maximum dimensions, 429 when the
-// concurrency limit is reached.
+// pushHandler answers POST /unsafe(/fill|/fit-in|/stretch)/{W}x{H}(/filters:{filters}),
+// imagor's path and imagor's status codes, which the README spells out. Of the
+// filters only format and no_upscale mean anything here.
 func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 	ok, retryAfter := s.limiter.acquire()
 	if !ok {
@@ -82,9 +73,7 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// the part is read into memory to be decoded, so the body is bounded before
-	// anything reads it; webdav sends no more than its own input limit, this is
-	// the guard for everything else that reaches the port
+	// the part is read into memory to decode it, so bound the body first
 	if s.maxBody > 0 {
 		r.Body = http.MaxBytesReader(w, r.Body, int64(s.maxBody))
 	}
@@ -231,8 +220,7 @@ func (s Thumbnails) serveAnimation(w http.ResponseWriter, imgData []byte, req re
 		return
 	}
 
-	// the frames are decoded next, and a gif's frames may declare a size of
-	// their own, so what the blocks say decides before anything allocates
+	// a frame may declare a size of its own, which the screen guard cannot see
 	frames, widest, tallest, err := gifFrames(imgData)
 	if err != nil {
 		s.logger.Debug().Err(err).Msg("could not read the gif blocks")

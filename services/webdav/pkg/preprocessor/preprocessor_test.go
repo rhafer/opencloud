@@ -22,10 +22,8 @@ func TestPreprocessor(t *testing.T) {
 
 const ggsThumbnailPath = "_slide0/geogebra_thumbnail.png"
 
-// ggsWithEntry is a ggs container whose thumbnail entry deflates size bytes of
-// zeros into almost nothing. lieAboutSize patches the sizes the zip declares
-// down to one byte, which is what a crafted file does to get past a check that
-// trusts the header.
+// ggsWithEntry deflates size bytes of zeros into a ggs container. lieAboutSize
+// patches the declared sizes down to one byte, the way a crafted file does.
 func ggsWithEntry(size int, lieAboutSize bool) []byte {
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
@@ -90,9 +88,7 @@ var _ = Describe("preprocessor", func() {
 		It("refuses an entry whose declared size lies about the expansion", func() {
 			decoder := GgsDecoder{thumbnailpath: ggsThumbnailPath, maxSize: 1 << 20}
 
-			// archive/zip compares what it decompresses against the declared
-			// size as it reads, so a patched header is refused there and the
-			// read stays bounded by the declaration either way
+			// archive/zip refuses a patched header while reading, so the read stays bounded
 			img, err := decoder.Convert(bytes.NewReader(ggsWithEntry(8<<20, true)))
 			Expect(err).To(HaveOccurred())
 			Expect(img).To(BeNil())

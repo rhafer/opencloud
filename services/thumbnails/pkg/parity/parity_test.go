@@ -19,8 +19,7 @@ type parityCase struct {
 	want               string
 	generatorOverrides map[string]override
 
-	// probe adds what the header cannot say, like which region a crop kept, to
-	// the answer the generators are compared on
+	// probe adds to the answer what the header cannot say, like a crop position
 	probe func(data []byte) string
 
 	// for requests a multipart image post cannot express

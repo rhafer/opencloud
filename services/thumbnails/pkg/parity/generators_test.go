@@ -98,12 +98,11 @@ type answer struct {
 	// the response body, for a case that probes more than the header says
 	data []byte
 
-	// contentType is only part of the answer when it disagrees with the format
-	// the body is in, which is what a client would trip over
+	// part of the answer only when it disagrees with the format the body is in
 	contentType string
 }
 
-// typeForFormat is the Content-Type a body of that format has to be served as.
+// typeForFormat is the Content-Type a body of that format is served as.
 var typeForFormat = map[string]string{
 	"png":  "image/png",
 	"jpeg": "image/jpeg",

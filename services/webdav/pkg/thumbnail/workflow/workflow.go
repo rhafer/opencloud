@@ -540,31 +540,14 @@ func (w *ThumbnailWorkflow) sourceImage(ctx context.Context, ref *providerv1beta
 	return bytes.NewReader(img.Data), img.ContentType, func() {}, nil
 }
 
-// matchOperation resolves the generator resize/crop operation for a request from
-// the client's processor and the legacy "a" flag. A processor it knows always
-// wins; without one, or with a name nobody knows, the default depends on the
-// source type (gifs are resized, everything else is filled). webdav has already snapped the box
-// onto a configured resolution; this only chooses how to fit within that box:
-//   - resize            -> stretch (distort to the exact box)
-//   - fill              -> fill (center-crop to the box)
-//   - fit / fit-in      -> fit-in (preserve aspect, fit in box, never upscale)
-//   - thumbnail         -> fill (legacy alias; crops to the exact square box)
-//   - (none), gif       -> stretch (resize for gifs)
-//   - (none), non-gif   -> fill (default = thumbnail = fill)
-//
-// "thumbnail" and "fit" are legacy aliases for "fill" and "fit-in". Naming one of
-// them decides the behavior on its own, so "a" is overruled and "scalingup" is
-// ignored either way. The second return value reports whether upscaling must be
-// suppressed (no_upscale): only fit-in never enlarges its source, so it is true
-// exactly for the fit/fit-in processors; fill, thumbnail and resize all allow the
-// generator to enlarge a small source to fill the snapped box. The third return
-// value reports whether the legacy "a" flag was ignored because an explicit
-// processor overrode it with a different behavior, so the caller can tell the
-// client via a response header.
-func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeType string) (string, bool, bool) {
+// matchOperation picks how to fit within the box webdav already snapped. A
+// processor the client named wins, "thumbnail" and "fit" being legacy aliases for
+// fill and fit-in; without one, an unconstrained axis, then "a", then the source
+// type decide, and "scalingup" is ignored throughout. Only fit-in never enlarges
+// its source, so it is the one operation that suppresses upscaling.
+func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeType string) (operation string, noUpscale, aIgnored bool) {
 	proc := strings.ToLower(strings.TrimSpace(tr.Processor))
 
-	var operation string
 	switch proc {
 	case "resize":
 		operation = generator.OpStretch
@@ -587,12 +570,9 @@ func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeTy
 		}
 	}
 
-	noUpscale := operation == generator.OpFitIn
+	noUpscale = operation == generator.OpFitIn
 
-	// Report when what we resolved contradicts an "a" the client actually sent,
-	// so it can fix the request. stretch distorts either way, so "a" means
-	// nothing for it and never counts as ignored.
-	aIgnored := false
+	// stretch distorts either way, so "a" never counts as ignored for it
 	if tr.Aspect != nil {
 		switch operation {
 		case generator.OpFill:

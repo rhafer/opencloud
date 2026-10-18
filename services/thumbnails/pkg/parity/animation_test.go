@@ -25,9 +25,7 @@ func animationGroup() parityGroup {
 				source: flatGIFSource(200, 100, 4), want: "200 50x25 gif frames=4",
 			},
 			{
-				// a stretch past the source size with no_upscale set, which is what
-				// webdav sends, used to leave frames outside the logical screen and
-				// fail the encode with "image block is out of bounds"
+				// this used to fail the encode with "image block is out of bounds"
 				title: "stretch past the source grows the logical screen with the frames", path: "/unsafe/stretch/200x160/filters:no_upscale():format(gif)/",
 				source: flatGIFSource(100, 80, 3), want: "200 200x160 gif frames=3",
 			},

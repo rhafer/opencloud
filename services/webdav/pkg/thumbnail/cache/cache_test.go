@@ -187,8 +187,7 @@ func (m *mockS3Object) Close() error {
 
 var _ s3Object = (*mockS3Object)(nil)
 
-// mockS3FailingObject answers the read with an error, the way minio does: its
-// GetObject only validates the arguments, the request runs on the first read.
+// mockS3FailingObject answers the read with an error, the way minio does.
 type mockS3FailingObject struct {
 	err error
 }

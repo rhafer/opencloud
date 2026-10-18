@@ -33,8 +33,8 @@ func NewService(opts ...Option) Service {
 	)
 
 	limits := options.Config.Thumbnail
-	// the config parser validated this at startup, a value that does not parse
-	// here comes from a test and leaves the body unbounded
+	// the parser validated this at startup, so only a test gets here with a
+	// value that does not parse, and then the body stays unbounded
 	maxBody, err := limits.MaxInputBytes()
 	if err != nil {
 		options.Logger.Error().Err(err).Msg("ignoring the configured maximum input image file size")

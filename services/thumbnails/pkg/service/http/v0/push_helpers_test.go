@@ -122,8 +122,7 @@ func testService(maxWidth, maxHeight int) Service {
 	return NewService(Logger(log.NopLogger()), Config(cfg))
 }
 
-// testServiceFrames is the real service with a frame limit and no bound on the
-// size of a single image.
+// testServiceFrames is the real service with a frame limit and no size bound.
 func testServiceFrames(maxFrames int) Service {
 	GinkgoHelper()
 
@@ -146,8 +145,7 @@ func testServiceBody(maxSize string) Service {
 	return NewService(Logger(log.NopLogger()), Config(cfg))
 }
 
-// gifFrameBomb declares a one pixel screen and one frame of 20000x20000, which
-// is the shape the logical screen guard cannot see.
+// gifFrameBomb declares a one pixel screen and one frame of 20000x20000.
 func gifFrameBomb() []byte {
 	g := []byte("GIF89a")
 	g = append(g, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00)

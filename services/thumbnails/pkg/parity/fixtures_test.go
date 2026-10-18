@@ -64,8 +64,7 @@ func jpegSource(w, h int) source {
 	}
 }
 
-// markedPNGSource is a flat grey image with a red block over its left eighth, so
-// the region a generator kept is visible in the answer.
+// markedPNGSource marks its left eighth red, so a crop is visible in the answer.
 func markedPNGSource(w, h int) source {
 	GinkgoHelper()
 
@@ -90,8 +89,7 @@ func markedPNGSource(w, h int) source {
 	}
 }
 
-// cropProbe reports which part of a marked source survived, so a crop position
-// is part of the answer both sides have to agree on.
+// cropProbe reports whether the marked region survived the crop.
 func cropProbe(data []byte) string {
 	GinkgoHelper()
 
@@ -111,9 +109,8 @@ func cropProbe(data []byte) string {
 	return "drops-marker"
 }
 
-// flatGIFSource is an animation of solid colour frames, which is what a frame
-// bomb looks like: it compresses to almost nothing and every generator reads the
-// frame count the same way, where a dithered animation makes imagor merge frames.
+// flatGIFSource is an animation of solid colour frames. Distinct frames matter:
+// imagor merges identical ones, which would measure its encoder, not the limit.
 func flatGIFSource(w, h, frames int) source {
 	GinkgoHelper()
 
@@ -237,8 +234,7 @@ func bmpSource(w, h int) source {
 	}
 }
 
-// jpegDimensionBomb is a tiny valid jpeg whose SOF0 header claims huge
-// dimensions, so the guard has to refuse it before a pixel buffer exists.
+// jpegDimensionBomb is a tiny jpeg whose SOF0 header claims huge dimensions.
 func jpegDimensionBomb(w, h uint16) source {
 	GinkgoHelper()
 
@@ -269,8 +265,7 @@ func gifDimensionBomb() source {
 	return source{name: "gif bomb", filename: "bomb.gif", partType: "image/gif", data: data}
 }
 
-// multipartWithoutImage is a multipart body whose only field is not the image,
-// which is a well-formed upload with nothing to resize.
+// multipartWithoutImage is a well-formed upload with nothing to resize in it.
 func multipartWithoutImage() ([]byte, string) {
 	GinkgoHelper()
 

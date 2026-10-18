@@ -36,18 +36,13 @@ type Thumbnail struct {
 	MaxInputHeight int `yaml:"max_input_height" env:"THUMBNAILS_MAX_INPUT_HEIGHT" desc:"The maximum height of an input image which is being processed." introductionVersion:"1.0.0"`
 	// 0 (the default) means unlimited; a request arriving while the limit is
 	// reached gets HTTP 429 with a Retry-After.
-	MaxConcurrentRequests int `yaml:"max_concurrent_requests" env:"THUMBNAILS_MAX_CONCURRENT_REQUESTS" desc:"Maximum number of concurrent thumbnail generation requests. Default is 0 which is unlimited." introductionVersion:"%%NEXT%%"`
-	// An animation is the one source whose frames are decoded here, so the
-	// frame count together with the resolution limits is what bounds the memory
-	// a single request can ask for. 0 means unlimited, like imagor's default.
-	// The push endpoint reads the posted image into memory to decode it, so the
-	// body is bounded here as well, not only by what webdav sends.
+	MaxConcurrentRequests int    `yaml:"max_concurrent_requests" env:"THUMBNAILS_MAX_CONCURRENT_REQUESTS" desc:"Maximum number of concurrent thumbnail generation requests. Default is 0 which is unlimited." introductionVersion:"%%NEXT%%"`
 	MaxInputImageFileSize string `yaml:"max_input_image_file_size" env:"THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE" desc:"The maximum size of an image posted to the generator. Usable common abbreviations: [KB, KiB, MB, MiB, GB, GiB], example: 50MB. An empty value means unlimited." introductionVersion:"1.0.0"`
-	MaxAnimationFrames    int    `yaml:"max_animation_frames" env:"THUMBNAILS_MAX_ANIMATION_FRAMES" desc:"The maximum number of frames an animated image may have. A file with more frames is refused before any of them is decoded. Default is 100, 0 is unlimited." introductionVersion:"%%NEXT%%"`
+	// together with the resolution limits this bounds the memory one request can ask for
+	MaxAnimationFrames int `yaml:"max_animation_frames" env:"THUMBNAILS_MAX_ANIMATION_FRAMES" desc:"The maximum number of frames an animated image may have. A file with more frames is refused before any of them is decoded. Default is 100, 0 is unlimited." introductionVersion:"%%NEXT%%"`
 }
 
-// MaxInputBytes is the configured maximum size of a posted image in bytes, 0
-// for unlimited.
+// MaxInputBytes is the configured maximum size of a posted image, 0 for unlimited.
 func (t Thumbnail) MaxInputBytes() (uint64, error) {
 	if strings.TrimSpace(t.MaxInputImageFileSize) == "" {
 		return 0, nil

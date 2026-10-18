@@ -3,11 +3,8 @@ package svc
 import "errors"
 
 // gifFrames counts the frames a gif declares and measures the largest of them,
-// read from the block structure without decoding one. Reading the declaration
-// is cheap, the decode is what allocates, so both limits have their say before
-// gif.DecodeAll ever sees the bytes: a flat frame compresses by about three
-// orders of magnitude, so a file well within the input size limit can otherwise
-// declare gigabytes of frame buffers.
+// walking the block structure because image/gif can only answer this by
+// decoding every frame, which is the allocation the limits exist to prevent.
 func gifFrames(data []byte) (frames, widest, tallest int, err error) {
 	errMalformed := errors.New("malformed gif")
 
@@ -55,11 +52,9 @@ func gifFrames(data []byte) (frames, widest, tallest int, err error) {
 	}
 }
 
-// colorTableSize is the size of the colour table the flags byte describes.
 func colorTableSize(flags byte) int { return 3 << ((flags & 0x07) + 1) }
 
-// skipSubBlocks walks the length-prefixed blocks a frame or extension is stored
-// in, up to and including the terminating empty one.
+// skipSubBlocks walks the length-prefixed blocks up to the terminating empty one.
 func skipSubBlocks(data []byte, at int) (int, error) {
 	for {
 		if at >= len(data) {

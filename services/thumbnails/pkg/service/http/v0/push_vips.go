@@ -10,15 +10,11 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
-// The backend this build resizes with. The implementations keep their own names
-// so a symbol search finds both builds' versions side by side, the variables are
-// what the shared handler calls.
-//
-// libvips is demand-driven: loading a buffer parses the header and computes
-// pixels only when something pulls them, so the dimension guard has its say
-// before any frame buffer exists. The resize works on the loaded image in place,
-// so what an encoder gets is the same ImageRef, and the handler owns it until
-// the encode is done.
+// The backend this build resizes with, as variables the shared handler calls, so
+// a symbol search finds both builds' implementations side by side. libvips is
+// demand-driven: loading a buffer parses the header and leaves the pixels alone
+// until something pulls them, so the dimension guard runs before any frame buffer
+// exists.
 var (
 	loadSource         = loadSourceVips
 	extForSourceFormat = extForSourceFormatVips
