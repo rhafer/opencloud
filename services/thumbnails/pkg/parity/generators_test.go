@@ -94,6 +94,22 @@ type answer struct {
 	format string
 	frames int
 	alpha  bool
+
+	// the response body, for a case that probes more than the header says
+	data []byte
+
+	// contentType is only part of the answer when it disagrees with the format
+	// the body is in, which is what a client would trip over
+	contentType string
+}
+
+// typeForFormat is the Content-Type a body of that format has to be served as.
+var typeForFormat = map[string]string{
+	"png":  "image/png",
+	"jpeg": "image/jpeg",
+	"gif":  "image/gif",
+	"webp": "image/webp",
+	"tiff": "image/tiff",
 }
 
 func (a answer) String() string {
@@ -109,6 +125,9 @@ func (a answer) String() string {
 	}
 	if a.alpha {
 		out += " alpha"
+	}
+	if want, known := typeForFormat[a.format]; known && a.contentType != want {
+		out += fmt.Sprintf(" content-type=%s", a.contentType)
 	}
 	return out
 }
@@ -172,6 +191,8 @@ func (g testGenerator) do(req *http.Request) answer {
 	out.width, out.height, out.format = cfg.Width, cfg.Height, format
 	out.frames = frameCount(data, format)
 	out.alpha = hasAlpha(data)
+	out.data = data
+	out.contentType = rsp.Header.Get("Content-Type")
 
 	return out
 }

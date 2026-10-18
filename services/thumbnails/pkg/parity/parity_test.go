@@ -19,6 +19,10 @@ type parityCase struct {
 	want               string
 	generatorOverrides map[string]override
 
+	// probe adds what the header cannot say, like which region a crop kept, to
+	// the answer the generators are compared on
+	probe func(data []byte) string
+
 	// for requests a multipart image post cannot express
 	method         string
 	rawBody        []byte
@@ -51,7 +55,7 @@ func (c parityCase) ask(g testGenerator) string {
 			method = http.MethodPost
 		}
 
-		return g.requestRaw(method, c.path, c.rawBody, c.rawContentType).String()
+		return c.describe(g.requestRaw(method, c.path, c.rawBody, c.rawContentType))
 	}
 
 	partType := c.partType
@@ -59,7 +63,18 @@ func (c parityCase) ask(g testGenerator) string {
 		partType = c.source.partType
 	}
 
-	return g.request(c.path, c.source.data, c.source.filename, partType).String()
+	return c.describe(g.request(c.path, c.source.data, c.source.filename, partType))
+}
+
+func (c parityCase) describe(a answer) string {
+	GinkgoHelper()
+
+	out := a.String()
+	if c.probe == nil || a.status != http.StatusOK {
+		return out
+	}
+
+	return out + " " + c.probe(a.data)
 }
 
 type parityGroup struct {

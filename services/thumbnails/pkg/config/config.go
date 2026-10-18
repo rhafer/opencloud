@@ -3,6 +3,10 @@ package config
 
 import (
 	"context"
+	"fmt"
+	"strings"
+
+	"github.com/opencloud-eu/reva/v2/pkg/bytesize"
 
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 )
@@ -33,4 +37,26 @@ type Thumbnail struct {
 	// 0 (the default) means unlimited; a request arriving while the limit is
 	// reached gets HTTP 429 with a Retry-After.
 	MaxConcurrentRequests int `yaml:"max_concurrent_requests" env:"THUMBNAILS_MAX_CONCURRENT_REQUESTS" desc:"Maximum number of concurrent thumbnail generation requests. Default is 0 which is unlimited." introductionVersion:"%%NEXT%%"`
+	// An animation is the one source whose frames are decoded here, so the
+	// frame count together with the resolution limits is what bounds the memory
+	// a single request can ask for. 0 means unlimited, like imagor's default.
+	// The push endpoint reads the posted image into memory to decode it, so the
+	// body is bounded here as well, not only by what webdav sends.
+	MaxInputImageFileSize string `yaml:"max_input_image_file_size" env:"THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE" desc:"The maximum size of an image posted to the generator. Usable common abbreviations: [KB, KiB, MB, MiB, GB, GiB], example: 50MB. An empty value means unlimited." introductionVersion:"1.0.0"`
+	MaxAnimationFrames    int    `yaml:"max_animation_frames" env:"THUMBNAILS_MAX_ANIMATION_FRAMES" desc:"The maximum number of frames an animated image may have. A file with more frames is refused before any of them is decoded. Default is 100, 0 is unlimited." introductionVersion:"%%NEXT%%"`
+}
+
+// MaxInputBytes is the configured maximum size of a posted image in bytes, 0
+// for unlimited.
+func (t Thumbnail) MaxInputBytes() (uint64, error) {
+	if strings.TrimSpace(t.MaxInputImageFileSize) == "" {
+		return 0, nil
+	}
+
+	size, err := bytesize.Parse(t.MaxInputImageFileSize)
+	if err != nil {
+		return 0, fmt.Errorf("invalid THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE %q: %w", t.MaxInputImageFileSize, err)
+	}
+
+	return size.Bytes(), nil
 }

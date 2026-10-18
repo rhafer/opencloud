@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"mime"
+	"net/http"
 	"path/filepath"
 	"sync"
 
@@ -91,15 +92,28 @@ func (c *S3Cache) Get(key string) ([]byte, error) {
 
 	obj, err := c.client.GetObject(context.Background(), c.config.Bucket, key, minio.GetObjectOptions{})
 	if err != nil {
-		errResp := minio.ToErrorResponse(err)
-		if errResp.Code == "NoSuchKey" || errResp.StatusCode == 404 {
-			return nil, ErrCacheMiss
-		}
-		return nil, err
+		return nil, asCacheError(err)
 	}
 	defer obj.Close()
 
-	return io.ReadAll(obj)
+	data, err := io.ReadAll(obj)
+	if err != nil {
+		return nil, asCacheError(err)
+	}
+
+	return data, nil
+}
+
+// asCacheError reports a missing object as a cache miss. minio's GetObject only
+// validates its arguments and sends the request on the first read, so a key that
+// is not there surfaces from the read, not from GetObject.
+func asCacheError(err error) error {
+	rsp := minio.ToErrorResponse(err)
+	if rsp.Code == minio.NoSuchKey || rsp.StatusCode == http.StatusNotFound {
+		return ErrCacheMiss
+	}
+
+	return err
 }
 
 func (c *S3Cache) Put(key string, data []byte) error {

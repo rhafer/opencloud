@@ -37,7 +37,13 @@ type Image struct {
 }
 
 // GgsDecoder is a converter for the geogebra slides file
-type GgsDecoder struct{ thumbnailpath string }
+type GgsDecoder struct {
+	thumbnailpath string
+
+	// maxSize bounds the extracted image, because a deflated entry expands by
+	// orders of magnitude and the container's own size says nothing about it.
+	maxSize uint64
+}
 
 // Convert reads the ggs file and returns the thumbnail image.
 //
@@ -57,13 +63,22 @@ func (g GgsDecoder) Convert(r io.Reader) (*Image, error) {
 	}
 	for _, file := range zipReader.File {
 		if file.Name == g.thumbnailpath {
+			if file.UncompressedSize64 > g.maxSize {
+				return nil, errors.Errorf("the embedded image declares %d bytes, more than the %d allowed", file.UncompressedSize64, g.maxSize)
+			}
+
 			thumbnail, err := file.Open()
 			if err != nil {
 				return nil, err
 			}
-			data, err := io.ReadAll(thumbnail)
+			// archive/zip holds the entry to its declared size while reading,
+			// so the bound here is what makes that declaration ours
+			data, err := io.ReadAll(io.LimitReader(thumbnail, int64(g.maxSize)+1))
 			if err != nil {
 				return nil, errors.Wrap(err, `could not read the embedded image`)
+			}
+			if uint64(len(data)) > g.maxSize {
+				return nil, errors.Errorf("the embedded image is larger than the %d bytes allowed", g.maxSize)
 			}
 
 			return &Image{ContentType: "image/png", Data: data}, nil
@@ -318,6 +333,22 @@ func drawWord(canvas *font.Drawer, word string, minX, maxX, incY, maxY fixed.Int
 	}
 }
 
+// defaultMaxExtractedSize bounds an image extracted from a container when the
+// caller passes no limit of its own.
+const defaultMaxExtractedSize = 50 << 20
+
+// maxExtractedSize is the caller's configured maximum input size, which bounds
+// what an extractor may produce as well. An unlimited input (0) still bounds
+// the extracted image, because the point of the limit here is the expansion
+// factor, not the size of the file the user uploaded.
+func maxExtractedSize(opts map[string]any) uint64 {
+	if size, ok := opts["maxImageSize"].(uint64); ok && size > 0 {
+		return size
+	}
+
+	return defaultMaxExtractedSize
+}
+
 // ForType returns the converter for the specified mimeType
 func ForType(mimeType string, opts map[string]any) FileConverter {
 	// We can ignore the error here because we parse it in IsMimeTypeSupported before and if it fails
@@ -354,7 +385,7 @@ func ForType(mimeType string, opts map[string]any) FileConverter {
 			fontLoader: fontLoader,
 		}
 	case "application/vnd.geogebra.slides":
-		return GgsDecoder{"_slide0/geogebra_thumbnail.png"}
+		return GgsDecoder{thumbnailpath: "_slide0/geogebra_thumbnail.png", maxSize: maxExtractedSize(opts)}
 	case "application/vnd.geogebra.pinboard":
 		return GgpDecoder{}
 	case "audio/flac":

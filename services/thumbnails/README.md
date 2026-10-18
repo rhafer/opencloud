@@ -65,12 +65,23 @@ its first frame, and a still source asked for `format(gif)` is palettised.
 Reading an ICO needs libvips with its magick loader; the pure Go build answers
 `406` for one.
 
+An animation is the one source whose frames are all decoded here, so what its
+blocks declare is read before any of them is: a gif with more frames than
+`THUMBNAILS_MAX_ANIMATION_FRAMES`, or with a frame declaring more than the
+maximum dimensions, is refused with `422`. A flat frame compresses by about three
+orders of magnitude, so a file well within the input size limit can otherwise ask
+for gigabytes of frame buffers. imagor has the same limit as
+`-vips-max-animation-frames` but truncates the animation to that many frames,
+where this service refuses the file, because `image/gif` decodes every frame or
+none.
+
 The answers are imagor's: `400` for a malformed request, which includes a
 `format` nobody writes (anything but `jpg`, `png`, `gif` and `webp`); `406` for a
 source it cannot read, for an upload part that is not typed `image/*`, and for a
 format this build has no encoder for (`webp` without libvips); `422` for an image
-above the configured maximum dimensions; `429` when the concurrency limit is
-reached.
+above the configured maximum dimensions and for an animation above the frame
+limit; `429` when the concurrency limit is reached; `413` for a body above
+`THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE`.
 
 ## Configuration
 
@@ -81,6 +92,8 @@ reached.
 | `THUMBNAILS_MAX_CONCURRENT_REQUESTS` | Maximum number of thumbnail requests decoded and resized in parallel. Default is 0 (unlimited). Requests arriving while the limit is reached get HTTP 429 with a `Retry-After` header |
 | `THUMBNAILS_MAX_INPUT_WIDTH`         | Maximum width of a source image, 7680 by default. A wider one is refused with HTTP 422, which webdav turns into its legacy 403                                                        |
 | `THUMBNAILS_MAX_INPUT_HEIGHT`        | Maximum height of a source image, 7680 by default                                                                                                                                     |
+| `THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE` | Maximum size of a posted image, `50MB` by default, empty for unlimited. A larger body is refused with HTTP 413. webdav sends no more than its own limit of the same name, this bounds everything else that reaches the endpoint |
+| `THUMBNAILS_MAX_ANIMATION_FRAMES`    | Maximum number of frames an animated image may have, 100 by default, 0 for unlimited. A file with more frames is refused with HTTP 422 before any frame is decoded. The memory a request can ask for is this limit times the maximum dimensions, so lower it when raising those |
 
 ## Using libvips for Image Processing
 

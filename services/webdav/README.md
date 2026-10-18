@@ -25,7 +25,7 @@ The following query parameters are supported:
 | y         | NO       | 32, when x is absent too                                   | vertical target size, absent leaves the height unconstrained, `0` is an error   |
 | scalingup | NO       | 0                                                          | accepted for compatibility but ignored; not forwarded to the generator          |
 | a         | NO       | none, the chain below decides                              | aspect ratio (legacy; only honored when no explicit `processor` is given)       |
-| c         | NO       | Caching string                                             | Clients should send the etag, so they get a fresh thumbnail after a file change |
+| c         | NO       | none                                                       | accepted for compatibility but ignored; the cache key holds the file's checksum, so a changed file gets a new thumbnail without it |
 | processor | NO       | none, the chain below decides                              | preferred thumbnail processor                                                   |
 
 #### Thumbnail Resolution
@@ -66,7 +66,7 @@ When what a request resolves to contradicts an `a` the client sent, the response
 
 #### Thumbnail Generator
 
-The thumbnails themselves are made by a generator the webdav service POSTs to, configured with `WEBDAV_THUMBNAIL_GENERATOR_URL` (and `WEBDAV_THUMBNAIL_GENERATOR_TIMEOUT`). The built-in thumbnails service speaks the imagor image endpoint, so a real [imagor](https://imagor.net) can be put in its place without changing anything else. A source the generator cannot read answers `404`, one that is too large `403`, and `WEBDAV_THUMBNAIL_MAX_INPUT_IMAGE_FILE_SIZE` caps what is sent at all. A generator that refuses because it is busy answers `429` with its own `Retry-After`, so a client can come back instead of treating it as a missing preview.
+The thumbnails themselves are made by a generator the webdav service POSTs to, configured with `WEBDAV_THUMBNAIL_GENERATOR_URL` (and `WEBDAV_THUMBNAIL_GENERATOR_TIMEOUT`). The built-in thumbnails service speaks the imagor image endpoint, so a real [imagor](https://imagor.net) can be put in its place without changing anything else. A source the generator cannot read answers `404`, one that is too large `403`, and `WEBDAV_THUMBNAIL_MAX_INPUT_IMAGE_FILE_SIZE` caps what is sent at all. A generator that refuses because it is busy answers `429` with its own `Retry-After`, so a client can come back instead of treating it as a missing preview. The same cap bounds an image webdav extracts itself, the cover of an audio file or the thumbnail inside a geogebra container, because a compressed entry says nothing about its size until it is read.
 
 Three settings say what is made of what. They are merged onto the built-in defaults, so naming one type does not take the answer away from the others:
 

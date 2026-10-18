@@ -82,7 +82,22 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// the part is read into memory to be decoded, so the body is bounded before
+	// anything reads it; webdav sends no more than its own input limit, this is
+	// the guard for everything else that reaches the port
+	if s.maxBody > 0 {
+		r.Body = http.MaxBytesReader(w, r.Body, int64(s.maxBody))
+	}
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			fmt.Fprintln(w, "image larger than THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE")
+
+			return
+		}
+
 		writeInvalid(w, "failed to parse multipart form")
 		return
 	}
@@ -211,6 +226,27 @@ func (s Thumbnails) serveAnimation(w http.ResponseWriter, imgData []byte, req re
 	}
 
 	if (s.maxWidth > 0 && config.Width > s.maxWidth) || (s.maxHeight > 0 && config.Height > s.maxHeight) {
+		writeMaxResolution(w)
+
+		return
+	}
+
+	// the frames are decoded next, and a gif's frames may declare a size of
+	// their own, so what the blocks say decides before anything allocates
+	frames, widest, tallest, err := gifFrames(imgData)
+	if err != nil {
+		s.logger.Debug().Err(err).Msg("could not read the gif blocks")
+		writeNotAcceptable(w, "unreadable image")
+
+		return
+	}
+	if s.maxFrames > 0 && frames > s.maxFrames {
+		s.logger.Debug().Int("frames", frames).Int("max", s.maxFrames).Msg("the gif declares more frames than allowed")
+		writeMaxResolution(w)
+
+		return
+	}
+	if (s.maxWidth > 0 && widest > s.maxWidth) || (s.maxHeight > 0 && tallest > s.maxHeight) {
 		writeMaxResolution(w)
 
 		return

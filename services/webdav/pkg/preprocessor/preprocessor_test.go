@@ -1,7 +1,9 @@
 package preprocessor
 
 import (
+	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"io"
 	"os"
 	"testing"
@@ -18,6 +20,39 @@ func TestPreprocessor(t *testing.T) {
 	RunSpecs(t, "Preprocessor Suite")
 }
 
+const ggsThumbnailPath = "_slide0/geogebra_thumbnail.png"
+
+// ggsWithEntry is a ggs container whose thumbnail entry deflates size bytes of
+// zeros into almost nothing. lieAboutSize patches the sizes the zip declares
+// down to one byte, which is what a crafted file does to get past a check that
+// trusts the header.
+func ggsWithEntry(size int, lieAboutSize bool) []byte {
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	entry, err := w.Create(ggsThumbnailPath)
+	Expect(err).ToNot(HaveOccurred())
+	_, err = entry.Write(make([]byte, size))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(w.Close()).To(Succeed())
+
+	out := buf.Bytes()
+	if !lieAboutSize {
+		return out
+	}
+
+	// uncompressed size: 4 bytes at offset 22 of the local header, at offset 24
+	// of the central directory entry
+	patch := func(signature []byte, offset int) {
+		at := bytes.Index(out, signature)
+		Expect(at).ToNot(Equal(-1))
+		binary.LittleEndian.PutUint32(out[at+offset:], 1)
+	}
+	patch([]byte("PK\x03\x04"), 22)
+	patch([]byte("PK\x01\x02"), 24)
+
+	return out
+}
+
 var _ = Describe("preprocessor", func() {
 	Describe("GgsDecoder", func() {
 		var fileReader io.Reader
@@ -30,7 +65,7 @@ var _ = Describe("preprocessor", func() {
 		})
 
 		It("hands on the embedded thumbnail as the png it is", func() {
-			decoder := GgsDecoder{"_slide0/geogebra_thumbnail.png"}
+			decoder := GgsDecoder{thumbnailpath: ggsThumbnailPath, maxSize: defaultMaxExtractedSize}
 			img, err := decoder.Convert(fileReader)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(img.ContentType).To(Equal("image/png"))
@@ -38,8 +73,27 @@ var _ = Describe("preprocessor", func() {
 		})
 
 		It("should return an error if the ggs is invalid", func() {
-			decoder := GgsDecoder{"_slide0/geogebra_thumbnail.png"}
+			decoder := GgsDecoder{thumbnailpath: ggsThumbnailPath, maxSize: defaultMaxExtractedSize}
 			img, err := decoder.Convert(bytes.NewReader([]byte("not a ggs")))
+			Expect(err).To(HaveOccurred())
+			Expect(img).To(BeNil())
+		})
+
+		It("refuses an entry that expands past the limit", func() {
+			decoder := GgsDecoder{thumbnailpath: ggsThumbnailPath, maxSize: 1 << 20}
+
+			img, err := decoder.Convert(bytes.NewReader(ggsWithEntry(8<<20, false)))
+			Expect(err).To(MatchError(ContainSubstring("allowed")))
+			Expect(img).To(BeNil())
+		})
+
+		It("refuses an entry whose declared size lies about the expansion", func() {
+			decoder := GgsDecoder{thumbnailpath: ggsThumbnailPath, maxSize: 1 << 20}
+
+			// archive/zip compares what it decompresses against the declared
+			// size as it reads, so a patched header is refused there and the
+			// read stays bounded by the declaration either way
+			img, err := decoder.Convert(bytes.NewReader(ggsWithEntry(8<<20, true)))
 			Expect(err).To(HaveOccurred())
 			Expect(img).To(BeNil())
 		})

@@ -12,9 +12,12 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"mime/multipart"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"golang.org/x/image/bmp"
 )
 
 // partType matters: imagor's upload loader accepts image/* only.
@@ -57,6 +60,81 @@ func jpegSource(w, h int) source {
 
 	return source{
 		name: "jpeg", filename: "source.jpg", partType: "image/jpeg",
+		data: buf.Bytes(),
+	}
+}
+
+// markedPNGSource is a flat grey image with a red block over its left eighth, so
+// the region a generator kept is visible in the answer.
+func markedPNGSource(w, h int) source {
+	GinkgoHelper()
+
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for x := 0; x < w; x++ {
+		for y := 0; y < h; y++ {
+			if x < w/8 {
+				img.Set(x, y, color.RGBA{255, 0, 0, 255})
+
+				continue
+			}
+			img.Set(x, y, color.RGBA{128, 128, 128, 255})
+		}
+	}
+
+	var buf bytes.Buffer
+	Expect(png.Encode(&buf, img)).To(Succeed())
+
+	return source{
+		name: "marked png", filename: "source.png", partType: "image/png",
+		data: buf.Bytes(),
+	}
+}
+
+// cropProbe reports which part of a marked source survived, so a crop position
+// is part of the answer both sides have to agree on.
+func cropProbe(data []byte) string {
+	GinkgoHelper()
+
+	img, _, err := image.Decode(bytes.NewReader(data))
+	Expect(err).ToNot(HaveOccurred())
+
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			if r>>8 > 200 && g>>8 < 80 && b>>8 < 80 {
+				return "keeps-marker"
+			}
+		}
+	}
+
+	return "drops-marker"
+}
+
+// flatGIFSource is an animation of solid colour frames, which is what a frame
+// bomb looks like: it compresses to almost nothing and every generator reads the
+// frame count the same way, where a dithered animation makes imagor merge frames.
+func flatGIFSource(w, h, frames int) source {
+	GinkgoHelper()
+
+	pal := color.Palette{color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}, color.RGBA{0, 0, 255, 255}}
+	g := &gif.GIF{}
+	for i := 0; i < frames; i++ {
+		frame := image.NewPaletted(image.Rect(0, 0, w, h), pal)
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				frame.SetColorIndex(x, y, uint8(i%len(pal)))
+			}
+		}
+		g.Image = append(g.Image, frame)
+		g.Delay = append(g.Delay, 10)
+	}
+
+	var buf bytes.Buffer
+	Expect(gif.EncodeAll(&buf, g)).To(Succeed())
+
+	return source{
+		name: "flat gif", filename: "source.gif", partType: "image/gif",
 		data: buf.Bytes(),
 	}
 }
@@ -144,6 +222,64 @@ func webpSource() source {
 		name: "webp", filename: "source.webp", partType: "image/webp",
 		data: data,
 	}
+}
+
+// bmpSource is a format both builds read and neither writes.
+func bmpSource(w, h int) source {
+	GinkgoHelper()
+
+	var buf bytes.Buffer
+	Expect(bmp.Encode(&buf, gradient(w, h))).To(Succeed())
+
+	return source{
+		name: "bmp", filename: "source.bmp", partType: "image/bmp",
+		data: buf.Bytes(),
+	}
+}
+
+// jpegDimensionBomb is a tiny valid jpeg whose SOF0 header claims huge
+// dimensions, so the guard has to refuse it before a pixel buffer exists.
+func jpegDimensionBomb(w, h uint16) source {
+	GinkgoHelper()
+
+	var buf bytes.Buffer
+	Expect(jpeg.Encode(&buf, image.NewGray(image.Rect(0, 0, 8, 8)), &jpeg.Options{Quality: 10})).To(Succeed())
+
+	data := buf.Bytes()
+	for i := 0; i+9 < len(data); i++ {
+		if data[i] == 0xff && data[i+1] == 0xc0 {
+			data[i+5], data[i+6] = byte(h>>8), byte(h)
+			data[i+7], data[i+8] = byte(w>>8), byte(w)
+
+			return source{name: "jpeg bomb", filename: "bomb.jpg", partType: "image/jpeg", data: data}
+		}
+	}
+
+	Fail("no SOF0 marker in the encoded jpeg")
+
+	return source{}
+}
+
+// gifDimensionBomb declares an oversized logical screen in its header.
+func gifDimensionBomb() source {
+	data := []byte("GIF89a")
+	data = append(data, 0x20, 0x4e, 0x20, 0x4e, 0xf0, 0x00, 0x00)
+	data = append(data, bytes.Repeat([]byte{0}, 6)...)
+
+	return source{name: "gif bomb", filename: "bomb.gif", partType: "image/gif", data: data}
+}
+
+// multipartWithoutImage is a multipart body whose only field is not the image,
+// which is a well-formed upload with nothing to resize.
+func multipartWithoutImage() ([]byte, string) {
+	GinkgoHelper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	Expect(writer.WriteField("other_field", "some value")).To(Succeed())
+	Expect(writer.Close()).To(Succeed())
+
+	return body.Bytes(), writer.FormDataContentType()
 }
 
 func hasAlpha(data []byte) bool {

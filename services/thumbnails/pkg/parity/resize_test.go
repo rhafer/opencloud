@@ -37,6 +37,16 @@ func resizeGroup() parityGroup {
 				title: "stretch hits the box exactly", path: "/unsafe/stretch/100x400/filters:format(png)/",
 				source: src(), want: "200 100x400 png",
 			},
+			{
+				title: "fill crops the centre of a landscape source", path: "/unsafe/100x100/filters:format(png)/",
+				source: markedPNGSource(300, 100), want: "200 100x100 png drops-marker",
+				probe: cropProbe,
+			},
+			{
+				title: "stretch keeps the whole source, marker included", path: "/unsafe/stretch/100x100/filters:format(png)/",
+				source: markedPNGSource(300, 100), want: "200 100x100 png keeps-marker",
+				probe: cropProbe,
+			},
 		},
 	}
 }

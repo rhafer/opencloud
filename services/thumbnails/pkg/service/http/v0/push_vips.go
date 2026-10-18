@@ -79,14 +79,15 @@ func resizeSourceVips(src *vips.ImageRef, req resizeRequest) (*vips.ImageRef, er
 			return nil, err
 		}
 	default: // OpFill
-		// Center-crop to fill the box exactly. SizeBoth matches real imagor's
-		// default resize (which upscales small sources); no_upscale() caps it
-		// at the source size via SizeDown.
+		// Center-crop to fill the box exactly, the same region the pure Go build
+		// and imagor without smart() keep. SizeBoth matches real imagor's default
+		// resize (which upscales small sources); no_upscale() caps it at the
+		// source size via SizeDown.
 		size := vips.SizeBoth
 		if req.NoUpscale {
 			size = vips.SizeDown
 		}
-		if err := src.ThumbnailWithSize(req.Width, req.Height, vips.InterestingAttention, size); err != nil {
+		if err := src.ThumbnailWithSize(req.Width, req.Height, vips.InterestingCentre, size); err != nil {
 			return nil, err
 		}
 	}

@@ -33,12 +33,20 @@ func NewService(opts ...Option) Service {
 	)
 
 	limits := options.Config.Thumbnail
+	// the config parser validated this at startup, a value that does not parse
+	// here comes from a test and leaves the body unbounded
+	maxBody, err := limits.MaxInputBytes()
+	if err != nil {
+		options.Logger.Error().Err(err).Msg("ignoring the configured maximum input image file size")
+	}
 
 	svc := Thumbnails{
 		logger:    options.Logger,
 		mux:       m,
 		maxWidth:  limits.MaxInputWidth,
 		maxHeight: limits.MaxInputHeight,
+		maxFrames: limits.MaxAnimationFrames,
+		maxBody:   maxBody,
 		limiter:   newConcurrencyLimiter(limits.MaxConcurrentRequests),
 	}
 
@@ -69,6 +77,8 @@ type Thumbnails struct {
 	mux       *chi.Mux
 	maxWidth  int
 	maxHeight int
+	maxFrames int
+	maxBody   uint64
 	limiter   *concurrencyLimiter
 }
 

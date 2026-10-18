@@ -88,36 +88,6 @@ func gifSource(width, height, frames int) []byte {
 	return buf.Bytes()
 }
 
-// dimensionBomb is a tiny valid jpeg whose SOF0 header claims huge dimensions,
-// so the guard has to refuse it before a pixel buffer is allocated.
-func dimensionBomb(width, height uint16) []byte {
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, image.NewGray(image.Rect(0, 0, 8, 8)), &jpeg.Options{Quality: 10}); err != nil {
-		panic(err)
-	}
-
-	b := buf.Bytes()
-	for i := 0; i+9 < len(b); i++ {
-		if b[i] == 0xff && b[i+1] == 0xc0 {
-			b[i+5], b[i+6] = byte(height>>8), byte(height)
-			b[i+7], b[i+8] = byte(width>>8), byte(width)
-
-			return b
-		}
-	}
-
-	panic("no SOF0 marker in the encoded jpeg")
-}
-
-// gifDimensionBomb declares an oversized logical screen in its header.
-func gifDimensionBomb() []byte {
-	g := []byte("GIF89a")
-	g = append(g, 0x20, 0x4e, 0x20, 0x4e, 0xf0, 0x00, 0x00)
-	g = append(g, bytes.Repeat([]byte{0}, 6)...)
-
-	return g
-}
-
 // multipartBody wraps the source the way webdav does, with the part typed.
 func multipartBody(source []byte, partType string) (*bytes.Buffer, string) {
 	GinkgoHelper()
@@ -152,11 +122,40 @@ func testService(maxWidth, maxHeight int) Service {
 	return NewService(Logger(log.NopLogger()), Config(cfg))
 }
 
-// post sends a typed source to a path without input limits.
-func post(path string, source []byte) *httptest.ResponseRecorder {
+// testServiceFrames is the real service with a frame limit and no bound on the
+// size of a single image.
+func testServiceFrames(maxFrames int) Service {
 	GinkgoHelper()
 
-	return postTo(testService(0, 0), path, source, "image/png")
+	cfg := defaults.DefaultConfig()
+	defaults.EnsureDefaults(cfg)
+	cfg.Thumbnail.MaxInputWidth, cfg.Thumbnail.MaxInputHeight = 0, 0
+	cfg.Thumbnail.MaxAnimationFrames = maxFrames
+
+	return NewService(Logger(log.NopLogger()), Config(cfg))
+}
+
+// testServiceBody is the real service with a maximum posted image size.
+func testServiceBody(maxSize string) Service {
+	GinkgoHelper()
+
+	cfg := defaults.DefaultConfig()
+	defaults.EnsureDefaults(cfg)
+	cfg.Thumbnail.MaxInputImageFileSize = maxSize
+
+	return NewService(Logger(log.NopLogger()), Config(cfg))
+}
+
+// gifFrameBomb declares a one pixel screen and one frame of 20000x20000, which
+// is the shape the logical screen guard cannot see.
+func gifFrameBomb() []byte {
+	g := []byte("GIF89a")
+	g = append(g, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00)
+	g = append(g, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x20, 0x4e, 0x20, 0x4e, 0x00)
+	g = append(g, 0x02, 0x00)
+	g = append(g, 0x3b)
+
+	return g
 }
 
 // postTo sends a source with an explicit part type to a path on the given service.
@@ -171,16 +170,6 @@ func postTo(handler http.Handler, path string, source []byte, partType string) *
 	handler.ServeHTTP(rec, req)
 
 	return rec
-}
-
-// decodedBounds is the size of the image in a response, whatever format it is in.
-func decodedBounds(rec *httptest.ResponseRecorder) image.Rectangle {
-	GinkgoHelper()
-
-	img, _, err := image.Decode(bytes.NewReader(rec.Body.Bytes()))
-	Expect(err).ToNot(HaveOccurred(), "the response should be a decodable image")
-
-	return img.Bounds()
 }
 
 // decodedGIF is the animation in a response.

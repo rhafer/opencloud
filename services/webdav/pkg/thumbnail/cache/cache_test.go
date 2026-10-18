@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,12 +187,24 @@ func (m *mockS3Object) Close() error {
 
 var _ s3Object = (*mockS3Object)(nil)
 
+// mockS3FailingObject answers the read with an error, the way minio does: its
+// GetObject only validates the arguments, the request runs on the first read.
+type mockS3FailingObject struct {
+	err error
+}
+
+func (m *mockS3FailingObject) Read([]byte) (int, error) { return 0, m.err }
+func (m *mockS3FailingObject) Close() error             { return nil }
+
+var _ s3Object = (*mockS3FailingObject)(nil)
+
 // mockS3Client implements s3Client interface for testing.
 type mockS3Client struct {
 	objects      map[string][]byte
 	contentTypes map[string]string
 	capturedOpts minio.PutObjectOptions
 	getErr       error
+	readErr      error
 	putErr       error
 }
 
@@ -206,14 +219,16 @@ func (m *mockS3Client) GetObject(_ context.Context, _, objectName string, _ mini
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
+	if m.readErr != nil {
+		return &mockS3FailingObject{err: m.readErr}, nil
+	}
 	data, ok := m.objects[objectName]
 	if !ok {
-		errResp := minio.ErrorResponse{
-			Code:       "NoSuchKey",
+		return &mockS3FailingObject{err: minio.ErrorResponse{
+			Code:       minio.NoSuchKey,
 			Message:    "key does not exist",
-			StatusCode: 404,
-		}
-		return nil, errResp
+			StatusCode: http.StatusNotFound,
+		}}, nil
 	}
 	return &mockS3Object{Reader: bytes.NewReader(data)}, nil
 }
@@ -324,6 +339,14 @@ var _ = Describe("S3Cache", func() {
 		data, err := cache.Get("any-key")
 		Expect(err).To(HaveOccurred())
 		Expect(data).To(BeNil())
+	})
+
+	It("should keep an error that is not a missing key an error", func() {
+		mockClient.readErr = minio.ErrorResponse{Code: minio.AccessDenied, StatusCode: http.StatusForbidden}
+
+		_, err := cache.Get("key1")
+		Expect(err).To(HaveOccurred())
+		Expect(err).ToNot(MatchError(ErrCacheMiss))
 	})
 
 	It("should handle S3 errors gracefully on Put", func() {

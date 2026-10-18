@@ -35,6 +35,10 @@ func formatGroup() parityGroup {
 				},
 			},
 			{
+				title: "no format filter keeps a jpeg a jpeg", path: "/unsafe/50x50/",
+				source: jpegSource(300, 200), want: "200 50x50 jpeg",
+			},
+			{
 				title: "no format filter keeps a gif a gif", path: "/unsafe/50x50/filters:no_upscale()/",
 				source: animatedGIFSource(300, 200, 3), want: "200 50x50 gif frames=3",
 			},
@@ -45,6 +49,17 @@ func formatGroup() parityGroup {
 			{
 				title: "jpg, the name webdav sends for a jpeg", path: "/unsafe/50x50/filters:format(jpg)/",
 				source: pngSource(300, 200), want: "200 50x50 jpeg",
+			},
+			{
+				title: "a format it reads but cannot write becomes a jpeg", path: "/unsafe/50x50/",
+				source: bmpSource(300, 200), want: "200 50x50 jpeg",
+			},
+			{
+				title: "a format filter naming one this service does not write", path: "/unsafe/50x50/filters:format(tiff)/",
+				source: pngSource(300, 200), want: "400",
+				generatorOverrides: map[string]override{
+					"imagor": {answers: "200 50x50 tiff", because: "imagor writes tiff, this service has no tiff encoder and refuses the filter instead of answering in another format"},
+				},
 			},
 			{
 				title: "an unknown format name", path: "/unsafe/50x50/filters:format(bogus)/",

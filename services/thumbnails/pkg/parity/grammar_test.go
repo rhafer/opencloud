@@ -14,6 +14,14 @@ func grammarGroup() parityGroup {
 				source: src(), want: "200 100x100 png",
 			},
 			{
+				title: "an empty filters segment behind an operation", path: "/unsafe/fit-in/100x100/filters:",
+				source: src(), want: "200 100x67 png",
+			},
+			{
+				title: "a filters segment without a trailing slash", path: "/unsafe/100x100/filters:format(png)",
+				source: src(), want: "200 100x100 png",
+			},
+			{
 				title: "an image key behind the box is ignored", path: "/unsafe/100x100/foo.png",
 				source: src(), want: "200 100x100 png",
 			},

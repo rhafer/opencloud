@@ -525,7 +525,7 @@ func (w *ThumbnailWorkflow) sourceImage(ctx context.Context, ref *providerv1beta
 		return nil, "", nil, fmt.Errorf("read source: %w", err)
 	}
 
-	converter := preprocessor.ForType(mimeType, map[string]any{"fontFileMap": w.fontMapFile})
+	converter := preprocessor.ForType(mimeType, map[string]any{"fontFileMap": w.fontMapFile, "maxImageSize": w.maxInputSize})
 	if converter == nil {
 		logger.Debug().Str("mimetype", mimeType).Msg("no converter for this type")
 		return nil, "", nil, fmt.Errorf("%w: no converter for %s", ErrNotFound, mimeType)
