@@ -39,6 +39,11 @@ func operationSegment(op string) string {
 // an imagor filters segment. Like real imagor, the default (fill) resize upscales
 // small sources to fill the box exactly; pass noUpscale=true to emit the
 // no_upscale() filter so the generator caps the result at the source size.
+//
+// A cropping resize also asks for the smart crop, so the generator keeps the
+// region that carries the image instead of whatever sits in the middle. What a
+// generator makes of it is its own: real imagor and the libvips build crop on
+// attention, the pure Go build has no such thing and crops the centre.
 func BuildURL(baseURL string, width, height int32, operation, format string, noUpscale bool) string {
 	base := strings.TrimRight(baseURL, "/")
 
@@ -46,9 +51,15 @@ func BuildURL(baseURL string, width, height int32, operation, format string, noU
 
 	filters := "format(" + format + ")"
 	if noUpscale {
-		filters = "no_upscale():format(" + format + ")"
+		filters = "no_upscale():" + filters
 	}
 	filterSegment := "filters:" + filters
+
+	// a cropping resize keeps the region that carries the image, which imagor
+	// reads as a path segment rather than a filter
+	if operation == OpFill {
+		filterSegment = "smart/" + filterSegment
+	}
 
 	segment := operationSegment(operation)
 	if segment == "" {

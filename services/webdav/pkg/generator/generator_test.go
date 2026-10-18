@@ -68,12 +68,12 @@ var _ = Describe("BuildURL", func() {
 		func(base string, width, height int32, operation, format string, noUpscale bool, want string) {
 			Expect(generator.BuildURL(base, width, height, operation, format, noUpscale)).To(Equal(want))
 		},
-		Entry("fill center-crops to the box",
+		Entry("fill asks for the interesting region of the box",
 			"http://generator", int32(128), int32(128), generator.OpFill, "jpeg", false,
-			"http://generator/unsafe/128x128/filters:format(jpeg)/"),
+			"http://generator/unsafe/128x128/smart/filters:format(jpeg)/"),
 		Entry("fill with no_upscale caps the resize at the source size",
 			"http://generator", int32(128), int32(128), generator.OpFill, "jpeg", true,
-			"http://generator/unsafe/128x128/filters:no_upscale():format(jpeg)/"),
+			"http://generator/unsafe/128x128/smart/filters:no_upscale():format(jpeg)/"),
 		Entry("fit-in preserves the aspect ratio within the box",
 			"http://generator", int32(1024), int32(1024), generator.OpFitIn, "jpeg", false,
 			"http://generator/unsafe/fit-in/1024x1024/filters:format(jpeg)/"),

@@ -935,13 +935,13 @@ var _ = Describe("ThumbnailWorkflow", func() {
 				Expect(err).ToNot(HaveOccurred(), "the format belongs in the cache key")
 			},
 			Entry("a png keeps its alpha channel",
-				"image/png", "img.png", "filters:format(png)", "image/png",
+				"image/png", "img.png", "smart/filters:format(png)", "image/png",
 				"1f/0c/9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b/64x64-fill.png"),
 			Entry("a gif keeps its animation",
 				"image/gif", "anim.gif", "filters:format(gif)", "image/gif",
 				"1f/0c/9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b/64x64-stretch.gif"),
 			Entry("a bmp becomes a jpeg",
-				"image/bmp", "scan.bmp", "filters:format(jpg)", "image/jpeg",
+				"image/bmp", "scan.bmp", "smart/filters:format(jpg)", "image/jpeg",
 				"1f/0c/9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b/64x64-fill.jpg"),
 		)
 
@@ -960,7 +960,7 @@ var _ = Describe("ThumbnailWorkflow", func() {
 			result, err := wf2.Execute(context.Background(), tr, testToken, logger)
 			contentType := result.ContentType
 			Expect(err).ToNot(HaveOccurred())
-			Expect(captured.path).To(ContainSubstring("filters:format(webp)"))
+			Expect(captured.path).To(ContainSubstring("smart/filters:format(webp)"))
 			Expect(contentType).To(Equal("image/webp"))
 		})
 
@@ -978,7 +978,7 @@ var _ = Describe("ThumbnailWorkflow", func() {
 			result, err := wf2.Execute(context.Background(), tr, testToken, logger)
 			contentType := result.ContentType
 			Expect(err).ToNot(HaveOccurred())
-			Expect(captured.path).To(ContainSubstring("filters:format(jpg)"))
+			Expect(captured.path).To(ContainSubstring("smart/filters:format(jpg)"))
 			Expect(contentType).To(Equal("image/jpeg"))
 		})
 	})

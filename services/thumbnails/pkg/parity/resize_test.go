@@ -47,6 +47,14 @@ func resizeGroup() parityGroup {
 				source: markedPNGSource(300, 100), want: "200 100x100 png keeps-marker",
 				probe: cropProbe,
 			},
+			{
+				title: "the smart segment crops to the region that carries the image", path: "/unsafe/100x100/smart/filters:format(png)/",
+				source: markedPNGSource(300, 100), want: "200 100x100 png keeps-marker",
+				probe: cropProbe,
+				generatorOverrides: map[string]override{
+					"imaging": {answers: "200 100x100 png drops-marker", because: "an attention crop is libvips work; this build takes the segment and crops the centre, which is what the thumbnails service has always done without libvips"},
+				},
+			},
 		},
 	}
 }

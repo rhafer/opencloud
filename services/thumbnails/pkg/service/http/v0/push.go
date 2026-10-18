@@ -111,7 +111,7 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filtersSegment := filtersFromTail(chi.URLParam(r, "*"))
+	filtersSegment, smart := readTail(chi.URLParam(r, "*"))
 	ext, hasFormat, err := outputFormatFromFilters(filtersSegment)
 	if err != nil {
 		writeInvalid(w, err.Error())
@@ -120,7 +120,7 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 	noUpscale := filterPresent(filtersSegment, "no_upscale")
 	// The box and operation are chosen by webdav (the sizing brain); this service
 	// is a dumb, imagor-like executor that just fits within the given box.
-	req := resizeRequest{Width: width, Height: height, Operation: operation, NoUpscale: noUpscale}
+	req := resizeRequest{Width: width, Height: height, Operation: operation, NoUpscale: noUpscale, Smart: smart}
 
 	// An animated gif is the one source both builds treat the same way: neither
 	// libvips nor the pure Go path has anything better for a paletted animation,
@@ -277,17 +277,22 @@ func parseDim(r *http.Request, name string) (int, error) {
 	return n, nil
 }
 
-// filtersFromTail reads the filters out of imagor's path tail. The tail is the
-// optional "filters:..." segment plus an optional image key behind it; only the
-// filters segment is ours, and it may be empty.
-func filtersFromTail(tail string) string {
-	segment, _, _ := strings.Cut(tail, "/")
-	filters, ok := strings.CutPrefix(segment, "filters:")
-	if !ok {
-		return ""
+// readTail reads imagor's path tail: the optional alignment segments, of which
+// "smart" is the one acted on here, then the optional "filters:..." segment,
+// which may be empty, then an image key an upload loader has no use for.
+func readTail(tail string) (filters string, smart bool) {
+	for segment := range strings.SplitSeq(tail, "/") {
+		if segment == "smart" {
+			smart = true
+
+			continue
+		}
+		if f, ok := strings.CutPrefix(segment, "filters:"); ok {
+			return f, smart
+		}
 	}
 
-	return filters
+	return "", smart
 }
 
 // writeNotAcceptable responds with imagor's status for a source it cannot read
@@ -409,10 +414,11 @@ func filterPresent(segment, name string) bool {
 }
 
 // resizeRequest is what the executor is asked to do. webdav chose the box and
-// the operation; noUpscale mirrors imagor's no_upscale() filter.
+// the operation; noUpscale and smart mirror imagor's filters of those names.
 type resizeRequest struct {
 	Width     int
 	Height    int
 	Operation string
 	NoUpscale bool
+	Smart     bool
 }

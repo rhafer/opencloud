@@ -104,6 +104,9 @@ func resizeSourceImaging(src *imagingSource, req resizeRequest) (image.Image, er
 			return img, nil
 		}
 
+		// smart() asks for the most interesting window, which needs libvips;
+		// this build crops the centre for it, the way main always did
+
 		return imaging.Thumbnail(img, req.Width, req.Height, imaging.Lanczos), nil
 	}
 }

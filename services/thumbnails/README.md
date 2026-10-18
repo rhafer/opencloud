@@ -18,9 +18,11 @@ source file to this endpoint and receives the processed image back.
 
 | Route                                                     | Description                                                                       |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `POST /unsafe/{width}x{height}/filters:{filters}`         | Fill the exact width x height (center crop, may upscale), the default             |
+| `POST /unsafe/{width}x{height}/filters:{filters}`         | Fill the exact width x height (may upscale), the default                          |
 | `POST /unsafe/fit-in/{width}x{height}/filters:{filters}`  | Scale to fit within width x height, preserving aspect ratio and never upscaling   |
 | `POST /unsafe/stretch/{width}x{height}/filters:{filters}` | Resize to the exact width x height without preserving aspect ratio (distorts)     |
+
+A `smart` segment behind the box, `POST /unsafe/{width}x{height}/smart/filters:{filters}`, asks for the crop that keeps the region carrying the image rather than the middle, which is what webdav sends for every cropping resize. With libvips that is an attention crop; the pure Go build has nothing of the kind and crops the centre, as the thumbnails service has always done without libvips.
 
 The path is imagor's. The filters segment is optional and may be empty
 (`filters:`), and an image key behind it is accepted and ignored, because the
