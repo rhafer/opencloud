@@ -76,7 +76,7 @@ Three settings say what is made of what. They are merged onto the built-in defau
 | `OC_THUMBNAIL_TYPE_MAPPING`          | The type a thumbnail is returned in, per source type, as `mime:mime` entries, e.g. `image/vnd.microsoft.icon:image/png`                                      |
 | `OC_THUMBNAIL_GENERATOR_FORMATS`     | The formats the generator writes, as `mime:format` entries, e.g. `image/webp:webp`. The format is the name its own `format(...)` filter uses                 |
 
-Reading them as a chain: a source type is mapped to the type its thumbnail is returned in, and that type is asked for by the name the generator knows it under. An icon becomes `image/png`, which the generator is asked for as `format(png)`. A type nobody mapped becomes a JPEG, and a mapping onto a type the generator has no format name for is refused at startup, as long as previews are enabled.
+Reading them as a chain: a source type is mapped to the type its thumbnail is returned in, and that type is asked for by the name the generator knows it under. An icon becomes `image/png`, which the generator is asked for as `format(png)`. A type nobody mapped becomes a JPEG, and so does a mapping onto a type this service has no format name for: what a generator behind the URL really writes is its own business, and a wrong guess here must not keep the service from starting.
 
 The defaults return `image/png` for png and icon sources, keep `image/gif` for a gif and return `image/jpeg` for everything else, so a client must read the response's `Content-Type` instead of assuming the type it got before.
 

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -183,9 +182,6 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 
 	typeMapping := thumbnail.NewTypeMapping(conf.ThumbnailTypeMapping)
 	formats := generator.NewFormats(conf.ThumbnailGeneratorFormats)
-	if err := checkTypeMapping(typeMapping, formats); err != nil {
-		return nil, err
-	}
 
 	s3cfg := cache.BuildS3CacheConfig(
 		conf.ThumbnailCacheS3Bucket,
@@ -226,24 +222,6 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 		workflow.WithSpaceLookup(workflow.NewGatewaySpaceLookup(gatewaySelector)),
 		workflow.WithUserResolver(workflow.NewGatewayUserResolver(gatewaySelector)),
 	)
-}
-
-// checkTypeMapping refuses a mapping that asks for a type the generator has no
-// format name for: the thumbnail would silently become a JPEG instead.
-func checkTypeMapping(mapping thumbnail.TypeMapping, formats generator.Formats) error {
-	var unknown []string
-	for source, target := range mapping.Targets() {
-		if target == "" || formats.For(target) != "" {
-			continue
-		}
-		unknown = append(unknown, fmt.Sprintf("%s (mapped from %s)", target, source))
-	}
-	if len(unknown) == 0 {
-		return nil
-	}
-	sort.Strings(unknown)
-
-	return fmt.Errorf("thumbnail type mapping: no generator format for %s", strings.Join(unknown, ", "))
 }
 
 // Webdav implements the business logic for Service.
