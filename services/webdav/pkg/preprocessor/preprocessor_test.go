@@ -166,23 +166,23 @@ var _ = Describe("preprocessor", func() {
 
 	Describe("ForType", func() {
 		It("has no converter for an image, which never reaches the preprocessor", func() {
-			Expect(ForType("image/png", nil)).To(BeNil())
+			Expect(ForType("image/png", Options{})).To(BeNil())
 		})
 
 		It("returns a GgsDecoder for a ggs", func() {
-			Expect(ForType("application/vnd.geogebra.slides", nil)).To(BeAssignableToTypeOf(GgsDecoder{}))
+			Expect(ForType("application/vnd.geogebra.slides", Options{})).To(BeAssignableToTypeOf(GgsDecoder{}))
 		})
 
 		It("returns an AudioDecoder for audio", func() {
-			Expect(ForType("audio/mpeg", nil)).To(BeAssignableToTypeOf(AudioDecoder{}))
+			Expect(ForType("audio/mpeg", Options{})).To(BeAssignableToTypeOf(AudioDecoder{}))
 		})
 
 		It("returns a TxtToImageConverter for text", func() {
-			Expect(ForType("text/plain", nil)).To(BeAssignableToTypeOf(TxtToImageConverter{}))
+			Expect(ForType("text/plain", Options{})).To(BeAssignableToTypeOf(TxtToImageConverter{}))
 		})
 
 		It("has no converter for an unknown type", func() {
-			Expect(ForType("unknown", nil)).To(BeNil())
+			Expect(ForType("unknown", Options{})).To(BeNil())
 		})
 	})
 })

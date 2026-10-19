@@ -341,45 +341,43 @@ const defaultMaxExtractedSize = 50 << 20
 // what an extractor may produce as well. An unlimited input (0) still bounds
 // the extracted image, because the point of the limit here is the expansion
 // factor, not the size of the file the user uploaded.
-func maxExtractedSize(opts map[string]any) uint64 {
-	if size, ok := opts["maxImageSize"].(uint64); ok && size > 0 {
-		return size
+func maxExtractedSize(opts Options) uint64 {
+	if opts.MaxImageSize > 0 {
+		return opts.MaxImageSize
 	}
 
 	return defaultMaxExtractedSize
 }
 
+// Options carries what a converter needs from the caller. The zero value asks
+// for the defaults.
+type Options struct {
+	FontMapFile  string
+	FontFace     *opentype.FaceOptions
+	MaxImageSize uint64
+}
+
 // ForType returns the converter for the specified mimeType
-func ForType(mimeType string, opts map[string]any) FileConverter {
+func ForType(mimeType string, opts Options) FileConverter {
 	// We can ignore the error here because we parse it in IsMimeTypeSupported before and if it fails
 	// return the service call. So we should only get here when the mimeType parses fine.
 	mimeType, _, _ = mime.ParseMediaType(mimeType)
 	switch mimeType {
 	case "text/plain":
-		fontFileMap := ""
-		fontFaceOpts := &opentype.FaceOptions{
-			Size:    12,
-			DPI:     72,
-			Hinting: font.HintingNone,
-		}
-
-		if optedFontFileMap, ok := opts["fontFileMap"]; ok {
-			if stringFontFileMap, ok := optedFontFileMap.(string); ok {
-				fontFileMap = stringFontFileMap
+		fontFace := opts.FontFace
+		if fontFace == nil {
+			fontFace = &opentype.FaceOptions{
+				Size:    12,
+				DPI:     72,
+				Hinting: font.HintingNone,
 			}
 		}
 
-		if optedFontFaceOpts, ok := opts["fontFaceOpts"]; ok {
-			if typedFontFaceOpts, ok := optedFontFaceOpts.(*opentype.FaceOptions); ok {
-				fontFaceOpts = typedFontFaceOpts
-			}
-		}
-
-		fontLoader, err := NewFontLoader(fontFileMap, fontFaceOpts)
+		fontLoader, err := NewFontLoader(opts.FontMapFile, fontFace)
 		if err != nil {
 			// if it couldn't create the FontLoader with the specified fontFileMap,
 			// try to use the default font
-			fontLoader, _ = NewFontLoader("", fontFaceOpts)
+			fontLoader, _ = NewFontLoader("", fontFace)
 		}
 		return TxtToImageConverter{
 			fontLoader: fontLoader,
