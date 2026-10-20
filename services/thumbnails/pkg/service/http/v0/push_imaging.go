@@ -70,6 +70,17 @@ func extForSourceFormatImaging(src *imagingSource) string {
 	}
 }
 
+// decodeStill reads the pixels of the one frame that is resized here. An
+// animated gif only reaches this path when a still format was asked for, and
+// imaging.Decode would hold every frame of it in memory to return the first.
+func decodeStill(src *imagingSource) (image.Image, error) {
+	if src.format == "gif" {
+		return gif.Decode(bytes.NewReader(src.data))
+	}
+
+	return imaging.Decode(bytes.NewReader(src.data), imaging.AutoOrientation(true))
+}
+
 // resizeSourceImaging resizes with the imaging backend. The operation selects the
 // resize/crop mode: fill (center-crop to the box, upscaling by default like real
 // imagor's default resize), fit-in (fit within the box without cropping and
@@ -77,7 +88,7 @@ func extForSourceFormatImaging(src *imagingSource) string {
 // or stretch (resize to the exact box). noUpscale caps the default fill at the
 // source size, mirroring imagor's no_upscale() filter.
 func resizeSourceImaging(src *imagingSource, req resizeRequest) (image.Image, error) {
-	img, err := imaging.Decode(bytes.NewReader(src.data), imaging.AutoOrientation(true))
+	img, err := decodeStill(src)
 	if err != nil {
 		return nil, err
 	}
