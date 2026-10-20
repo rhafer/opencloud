@@ -1,9 +1,11 @@
 package svc
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/go-chi/chi/v5"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -96,7 +98,19 @@ var _ = Describe("the push endpoint", func() {
 			Expect(ok).To(BeTrue())
 			defer s.limiter.release()
 
-			req := httptest.NewRequest(http.MethodPost, "/unsafe/64x64/filters:format(png)/", nil)
+			// the handler is called without the router, so the box it reads from
+			// the path is handed in, and the image has to be in before a slot is
+			// asked for
+			body, contentType := multipartBody(jpegSource(50, 50), "image/jpeg")
+			req := httptest.NewRequest(http.MethodPost, "/unsafe/64x64/filters:format(png)/", body)
+			req.Header.Set("Content-Type", contentType)
+
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("width", "64")
+			rctx.URLParams.Add("height", "64")
+			rctx.URLParams.Add("*", "filters:format(png)/")
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
 			rec := httptest.NewRecorder()
 			s.pushHandler(rec, req)
 

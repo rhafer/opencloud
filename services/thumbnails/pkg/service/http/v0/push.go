@@ -45,13 +45,6 @@ var errFormatUnsupported = fmt.Errorf("format not supported by this build")
 // imagor's path and imagor's status codes, which the README spells out. Of the
 // filters only format and no_upscale mean anything here.
 func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
-	ok, retryAfter := s.limiter.acquire()
-	if !ok {
-		writeTooManyRequests(w, retryAfter)
-		return
-	}
-	defer s.limiter.release()
-
 	width, err := parseDim(r, "width")
 	if err != nil {
 		writeInvalid(w, "invalid width")
@@ -115,6 +108,15 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 		writeInvalid(w, "failed to read image")
 		return
 	}
+
+	// The slots are taken once the image is in: they bound the work, which is the
+	// decoding and the resizing below, and a slow upload no longer sits in one.
+	ok, retryAfter := s.limiter.acquire()
+	if !ok {
+		writeTooManyRequests(w, retryAfter)
+		return
+	}
+	defer s.limiter.release()
 
 	filtersSegment, smart := readTail(chi.URLParam(r, "*"))
 	ext, hasFormat, err := outputFormatFromFilters(filtersSegment)
