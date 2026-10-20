@@ -70,12 +70,18 @@ func extForSourceFormatImaging(src *imagingSource) string {
 	}
 }
 
-// decodeStill reads the pixels of the one frame that is resized here. An
-// animated gif only reaches this path when a still format was asked for, and
-// imaging.Decode would hold every frame of it in memory to return the first.
+// decodeStill reads the pixels of the one frame that is resized here.
+// imaging.Decode is DecodeAll plus SingleFrame, so for an animation it holds
+// every frame in memory to return the first, and the frame guard only sees a
+// gif. The stdlib decoders read the first frame alone: gif.Decode stops after
+// it, png.Decode reads IDAT and ignores an animation's later fdAT chunks. The
+// rest keeps the imaging path, which is also what reads a JPEG's orientation.
 func decodeStill(src *imagingSource) (image.Image, error) {
-	if src.format == "gif" {
+	switch src.format {
+	case "gif":
 		return gif.Decode(bytes.NewReader(src.data))
+	case "png":
+		return png.Decode(bytes.NewReader(src.data))
 	}
 
 	return imaging.Decode(bytes.NewReader(src.data), imaging.AutoOrientation(true))
