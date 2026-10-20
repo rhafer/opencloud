@@ -421,7 +421,7 @@ var _ = Describe("ThumbnailWorkflow", func() {
 			Expect(data).To(Equal(thumbBytes))
 			Expect(contentType).To(Equal("image/jpeg"))
 
-			cached, err := testCache.Get(thumbnailStorageKey("cb56752477cae6405f85b131872c60d21b967c6a", 128, 128, "jpg", "fill"))
+			cached, err := testCache.Get(thumbnailStorageKey("cb56752477cae6405f85b131872c60d21b967c6a", "image/jpeg", 128, 128, "jpg", "fill"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(cached).To(Equal(thumbBytes))
 		})
@@ -936,13 +936,13 @@ var _ = Describe("ThumbnailWorkflow", func() {
 			},
 			Entry("a png keeps its alpha channel",
 				"image/png", "img.png", "smart/filters:format(png)", "image/png",
-				thumbnailStorageKey("1f0c9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b", 64, 64, "png", "fill")),
+				thumbnailStorageKey("1f0c9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b", "image/png", 64, 64, "png", "fill")),
 			Entry("a gif keeps its animation",
 				"image/gif", "anim.gif", "filters:format(gif)", "image/gif",
-				thumbnailStorageKey("1f0c9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b", 64, 64, "gif", "stretch")),
+				thumbnailStorageKey("1f0c9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b", "image/gif", 64, 64, "gif", "stretch")),
 			Entry("a bmp becomes a jpeg",
 				"image/bmp", "scan.bmp", "smart/filters:format(jpg)", "image/jpeg",
-				thumbnailStorageKey("1f0c9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b", 64, 64, "jpg", "fill")),
+				thumbnailStorageKey("1f0c9f1b6e4b4b2a9c1d7f3e8a5b6c7d8e9f0a1b", "image/bmp", 64, 64, "jpg", "fill")),
 		)
 
 		It("follows a configured chain into a format the built-in generator cannot write", func() {
@@ -986,7 +986,7 @@ var _ = Describe("ThumbnailWorkflow", func() {
 	Describe("cache hit shortcut", func() {
 		It("should return cached thumbnail without calling generator or downloading the file", func() {
 			cachedThumb := []byte("cached-thumbnail")
-			err := testCache.Put(thumbnailStorageKey("cb56752477cae6405f85b131872c60d21b967c6a", 128, 128, "jpg", "fill"), cachedThumb)
+			err := testCache.Put(thumbnailStorageKey("cb56752477cae6405f85b131872c60d21b967c6a", "image/jpeg", 128, 128, "jpg", "fill"), cachedThumb)
 			Expect(err).ToNot(HaveOccurred())
 
 			// No download expectations are set up. If the workflow tried to
@@ -1266,7 +1266,7 @@ var _ = Describe("ThumbnailWorkflow", func() {
 			Expect(data).To(Equal(thumbBytes))
 			Expect(contentType).To(Equal("image/jpeg"))
 
-			cached, err := testCache.Get(thumbnailStorageKey("5ba1b086d95a7e0fd8ff4323caee0c412ab07fc3", 64, 64, "jpg", "fill"))
+			cached, err := testCache.Get(thumbnailStorageKey("5ba1b086d95a7e0fd8ff4323caee0c412ab07fc3", "image/jpeg", 64, 64, "jpg", "fill"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(cached).To(Equal(thumbBytes))
 		})

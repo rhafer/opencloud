@@ -129,9 +129,11 @@ func fileIsProcessing(info *providerv1beta1.ResourceInfo) bool {
 //
 // The checksum is hashed rather than used as it comes: it is not this service's
 // to trust, an OCM share takes it from a remote PROPFIND, and it ends up as a
-// path on disk and as an object key.
-func thumbnailStorageKey(checksum string, w, h int, format, operation string) string {
-	sum := sha256.Sum256([]byte(checksum))
+// path on disk and as an object key. The source type is hashed with it, because
+// the same bytes under two types are not the same thumbnail: the type picks the
+// extractor, and what it finds depends on it.
+func thumbnailStorageKey(checksum, mimeType string, w, h int, format, operation string) string {
+	sum := sha256.Sum256([]byte(checksum + "\x00" + mimeType))
 	hash := hex.EncodeToString(sum[:])
 
 	return hash[:2] + "/" + hash[2:4] + "/" + hash[4:] + "/" + fmt.Sprintf("%dx%d-%s.%s", w, h, operation, format)
@@ -453,7 +455,7 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 	// requests that produce the same image share one entry and the number of
 	// entries per file stays bounded by the ladder. It needs nothing but the
 	// request, so a hit still returns without touching storage.
-	cacheKey := thumbnailStorageKey(checksum, box.Dx(), box.Dy(), outputFormat, operation)
+	cacheKey := thumbnailStorageKey(checksum, mimeType, box.Dx(), box.Dy(), outputFormat, operation)
 
 	if w.cache != nil {
 		cached, err := w.cache.Get(cacheKey)
