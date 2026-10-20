@@ -97,6 +97,8 @@ limit; `429` when the concurrency limit is reached; `413` for a body above
 | `THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE` | Maximum size of a posted image, `50MB` by default, empty for unlimited. A larger body is refused with HTTP 413. webdav sends no more than its own limit of the same name, this bounds everything else that reaches the endpoint |
 | `THUMBNAILS_MAX_ANIMATION_FRAMES`    | Maximum number of frames an animated image may have, 100 by default, 0 for unlimited. A file with more frames is refused with HTTP 422 before any frame is decoded. The memory a request can ask for is this limit times the maximum dimensions, so lower it when raising those |
 
+A request asks for a box in its path, and that box is capped at 2048 per axis: `fill` and `stretch` upscale, so a tiny source could otherwise be asked for at any size and allocate accordingly. A larger box is refused with HTTP 422, the same answer an oversized source gets.
+
 ## Using libvips for Image Processing
 
 To improve performance and to support a wider range of image formats, the
