@@ -451,8 +451,14 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 	cacheKey := thumbnailStorageKey(checksum, box.Dx(), box.Dy(), outputFormat, operation)
 
 	if w.cache != nil {
-		if cached, err := w.cache.Get(cacheKey); err == nil {
+		cached, err := w.cache.Get(cacheKey)
+		switch {
+		case err == nil:
 			return Thumbnail{Data: cached, ContentType: outputType, AspectIgnored: aIgnored}, nil
+		case !errors.Is(err, cache.ErrCacheMiss):
+			// a miss is the normal answer; anything else is the cache itself
+			// failing, and the thumbnail is made again without a word otherwise
+			logger.Error().Err(err).Str("key", cacheKey).Msg("could not read from the thumbnail cache")
 		}
 	}
 
