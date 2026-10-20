@@ -135,6 +135,18 @@ func testServiceFrames(maxFrames int) Service {
 }
 
 // testServiceBody is the real service with a maximum posted image size.
+// testServiceOutput is the real service with the configured ceiling on the box a
+// request may ask for.
+func testServiceOutput(maxWidth, maxHeight int) Service {
+	GinkgoHelper()
+
+	cfg := defaults.DefaultConfig()
+	defaults.EnsureDefaults(cfg)
+	cfg.Thumbnail.MaxOutputWidth, cfg.Thumbnail.MaxOutputHeight = maxWidth, maxHeight
+
+	return NewService(Logger(log.NopLogger()), Config(cfg))
+}
+
 func testServiceBody(maxSize string) Service {
 	GinkgoHelper()
 

@@ -94,8 +94,14 @@ limit; `429` when the concurrency limit is reached; `413` for a body above
 | `THUMBNAILS_MAX_CONCURRENT_REQUESTS` | Maximum number of thumbnail requests decoded and resized in parallel. Default is 0 (unlimited). Requests arriving while the limit is reached get HTTP 429 with a `Retry-After` header |
 | `THUMBNAILS_MAX_INPUT_WIDTH`         | Maximum width of a source image, 7680 by default. A wider one is refused with HTTP 422, which webdav turns into its legacy 403                                                        |
 | `THUMBNAILS_MAX_INPUT_HEIGHT`        | Maximum height of a source image, 7680 by default                                                                                                                                     |
+| `THUMBNAILS_MAX_OUTPUT_WIDTH`        | Maximum width of a thumbnail that may be asked for, 2048 by default. A larger box is refused with HTTP 422                                                                            |
+| `THUMBNAILS_MAX_OUTPUT_HEIGHT`       | Maximum height of a thumbnail that may be asked for, 2048 by default                                                                                                                  |
 | `THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE` | Maximum size of a posted image, `50MB` by default, empty for unlimited. A larger body is refused with HTTP 413. webdav sends no more than its own limit of the same name, this bounds everything else that reaches the endpoint |
 | `THUMBNAILS_MAX_ANIMATION_FRAMES`    | Maximum number of frames an animated image may have, 100 by default, 0 for unlimited. A file with more frames is refused with HTTP 422 before any frame is decoded. The memory a request can ask for is this limit times the maximum dimensions, so lower it when raising those |
+
+The source and the thumbnail have ceilings of their own, for different reasons. How large a preview may be is webdav's decision, and its largest configured resolution is what it ever asks for; `THUMBNAILS_MAX_OUTPUT_*` is the net under that for anything else reaching this endpoint, because `fill` and `stretch` enlarge a small source to fill the box. How large a source may be is this service's decision, since it is the one that sees the pixels: webdav knows a file's type, size and checksum, not its dimensions.
+
+A real imagor has one pair of knobs for both, `-vips-max-width` and `-vips-max-height`, which bound every image in its pipeline, the loaded source as well as the result. Set them to the source ceiling. They are also more forgiving than this service for formats libvips can shrink while loading: a 9000 pixel wide JPEG passes a 2048 limit there, where this service refuses it on the header.
 
 ## Using libvips for Image Processing
 

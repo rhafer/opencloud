@@ -56,6 +56,15 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The box is the one thing a caller chooses freely, and fill and stretch
+	// enlarge a small source to fill it. webdav never asks for more than its
+	// largest resolution; this bounds whoever else reaches the endpoint.
+	if (s.maxOutWidth > 0 && width > s.maxOutWidth) || (s.maxOutHeight > 0 && height > s.maxOutHeight) {
+		writeMaxResolution(w)
+
+		return
+	}
+
 	operation := chi.URLParam(r, "operation")
 	if operation == "" {
 		operation = OpFill

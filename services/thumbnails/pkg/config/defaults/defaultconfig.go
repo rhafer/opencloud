@@ -37,6 +37,8 @@ func DefaultConfig() *config.Config {
 		Thumbnail: config.Thumbnail{
 			MaxInputWidth:         7680,
 			MaxInputHeight:        7680,
+			MaxOutputWidth:        2048,
+			MaxOutputHeight:       2048,
 			MaxInputImageFileSize: "50MB",
 			MaxAnimationFrames:    100,
 		},

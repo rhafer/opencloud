@@ -41,13 +41,15 @@ func NewService(opts ...Option) Service {
 	}
 
 	svc := Thumbnails{
-		logger:    options.Logger,
-		mux:       m,
-		maxWidth:  limits.MaxInputWidth,
-		maxHeight: limits.MaxInputHeight,
-		maxFrames: limits.MaxAnimationFrames,
-		maxBody:   maxBody,
-		limiter:   newConcurrencyLimiter(limits.MaxConcurrentRequests),
+		logger:       options.Logger,
+		mux:          m,
+		maxWidth:     limits.MaxInputWidth,
+		maxHeight:    limits.MaxInputHeight,
+		maxOutWidth:  limits.MaxOutputWidth,
+		maxOutHeight: limits.MaxOutputHeight,
+		maxFrames:    limits.MaxAnimationFrames,
+		maxBody:      maxBody,
+		limiter:      newConcurrencyLimiter(limits.MaxConcurrentRequests),
 	}
 
 	// Push-based thumbnail generation endpoint (imagor-compatible). The optional
@@ -73,13 +75,15 @@ func NewService(opts ...Option) Service {
 
 // Thumbnails implements the business logic for Service.
 type Thumbnails struct {
-	logger    log.Logger
-	mux       *chi.Mux
-	maxWidth  int
-	maxHeight int
-	maxFrames int
-	maxBody   uint64
-	limiter   *concurrencyLimiter
+	logger       log.Logger
+	mux          *chi.Mux
+	maxWidth     int
+	maxHeight    int
+	maxOutWidth  int
+	maxOutHeight int
+	maxFrames    int
+	maxBody      uint64
+	limiter      *concurrencyLimiter
 }
 
 // ServeHTTP implements the Service interface.

@@ -32,8 +32,10 @@ type Config struct {
 // still rejected, but the enforcement now lives at decode time in this service
 // (which owns the image) rather than in webdav.
 type Thumbnail struct {
-	MaxInputWidth  int `yaml:"max_input_width" env:"THUMBNAILS_MAX_INPUT_WIDTH" desc:"The maximum width of an input image which is being processed." introductionVersion:"1.0.0"`
-	MaxInputHeight int `yaml:"max_input_height" env:"THUMBNAILS_MAX_INPUT_HEIGHT" desc:"The maximum height of an input image which is being processed." introductionVersion:"1.0.0"`
+	MaxInputWidth   int `yaml:"max_input_width" env:"THUMBNAILS_MAX_INPUT_WIDTH" desc:"The maximum width of an input image which is being processed." introductionVersion:"1.0.0"`
+	MaxOutputWidth  int `yaml:"max_output_width" env:"THUMBNAILS_MAX_OUTPUT_WIDTH" desc:"The maximum width of a thumbnail that may be asked for. A larger box is refused with HTTP 422. webdav never asks for more than its largest configured resolution, so this bounds everything else that reaches the endpoint." introductionVersion:"%%NEXT%%"`
+	MaxOutputHeight int `yaml:"max_output_height" env:"THUMBNAILS_MAX_OUTPUT_HEIGHT" desc:"The maximum height of a thumbnail that may be asked for." introductionVersion:"%%NEXT%%"`
+	MaxInputHeight  int `yaml:"max_input_height" env:"THUMBNAILS_MAX_INPUT_HEIGHT" desc:"The maximum height of an input image which is being processed." introductionVersion:"1.0.0"`
 	// 0 (the default) means unlimited; a request arriving while the limit is
 	// reached gets HTTP 429 with a Retry-After.
 	MaxConcurrentRequests int    `yaml:"max_concurrent_requests" env:"THUMBNAILS_MAX_CONCURRENT_REQUESTS" desc:"Maximum number of concurrent thumbnail generation requests. Default is 0 which is unlimited." introductionVersion:"%%NEXT%%"`

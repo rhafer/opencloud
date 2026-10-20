@@ -30,6 +30,20 @@ var _ = Describe("the push endpoint", func() {
 
 	})
 
+	Describe("the configured maximum thumbnail size", func() {
+		It("refuses a box above it", func() {
+			rec := postTo(testServiceOutput(2048, 2048), "/unsafe/4096x4096/", pngSource(10, 10), "image/png")
+
+			Expect(rec.Code).To(Equal(http.StatusUnprocessableEntity), rec.Body.String())
+		})
+
+		It("lets a box at it through", func() {
+			rec := postTo(testServiceOutput(2048, 2048), "/unsafe/2048x2048/", pngSource(10, 10), "image/png")
+
+			Expect(rec.Code).To(Equal(http.StatusOK), rec.Body.String())
+		})
+	})
+
 	Describe("the configured maximum posted image size", func() {
 		It("refuses a body above it", func() {
 			rec := postTo(testServiceBody("1KB"), "/unsafe/50x50/", jpegSource(300, 300), "image/jpeg")
