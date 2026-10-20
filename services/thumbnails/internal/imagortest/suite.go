@@ -55,15 +55,41 @@ func Variants() []Variant {
 }
 
 // push based processing only: unsigned URLs, uploads in, nothing loaded by URL.
-// The vips limits are ours, imagor's own default edge is 9999.
+// Every limit this service has is handed over, so both sides refuse the same
+// requests; imagor's own defaults are looser (a 9999 edge, 32 MB uploads,
+// animations and concurrency unbounded) and would hide a difference as a pass.
+//
+// The max width and height carry our source ceiling, because that one pair
+// bounds every image in imagor's pipeline, the loaded source as well as the
+// result. Our ceiling on the box a request may ask for has no counterpart here;
+// what bounds the box in a deployment is webdav's resolution ladder.
 func Args() []string {
 	limits := defaults.DefaultConfig().Thumbnail
 
-	return []string{
+	// what the configuration spells 0, imagor spells -1
+	frames := limits.MaxAnimationFrames
+	if frames <= 0 {
+		frames = -1
+	}
+	concurrency := limits.MaxConcurrentRequests
+	if concurrency <= 0 {
+		concurrency = -1
+	}
+
+	args := []string{
 		"-imagor-unsafe", "-upload-loader-enable", "-http-loader-disable",
 		"-vips-max-width", strconv.Itoa(limits.MaxInputWidth),
 		"-vips-max-height", strconv.Itoa(limits.MaxInputHeight),
+		"-vips-max-animation-frames", strconv.Itoa(frames),
+		"-imagor-process-concurrency", strconv.Itoa(concurrency),
 	}
+
+	// an unparsable size leaves the body unbounded here as well
+	if maxBody, err := limits.MaxInputBytes(); err == nil && maxBody > 0 {
+		args = append(args, "-upload-loader-max-allowed-size", strconv.FormatUint(maxBody, 10))
+	}
+
+	return args
 }
 
 // prefers an address from the variant's AddressEnv over starting a container.

@@ -37,7 +37,7 @@ func animationGroup() parityGroup {
 				title: "an animation above the frame limit", path: "/unsafe/50x50/filters:format(gif)/",
 				source: flatGIFSource(20, 20, 101), want: "422",
 				generatorOverrides: map[string]override{
-					"imagor": {answers: "200 50x50 gif frames=101", because: "imagor loads every frame unless -vips-max-animation-frames says otherwise; the built-in refuses a file above THUMBNAILS_MAX_ANIMATION_FRAMES instead of truncating it, because image/gif decodes all frames or none"},
+					"imagor": {answers: "200 50x50 gif frames=100", because: "both sides are given the same frame limit and imagor truncates the animation to it; the built-in refuses a file above THUMBNAILS_MAX_ANIMATION_FRAMES instead, because image/gif decodes all frames or none"},
 				},
 			},
 		},
