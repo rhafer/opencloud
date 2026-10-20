@@ -27,10 +27,9 @@ type Config struct {
 	Context context.Context `yaml:"-"`
 }
 
-// Thumbnail holds the safety limits enforced by the push endpoint. The limits
-// mirror the legacy thumbnail service so a request that was rejected before is
-// still rejected, but the enforcement now lives at decode time in this service
-// (which owns the image) rather than in webdav.
+// Thumbnail holds the safety limits enforced by the push endpoint. This service
+// owns the image, so it is the one that can check a source before decoding it;
+// webdav decides what size is asked for.
 type Thumbnail struct {
 	MaxInputWidth   int `yaml:"max_input_width" env:"THUMBNAILS_MAX_INPUT_WIDTH" desc:"The maximum width of an input image which is being processed." introductionVersion:"1.0.0"`
 	MaxOutputWidth  int `yaml:"max_output_width" env:"THUMBNAILS_MAX_OUTPUT_WIDTH" desc:"The maximum width of a thumbnail that may be asked for. A larger box is refused with HTTP 422. webdav never asks for more than its largest configured resolution, so this bounds everything else that reaches the endpoint." introductionVersion:"%%NEXT%%"`

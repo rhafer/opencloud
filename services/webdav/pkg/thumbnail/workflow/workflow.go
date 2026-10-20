@@ -62,7 +62,7 @@ type SpaceLookup interface {
 // UserResolver resolves users for path-only thumbnail requests. WhoAmI maps an
 // auth token to its user (used for /webdav/... where the URL carries no
 // username); GetUserByClaim maps a username from /dav/files/{user}/... to its
-// user, mirroring main's behavior.
+// user.
 type UserResolver interface {
 	WhoAmI(ctx context.Context, auth string) (*userv1beta1.User, error)
 	GetUserByClaim(ctx context.Context, claim, value string) (*userv1beta1.User, error)
@@ -74,28 +74,27 @@ type UserResolver interface {
 var ErrFileProcessing = fmt.Errorf("file is processing")
 
 // ErrImageTooLarge is returned when the input image exceeds the configured
-// maximum width/height. Callers should surface this as HTTP 403 Forbidden,
-// matching the legacy thumbnail service error message.
+// maximum width/height. Callers should surface this as HTTP 403 Forbidden.
 var ErrImageTooLarge = errors.New("thumbnails: image is too large")
 
 // ErrNotAFile is returned when the requested resource is not a regular file
 // (e.g. a folder). Callers should surface this as HTTP 400 Bad Request with an
-// "Unsupported file type" message, matching the legacy thumbnail service.
+// "Unsupported file type" message.
 var ErrNotAFile = errors.New("thumbnails: resource is not a file")
 
 // ErrPermissionDenied is returned when the requesting user lacks the download
 // permission on the resource (e.g. a Secure Viewer share). Callers should
-// surface this as HTTP 403 Forbidden, matching the legacy thumbnail service.
+// surface this as HTTP 403 Forbidden.
 var ErrPermissionDenied = errors.New("thumbnails: no download permission")
 
 // ErrNotFound is returned when the requested file could not be located or has no
 // usable checksum. Callers should surface this as HTTP 404 Not Found with a
-// "File could not be located" message, matching the legacy thumbnail service.
+// "File could not be located" message.
 var ErrNotFound = errors.New("thumbnails: file could not be located")
 
 // ErrNoStorageSpace is returned when no storage space owns the requested path,
 // e.g. a path in another user's home or a non-existent path. Callers should
-// surface this as HTTP 404 Not Found, matching the legacy thumbnail service.
+// surface this as HTTP 404 Not Found.
 var ErrNoStorageSpace = errors.New("thumbnails: no storage space found for path")
 
 // ErrUnsupportedFileType is returned when the file's mime type is not in the
@@ -419,7 +418,7 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 	checksum := info.GetChecksum().GetSum()
 	if checksum == "" {
 		// Without a checksum the cache key would be shared across all files, so
-		// the resource is treated as not found (matching main's grpc service).
+		// the resource is treated as not found.
 		logger.Debug().Msg("resource info is missing a checksum")
 		return Thumbnail{}, ErrNotFound
 	}
@@ -472,7 +471,8 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 	// webdav snaps the requested size onto a configured resolution and lets the
 	// generator fill that box. Only fit-in suppresses upscaling (noUpscale); for
 	// fill/thumbnail/resize the generator may enlarge a small source (e.g. a text
-	// file rendered at a fixed canvas) to fill the snapped box, matching main.
+	// file rendered at a fixed canvas) to fill the snapped box, which is what
+	// imagor's default resize does.
 	genURL := generator.BuildURL(w.generatorURL, int32(box.Dx()), int32(box.Dy()), operation, outputFormat, noUpscale)
 
 	// Produce the source image to send to the generator, never decoding an image
@@ -662,9 +662,8 @@ func (w *ThumbnailWorkflow) postToGenerator(ctx context.Context, url string, img
 	if httpRsp.StatusCode < 200 || httpRsp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(httpRsp.Body)
 		// The generator reports ErrMaxResolutionExceeded (422) when the decoded
-		// input exceeds its configured max width/height. Translate it to the
-		// legacy "image is too large" error so the DAV layer returns 403, matching
-		// the pre-refactor behavior where webdav enforced the dimension limit.
+		// input exceeds its configured max width or height. The DAV layer answers
+		// the too-large error with 403.
 		if httpRsp.StatusCode == http.StatusUnprocessableEntity {
 			return nil, "", ErrImageTooLarge
 		}

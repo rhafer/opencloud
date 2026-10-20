@@ -16,8 +16,8 @@ func NewFileCache(dir string) *FileCache {
 	return &FileCache{dir: dir}
 }
 
-// The cache key is already a hierarchical relative path (built to match main's
-// BuildKey layout), so the on-disk location is simply the cache dir joined with it.
+// The cache key is already a hierarchical relative path, so the on-disk
+// location is the cache dir joined with it.
 func (c *FileCache) Get(key string) ([]byte, error) {
 	path := filepath.Join(c.dir, key)
 

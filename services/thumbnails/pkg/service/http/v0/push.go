@@ -119,7 +119,7 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The slots are taken once the image is in: they bound the work, which is the
-	// decoding and the resizing below, and a slow upload no longer sits in one.
+	// decoding and the resizing below, so a slow upload does not sit in one.
 	ok, retryAfter := s.limiter.acquire()
 	if !ok {
 		writeTooManyRequests(w, retryAfter)
