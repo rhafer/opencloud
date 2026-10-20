@@ -643,11 +643,9 @@ func (w *ThumbnailWorkflow) postToGenerator(ctx context.Context, url string, img
 	}
 	defer httpRsp.Body.Close()
 
-	if writeErr := <-errCh; writeErr != nil {
-		io.Copy(io.Discard, httpRsp.Body)
-		return nil, "", writeErr
-	}
-
+	// The status is read before the writer's error. A generator that refuses the
+	// request without reading it, which is what 429 and 413 do, breaks the write
+	// half way, and that broken pipe must not mask the answer the client needs.
 	if httpRsp.StatusCode < 200 || httpRsp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(httpRsp.Body)
 		// The generator reports ErrMaxResolutionExceeded (422) when the decoded
@@ -661,6 +659,12 @@ func (w *ThumbnailWorkflow) postToGenerator(ctx context.Context, url string, img
 			retryAfter, _ := strconv.Atoi(httpRsp.Header.Get("Retry-After"))
 			return nil, "", &GeneratorBusyError{RetryAfterSeconds: retryAfter}
 		}
+		// The generator bounds the whole request body, this service only the file,
+		// so the multipart framing can push a file just under the limit over it.
+		// Either way the source is too large, which is a 403, not a server fault.
+		if httpRsp.StatusCode == http.StatusRequestEntityTooLarge {
+			return nil, "", ErrImageTooLarge
+		}
 
 		// A source the generator cannot read is a missing preview, not a server
 		// fault, so the client gets a 404 and stops asking. A 400 means this
@@ -669,6 +673,11 @@ func (w *ThumbnailWorkflow) postToGenerator(ctx context.Context, url string, img
 			return nil, "", fmt.Errorf("%w: generator refused the source: %s", ErrUnsupportedFileType, strings.TrimSpace(string(respBody)))
 		}
 		return nil, "", fmt.Errorf("generator returned status %d: %s", httpRsp.StatusCode, string(respBody))
+	}
+
+	if writeErr := <-errCh; writeErr != nil {
+		io.Copy(io.Discard, httpRsp.Body)
+		return nil, "", writeErr
 	}
 
 	rspData, err := io.ReadAll(httpRsp.Body)
