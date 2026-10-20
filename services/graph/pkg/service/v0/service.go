@@ -184,7 +184,7 @@ func NewService(opts ...Option) (Graph, error) { //nolint:maintidx
 
 	svc := Graph{
 		BaseGraphService:         baseGraphService,
-		sourceTypes:              thumbnail.NewSourceTypes(options.Config.ThumbnailSourceTypes),
+		sourceTypes:              thumbnail.NewSourceTypes(options.Config.ThumbnailsSourceTypes),
 		mux:                      m,
 		specialDriveItemsCache:   spacePropertiesCache,
 		eventsPublisher:          options.EventsPublisher,

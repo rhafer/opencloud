@@ -43,11 +43,11 @@ func DefaultConfig() *config.Config {
 		WebdavNamespace:    "/users/{{.Id.OpaqueId}}",
 		RevaGateway:        shared.DefaultRevaConfig().Address,
 
-		ThumbnailGeneratorURL:     "http://127.0.0.1:9186",
-		ThumbnailGeneratorTimeout: "30s",
-		ThumbnailMaxInputFileSize: "50MB",
-		ThumbnailCacheBackend:     "file",
-		ThumbnailResolutions: []string{
+		ThumbnailsGeneratorURL:     "http://127.0.0.1:9186",
+		ThumbnailsGeneratorTimeout: "30s",
+		ThumbnailsMaxInputFileSize: "50MB",
+		ThumbnailsCacheBackend:     "file",
+		ThumbnailsResolutions: []string{
 			"16", "32", "64", "128", "192", "256", "320", "384", "448",
 			"512", "640", "768", "1024", "1280", "1920", "2048",
 		},
@@ -78,7 +78,7 @@ func Sanitize(cfg *config.Config) {
 
 	// a yaml configuration that joined the resolutions into one entry kept
 	// working in the thumbnails service, so it keeps working here
-	if len(cfg.ThumbnailResolutions) == 1 && strings.Contains(cfg.ThumbnailResolutions[0], ",") {
-		cfg.ThumbnailResolutions = strings.Split(cfg.ThumbnailResolutions[0], ",")
+	if len(cfg.ThumbnailsResolutions) == 1 && strings.Contains(cfg.ThumbnailsResolutions[0], ",") {
+		cfg.ThumbnailsResolutions = strings.Split(cfg.ThumbnailsResolutions[0], ",")
 	}
 }

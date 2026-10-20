@@ -371,7 +371,7 @@ func FrontendConfigFromStruct(cfg *config.Config, logger log.Logger) (map[string
 					"public_url":       cfg.OCDav.PublicURL,
 					// what oc:has-preview is answered from, the same set the
 					// webdav service attempts previews for
-					"preview_mime_types": thumbnail.NewSourceTypes(cfg.OCDav.ThumbnailSourceTypes).List(),
+					"preview_mime_types": thumbnail.NewSourceTypes(cfg.OCDav.ThumbnailsSourceTypes).List(),
 					// still not supported
 					//"favorite_storage_driver":   unused,
 					//"favorite_storage_drivers":  unused,
