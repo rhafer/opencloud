@@ -10,6 +10,7 @@ import (
 	user "github.com/cs3org/go-cs3apis/cs3/identity/user/v1beta1"
 	ocEvents "github.com/opencloud-eu/opencloud/pkg/events"
 	"github.com/opencloud-eu/reva/v2/pkg/events"
+	"github.com/opencloud-eu/reva/v2/pkg/storagespace"
 )
 
 // handleShareCreated handles a share created event.
@@ -83,21 +84,28 @@ func (s *EventConsumer) handleSpaceShared(ctx context.Context, ev events.SpaceSh
 		return nil
 	}
 
-	share, err := s.authGuest.GetShareForSpaceGrant(ctx, ev.ID.GetOpaqueId(), ev.GranteeUserID)
+	if ev.ShareID.GetOpaqueId() == "" {
+		s.log.Warn().Msg("space shared event without share id, skipping")
+		return nil
+	}
+
+	// The space root node id is the space id.
+	itemID, err := storagespace.ParseID(ev.ID.GetOpaqueId())
 	if err != nil {
 		return err
 	}
+	itemID.OpaqueId = itemID.SpaceId
 
-	tok, err := s.authGuest.CreateToken(ctx, share.GetId().GetOpaqueId())
+	tok, err := s.authGuest.CreateToken(ctx, ev.ShareID.GetOpaqueId())
 	if err != nil {
 		return err
 	}
 
 	return events.Publish(ctx, s.stream, ocEvents.GuestTokenCreated{
-		ShareID:      share.GetId(),
-		Sharer:       share.GetCreator(),
+		ShareID:      ev.ShareID,
+		Sharer:       ev.Creator,
 		GranteeEmail: ev.GranteeUserID.GetOpaqueId(),
-		ItemID:       share.GetResourceId(),
+		ItemID:       &itemID,
 		Token:        tok.String(),
 		Timestamp:    time.Now(),
 	})
