@@ -32,7 +32,7 @@ type Config struct {
 	IncludeOCMSharees    bool         `yaml:"include_ocm_sharees" env:"OC_ENABLE_OCM;GRAPH_INCLUDE_OCM_SHAREES" desc:"Include OCM sharees when listing users." introductionVersion:"1.0.0"`
 	Events               Events       `yaml:"events"`
 	UnifiedRoles         UnifiedRoles `yaml:"unified_roles"`
-	ThumbnailSourceTypes []string     `yaml:"thumbnail_source_types" env:"OC_THUMBNAILS_SOURCE_TYPES;GRAPH_THUMBNAILS_SOURCE_TYPES" desc:"Additional mime types a preview is announced for, the same list the webdav service attempts previews for. The types the build ships are included; this only adds to them." introductionVersion:"%%NEXT%%"`
+	ThumbnailSourceTypes []string     `yaml:"thumbnails_source_types" env:"OC_THUMBNAILS_SOURCE_TYPES;GRAPH_THUMBNAILS_SOURCE_TYPES" desc:"Additional mime types a preview is announced for, the same list the webdav service attempts previews for. The types the build ships are included; this only adds to them." introductionVersion:"%%NEXT%%"`
 
 	MaxConcurrency int `yaml:"max_concurrency" env:"OC_MAX_CONCURRENCY;GRAPH_MAX_CONCURRENCY" desc:"The maximum number of concurrent requests the service will handle." introductionVersion:"1.0.0"`
 
