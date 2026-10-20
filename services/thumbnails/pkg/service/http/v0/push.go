@@ -14,9 +14,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// maxOutputEdge is the largest box a request may ask for, per axis.
-const maxOutputEdge = 2048
-
 // gifMagic is the leading signature of a GIF file (GIF87a or GIF89a). It decides
 // whether a request takes the animation path.
 var gifMagic = []byte("GIF8")
@@ -56,15 +53,6 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 	height, err := parseDim(r, "height")
 	if err != nil {
 		writeInvalid(w, "invalid height")
-		return
-	}
-
-	// fill and stretch upscale, so without a ceiling a tiny source could be asked
-	// for at any size and allocate accordingly. The pixel budget for animations
-	// and webdav's ladder above this are a follow-up.
-	if width > maxOutputEdge || height > maxOutputEdge {
-		writeMaxResolution(w)
-
 		return
 	}
 
