@@ -210,3 +210,94 @@ func TestHandleSpaceSharedSkipsEmptyShareID(t *testing.T) {
 	svcMock.AssertNotCalled(t, "CreateToken", mock.Anything, mock.Anything)
 	assert.Empty(t, bus.published)
 }
+
+func TestHandleSpaceUnshared(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svcMock.On("CleanupShare", testShareID).Return(nil)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.SpaceUnshared{
+		ID:            &provider.StorageSpaceId{OpaqueId: "storage$space"},
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		Executant:     &user.UserId{OpaqueId: "executant"},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
+	}
+
+	require.NoError(t, svc.handleSpaceUnshared(context.Background(), ev))
+
+	svcMock.AssertCalled(t, "CleanupShare", testShareID)
+}
+
+func TestHandleSpaceUnsharedSkipsNonGuest(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.SpaceUnshared{
+		ID:            &provider.StorageSpaceId{OpaqueId: "storage$space"},
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		GranteeUserID: &user.UserId{OpaqueId: "user", Type: user.UserType_USER_TYPE_PRIMARY},
+	}
+
+	require.NoError(t, svc.handleSpaceUnshared(context.Background(), ev))
+
+	svcMock.AssertNotCalled(t, "CleanupShare", mock.Anything)
+}
+
+func TestHandleSpaceUnsharedSkipsEmptyShareID(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.SpaceUnshared{
+		ID:            &provider.StorageSpaceId{OpaqueId: "storage$space"},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
+	}
+
+	require.NoError(t, svc.handleSpaceUnshared(context.Background(), ev))
+
+	svcMock.AssertNotCalled(t, "CleanupShare", mock.Anything)
+}
+
+func TestHandleSpaceMembershipExpired(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svcMock.On("CleanupShare", testShareID).Return(nil)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.SpaceMembershipExpired{
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		SpaceID:       &provider.StorageSpaceId{OpaqueId: "storage$space"},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
+	}
+
+	require.NoError(t, svc.handleSpaceMembershipExpired(context.Background(), ev))
+
+	svcMock.AssertCalled(t, "CleanupShare", testShareID)
+}
+
+func TestHandleSpaceMembershipExpiredSkipsNonGuest(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.SpaceMembershipExpired{
+		ShareID:       &collaboration.ShareId{OpaqueId: testShareID},
+		SpaceID:       &provider.StorageSpaceId{OpaqueId: "storage$space"},
+		GranteeUserID: &user.UserId{OpaqueId: "user", Type: user.UserType_USER_TYPE_PRIMARY},
+	}
+
+	require.NoError(t, svc.handleSpaceMembershipExpired(context.Background(), ev))
+
+	svcMock.AssertNotCalled(t, "CleanupShare", mock.Anything)
+}
+
+func TestHandleSpaceMembershipExpiredSkipsEmptyShareID(t *testing.T) {
+	svcMock := mocks.NewAuthGuest(t)
+	svc, _ := newConsumer(t, svcMock)
+
+	ev := events.SpaceMembershipExpired{
+		SpaceID:       &provider.StorageSpaceId{OpaqueId: "storage$space"},
+		GranteeUserID: &user.UserId{OpaqueId: "guest@example.org", Type: user.UserType_USER_TYPE_GUEST},
+	}
+
+	require.NoError(t, svc.handleSpaceMembershipExpired(context.Background(), ev))
+
+	svcMock.AssertNotCalled(t, "CleanupShare", mock.Anything)
+}

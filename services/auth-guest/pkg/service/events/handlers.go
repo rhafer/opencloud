@@ -110,3 +110,43 @@ func (s *EventConsumer) handleSpaceShared(ctx context.Context, ev events.SpaceSh
 		Timestamp:    time.Now(),
 	})
 }
+
+// handleSpaceUnshared handles a space unshared event.
+func (s *EventConsumer) handleSpaceUnshared(ctx context.Context, ev events.SpaceUnshared) error {
+	_, span := tracer.Start(ctx, "handleSpaceUnshared")
+	defer span.End()
+
+	if ev.GranteeUserID == nil || ev.GranteeUserID.GetType() != user.UserType_USER_TYPE_GUEST {
+		s.log.Debug().Msg("space unshared event is not for a guest, skipping")
+		return nil
+	}
+
+	if ev.ShareID.GetOpaqueId() == "" {
+		s.log.Warn().Msg("space unshared event without share id, skipping")
+		return nil
+	}
+
+	s.log.Debug().Interface("event", ev).Msg("space unshared event received")
+
+	return s.authGuest.CleanupShare(ev.ShareID.GetOpaqueId())
+}
+
+// handleSpaceMembershipExpired handles a space membership expired event.
+func (s *EventConsumer) handleSpaceMembershipExpired(ctx context.Context, ev events.SpaceMembershipExpired) error {
+	_, span := tracer.Start(ctx, "handleSpaceMembershipExpired")
+	defer span.End()
+
+	if ev.GranteeUserID == nil || ev.GranteeUserID.GetType() != user.UserType_USER_TYPE_GUEST {
+		s.log.Debug().Msg("space membership expired event is not for a guest, skipping")
+		return nil
+	}
+
+	if ev.ShareID.GetOpaqueId() == "" {
+		s.log.Warn().Msg("space membership expired event without share id, skipping")
+		return nil
+	}
+
+	s.log.Debug().Interface("event", ev).Msg("space membership expired event received")
+
+	return s.authGuest.CleanupShare(ev.ShareID.GetOpaqueId())
+}
