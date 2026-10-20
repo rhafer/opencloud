@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/gif"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -78,35 +79,39 @@ func (s Thumbnails) pushHandler(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, int64(s.maxBody))
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
+	// The part is read by hand, not with ParseMultipartForm: the whole image is
+	// held in memory to decode it anyway, and the form would keep a second copy,
+	// on disk for anything past its memory limit.
+	part, err := imagePart(r)
+	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			fmt.Fprintln(w, "image larger than THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE")
+			writeTooLarge(w)
 
 			return
 		}
 
-		writeInvalid(w, "failed to parse multipart form")
+		writeInvalid(w, err.Error())
 		return
 	}
-
-	file, header, err := r.FormFile("image")
-	if err != nil {
-		writeInvalid(w, "missing image field in form data")
-		return
-	}
-	defer file.Close()
+	defer part.Close()
 
 	// imagor's upload loader accepts image/* only (UPLOAD_LOADER_ACCEPT), so an
 	// untyped part is refused here too.
-	if ct := header.Header.Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+	if ct := part.Header.Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
 		writeNotAcceptable(w, fmt.Sprintf("unsupported part type: %q", ct))
 		return
 	}
 
-	imgData, err := io.ReadAll(file)
+	imgData, err := io.ReadAll(part)
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeTooLarge(w)
+
+			return
+		}
+
 		writeInvalid(w, "failed to read image")
 		return
 	}
@@ -258,6 +263,36 @@ func (s Thumbnails) serveAnimation(w http.ResponseWriter, imgData []byte, req re
 	}
 
 	writeImage(w, "image/gif", buf.Bytes())
+}
+
+// imagePart walks the multipart body up to the image field and hands back that
+// part, unread. The body is bounded by the caller, so the walk cannot run away.
+func imagePart(r *http.Request) (*multipart.Part, error) {
+	mr, err := r.MultipartReader()
+	if err != nil {
+		return nil, errors.New("failed to parse multipart form")
+	}
+
+	for {
+		part, err := mr.NextPart()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil, errors.New("missing image field in form data")
+			}
+
+			return nil, err
+		}
+		if part.FormName() == "image" {
+			return part, nil
+		}
+		part.Close()
+	}
+}
+
+// writeTooLarge answers a body that outgrew THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE.
+func writeTooLarge(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusRequestEntityTooLarge)
+	fmt.Fprintln(w, "image larger than THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE")
 }
 
 // writeImage answers with the encoded image.
