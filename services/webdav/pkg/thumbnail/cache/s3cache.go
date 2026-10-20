@@ -106,10 +106,15 @@ func (c *S3Cache) Get(key string) ([]byte, error) {
 
 // asCacheError reports a missing object as a cache miss. minio's GetObject only
 // validates its arguments and sends the request on the first read, so a key that
-// is not there surfaces from the read, not from GetObject.
+// is not there surfaces from the read, not from GetObject. A missing bucket
+// answers 404 as well and must not read as a miss: it is a misconfiguration that
+// would otherwise hide behind every lookup.
 func asCacheError(err error) error {
 	rsp := minio.ToErrorResponse(err)
-	if rsp.Code == minio.NoSuchKey || rsp.StatusCode == http.StatusNotFound {
+	if rsp.Code == minio.NoSuchKey {
+		return ErrCacheMiss
+	}
+	if rsp.Code == "" && rsp.StatusCode == http.StatusNotFound {
 		return ErrCacheMiss
 	}
 
