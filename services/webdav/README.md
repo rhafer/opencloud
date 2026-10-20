@@ -30,9 +30,9 @@ The following query parameters are supported:
 
 #### Thumbnail Resolution
 
-`WEBDAV_THUMBNAIL_RESOLUTIONS` is a ladder of edge lengths, not a list of boxes. Each axis of a request is rounded up to the next length on the ladder, on its own, so a thumbnail never comes back in a different orientation than it was asked for. The largest length is the cap: a request above it, and an axis left unconstrained, get that one.
+`WEBDAV_THUMBNAIL_RESOLUTIONS` is a ladder of edge lengths, not a list of boxes. Its largest entry is also the largest thumbnail this service asks a generator for, which is why it tops out at 2048: `fill` and `stretch` enlarge a small source to fill the box, so a higher rung lets a tiny image cost whatever that box costs. Each axis of a request is rounded up to the next length on the ladder, on its own, so a thumbnail never comes back in a different orientation than it was asked for. The largest length is the cap: a request above it, and an axis left unconstrained, get that one.
 
-Example with the default ladder (16, 32, 64, 128, 192, 256, 320, 384, 448, 512, 640, 768, 1024, 1280, 1920, 2560, 3840, 7680):
+Example with the default ladder (16, 32, 64, 128, 192, 256, 320, 384, 448, 512, 640, 768, 1024, 1280, 1920, 2048):
 
 Requested: 18x12\
 Returned: 32x16
