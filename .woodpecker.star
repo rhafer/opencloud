@@ -3450,8 +3450,14 @@ def imagorServices():
         "IMAGOR_UNSAFE": True,
         "UPLOAD_LOADER_ENABLE": True,
         "HTTP_LOADER_DISABLE": True,
+        # the limits of the thumbnails service, so both sides refuse the same
+        # requests; keep in step with imagortest.Args, which configures imagor
+        # the same way when the suite starts it through testcontainers
         "VIPS_MAX_WIDTH": 7680,
         "VIPS_MAX_HEIGHT": 7680,
+        "VIPS_MAX_ANIMATION_FRAMES": 100,
+        "UPLOAD_LOADER_MAX_ALLOWED_SIZE": 50000000,
+        "IMAGOR_PROCESS_CONCURRENCY": -1,
     }
 
     return [

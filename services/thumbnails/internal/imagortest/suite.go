@@ -55,6 +55,9 @@ func Variants() []Variant {
 }
 
 // push based processing only: unsigned URLs, uploads in, nothing loaded by URL.
+// CI runs imagor as a pipeline service instead, so .woodpecker.star carries the
+// same values; both have to say the same thing or a parity case answers
+// differently depending on who started the container.
 // Every limit this service has is handed over, so both sides refuse the same
 // requests; imagor's own defaults are looser (a 9999 edge, 32 MB uploads,
 // animations and concurrency unbounded) and would hide a difference as a pass.
