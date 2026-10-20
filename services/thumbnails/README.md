@@ -85,7 +85,7 @@ above the configured maximum dimensions and for an animation above the frame
 limit; `429` when the concurrency limit is reached; `413` for a body above
 `THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE`.
 
-The settings that decide what a thumbnail is belong to the webdav service; this one keeps the limits it can enforce while it holds the image. [webdav's MIGRATION.md](../webdav/MIGRATION.md) says what an existing deployment has to change.
+webdav decides which size is asked for, keeps the thumbnail cache and holds the list of types a preview is attempted for. This service checks what it can see on the image itself: the dimensions of the source, the number of frames, the size of the body, and how many requests are worked on at once. [webdav's MIGRATION.md](../webdav/MIGRATION.md) says what an existing deployment has to change.
 
 ## Configuration
 

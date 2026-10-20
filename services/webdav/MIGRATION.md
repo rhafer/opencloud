@@ -1,9 +1,9 @@
 # Migrating the thumbnail settings
 
-Thumbnails are made by a generator the webdav service posts an image to, and
-everything that decides what a thumbnail is now belongs to webdav: the sizes, the
-cache, and the types a preview is made of. The thumbnails service keeps only the
-limits it can enforce while it holds the image.
+Thumbnails are made by a generator that the webdav service posts an image to.
+webdav decides which size is produced, keeps the cache and holds the list of types
+a preview is attempted for. The thumbnails service checks the limits it can see on
+the image itself.
 
 Every environment variable that moved is still read under its old name, so a
 deployment configured by environment keeps working. A yaml configuration does
