@@ -82,7 +82,7 @@ The defaults return `image/png` for png and icon sources, keep `image/gif` for a
 
 Previews can be switched off entirely with `OC_DISABLE_PREVIEWS`. Search keeps working, every thumbnail path answers `404`, and nothing here is read or checked: a typo in the resolutions, the cache backend or the type mapping surfaces when previews are switched back on, not before.
 
-In the single binary nothing has to be set: the generator URL defaults to the built-in thumbnails service. A deployment that runs the services in separate containers has to point `WEBDAV_THUMBNAILS_GENERATOR_URL` at its thumbnails service or at an imagor, because `127.0.0.1` no longer reaches it. The settings that used to live on the thumbnails service now belong to webdav, `THUMBNAILS_RESOLUTIONS` and `THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE` keep working there, and the thumbnail cache moves with them: the directory behind `THUMBNAILS_FILESYSTEMSTORAGE_ROOT`, now `WEBDAV_THUMBNAILS_CACHE_DIR`, has to be reachable by the webdav container.
+In the single binary nothing has to be set: the generator URL defaults to the built-in thumbnails service. A deployment that runs the services in separate containers has to point `WEBDAV_THUMBNAILS_GENERATOR_URL` at its thumbnails service or at an imagor, because `127.0.0.1` does not reach it from there. [MIGRATION.md](MIGRATION.md) says what else an existing deployment has to change.
 
 ### Search
 
