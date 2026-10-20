@@ -3,6 +3,8 @@ package workflow
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"image"
@@ -118,18 +120,21 @@ func fileIsProcessing(info *providerv1beta1.ResourceInfo) bool {
 	return utils.ReadPlainFromOpaque(info.GetOpaque(), "status") == "processing"
 }
 
-// thumbnailStorageKey builds the cache key: checksum[:2]/checksum[2:4]/checksum[4:]/wxh-<operation>.format.
+// thumbnailStorageKey builds the cache key: hash[:2]/hash[2:4]/hash[4:]/wxh-<operation>.format.
 // The <operation> segment (fit-in, fill, stretch, ...) distinguishes requests that
 // share a size but produce different images, so they never share a cache entry.
 // The key carries the snapped box, not the requested size, so every request that
 // rounds to the same box shares one entry. Caches regenerate when the configured
 // resolutions or operations change.
+//
+// The checksum is hashed rather than used as it comes: it is not this service's
+// to trust, an OCM share takes it from a remote PROPFIND, and it ends up as a
+// path on disk and as an object key.
 func thumbnailStorageKey(checksum string, w, h int, format, operation string) string {
-	name := fmt.Sprintf("%dx%d-%s.%s", w, h, operation, format)
-	if len(checksum) >= 6 {
-		return checksum[:2] + "/" + checksum[2:4] + "/" + checksum[4:] + "/" + name
-	}
-	return checksum + "/" + name
+	sum := sha256.Sum256([]byte(checksum))
+	hash := hex.EncodeToString(sum[:])
+
+	return hash[:2] + "/" + hash[2:4] + "/" + hash[4:] + "/" + fmt.Sprintf("%dx%d-%s.%s", w, h, operation, format)
 }
 
 // ThumbnailWorkflow owns the complete thumbnail generation pipeline:
