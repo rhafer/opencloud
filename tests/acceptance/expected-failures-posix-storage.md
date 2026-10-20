@@ -316,10 +316,6 @@ _ocdav: api compatibility, return correct status code_
 
 - [coreApiTrashbin/trashbinSharingToShares.feature:277](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/coreApiTrashbin/trashbinSharingToShares.feature#L277)
 
-#### [Guest invited to a project space does not get a guest link email](https://github.com/opencloud-eu/opencloud/issues/3744)
-
-- [apiGuestLink/guestLinkProjectSpace.feature:98](https://github.com/opencloud-eu/opencloud/blob/main/tests/acceptance/features/apiGuestLink/guestLinkProjectSpace.feature#L98)
-
 ### Won't fix
 
 Not everything needs to be implemented for opencloud.
