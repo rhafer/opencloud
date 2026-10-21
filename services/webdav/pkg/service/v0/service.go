@@ -71,7 +71,7 @@ func NewService(opts ...Option) (Service, error) {
 		),
 	)
 
-	sourceTypes := thumbnail.NewSourceTypes(conf.ThumbnailsSourceTypes)
+	sourceTypes := thumbnail.NewSourceTypes(conf.Thumbnails.SourceTypes)
 
 	tm, err := pool.StringToTLSMode(conf.GRPCClientTLS.Mode)
 	if err != nil {
@@ -159,7 +159,7 @@ func NewService(opts ...Option) (Service, error) {
 // newThumbnailWorkflow wires the preview pipeline: the generator client, the
 // cache and the gateway-backed lookups.
 func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes, logger log.Logger, gatewaySelector pool.Selectable[gatewayv1beta1.GatewayAPIClient]) (*workflow.ThumbnailWorkflow, error) {
-	genTimeout, err := time.ParseDuration(conf.ThumbnailsGeneratorTimeout)
+	genTimeout, err := time.ParseDuration(conf.Thumbnails.GeneratorTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("parse thumbnail generator timeout: %w", err)
 	}
@@ -167,7 +167,7 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 		genTimeout = 30 * time.Second
 	}
 
-	sizes, err := thumbnail.ParseSizes(conf.ThumbnailsResolutions)
+	sizes, err := thumbnail.ParseSizes(conf.Thumbnails.Resolutions)
 	if err != nil {
 		return nil, fmt.Errorf("parse thumbnail sizes: %w", err)
 	}
@@ -176,32 +176,32 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 		return nil, fmt.Errorf("thumbnail resolutions must name at least one edge length")
 	}
 
-	maxInputSize, err := generator.ParseMaxInputFileSize(conf.ThumbnailsMaxInputFileSize)
+	maxInputSize, err := generator.ParseMaxInputFileSize(conf.Thumbnails.MaxInputFileSize)
 	if err != nil {
 		return nil, fmt.Errorf("parse max input file size: %w", err)
 	}
 
-	typeMapping := thumbnail.NewTypeMapping(conf.ThumbnailsTypeMapping)
-	formats := generator.NewFormats(conf.ThumbnailsGeneratorFormats)
+	typeMapping := thumbnail.NewTypeMapping(conf.Thumbnails.TypeMapping)
+	formats := generator.NewFormats(conf.Thumbnails.GeneratorFormats)
 
 	s3cfg := cache.BuildS3CacheConfig(
-		conf.ThumbnailsCacheS3Bucket,
-		conf.ThumbnailsCacheS3Region,
-		conf.ThumbnailsCacheS3Endpoint,
-		conf.ThumbnailsCacheS3AccessKey,
-		conf.ThumbnailsCacheS3SecretKey,
+		conf.Thumbnails.CacheS3Bucket,
+		conf.Thumbnails.CacheS3Region,
+		conf.Thumbnails.CacheS3Endpoint,
+		conf.Thumbnails.CacheS3AccessKey,
+		conf.Thumbnails.CacheS3SecretKey,
 	)
 
 	// the new setting wins, the deprecated one is the fallback, and an empty
 	// result lets the cache use its own default directory. The old setting named
 	// the root the thumbnails service kept a files/ directory in, so that
 	// deployment's thumbnails are still found where they were written.
-	cacheDir := conf.ThumbnailsCacheDir
-	if cacheDir == "" && conf.ThumbnailsFilesystemStorageRoot != "" {
-		cacheDir = filepath.Join(conf.ThumbnailsFilesystemStorageRoot, "files")
+	cacheDir := conf.Thumbnails.CacheDir
+	if cacheDir == "" && conf.Thumbnails.FilesystemStorageRoot != "" {
+		cacheDir = filepath.Join(conf.Thumbnails.FilesystemStorageRoot, "files")
 	}
 
-	c, err := cache.NewThumbnailCache(conf.ThumbnailsCacheBackend, cacheDir, s3cfg)
+	c, err := cache.NewThumbnailCache(conf.Thumbnails.CacheBackend, cacheDir, s3cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 	httpClient := &http.Client{Timeout: genTimeout}
 
 	return workflow.NewWorkflow(
-		workflow.WithGeneratorURL(conf.ThumbnailsGeneratorURL),
+		workflow.WithGeneratorURL(conf.Thumbnails.GeneratorURL),
 		workflow.WithCache(c),
 		workflow.WithHTTPClient(httpClient),
 		workflow.WithMaxInputSize(maxInputSize),
@@ -218,7 +218,7 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 		workflow.WithFormats(formats),
 		workflow.WithTypeMapping(typeMapping),
 		workflow.WithWebdavNamespace(conf.WebdavNamespace),
-		workflow.WithFontMapFile(conf.ThumbnailsFontMapFile),
+		workflow.WithFontMapFile(conf.Thumbnails.FontMapFile),
 		workflow.WithLogger(logger),
 		workflow.WithStater(workflow.NewGatewayStater(gatewaySelector)),
 		workflow.WithFileDownloader(workflow.NewGatewayFileDownloader(gatewaySelector, httpClient)),

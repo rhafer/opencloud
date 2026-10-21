@@ -62,10 +62,11 @@ After:
 
 ```yaml
 webdav:
-  thumbnails_resolutions: ["16", "32", "2048"]
-  thumbnails_max_input_image_file_size: 50MB
-  thumbnails_txt_fontmap_file: /etc/opencloud/fontmap.json
-  thumbnails_cache_dir: /var/lib/opencloud/thumbnails/files
+  thumbnails:
+    resolutions: ["16", "32", "2048"]
+    max_input_image_file_size: 50MB
+    txt_fontmap_file: /etc/opencloud/fontmap.json
+    cache_dir: /var/lib/opencloud/thumbnails/files
 thumbnails:
   thumbnail:
     max_input_image_file_size: 50MB

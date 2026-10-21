@@ -26,13 +26,13 @@ type Config struct {
 	TokenManager  *TokenManager         `yaml:"token_manager"`
 	GRPCClientTLS *shared.GRPCClientTLS `yaml:"grpc_client_tls"`
 
-	Application          Application  `yaml:"application"`
-	Spaces               Spaces       `yaml:"spaces"`
-	Identity             Identity     `yaml:"identity"`
-	IncludeOCMSharees    bool         `yaml:"include_ocm_sharees" env:"OC_ENABLE_OCM;GRAPH_INCLUDE_OCM_SHAREES" desc:"Include OCM sharees when listing users." introductionVersion:"1.0.0"`
-	Events               Events       `yaml:"events"`
-	UnifiedRoles         UnifiedRoles `yaml:"unified_roles"`
-	ThumbnailsSourceTypes []string     `yaml:"thumbnails_source_types" env:"OC_THUMBNAILS_SOURCE_TYPES;GRAPH_THUMBNAILS_SOURCE_TYPES" desc:"Additional mime types a preview is announced for, the same list the webdav service attempts previews for. The types the build ships are included; this only adds to them." introductionVersion:"%%NEXT%%"`
+	Application       Application  `yaml:"application"`
+	Spaces            Spaces       `yaml:"spaces"`
+	Identity          Identity     `yaml:"identity"`
+	IncludeOCMSharees bool         `yaml:"include_ocm_sharees" env:"OC_ENABLE_OCM;GRAPH_INCLUDE_OCM_SHAREES" desc:"Include OCM sharees when listing users." introductionVersion:"1.0.0"`
+	Events            Events       `yaml:"events"`
+	UnifiedRoles      UnifiedRoles `yaml:"unified_roles"`
+	Thumbnails        Thumbnails   `yaml:"thumbnails"`
 
 	MaxConcurrency int `yaml:"max_concurrency" env:"OC_MAX_CONCURRENCY;GRAPH_MAX_CONCURRENCY" desc:"The maximum number of concurrent requests the service will handle." introductionVersion:"1.0.0"`
 
@@ -208,4 +208,10 @@ type Store struct {
 	EnableTLS            bool     `yaml:"enable_tls" env:"OC_PERSISTENT_STORE_ENABLE_TLS;GRAPH_STORE_ENABLE_TLS" desc:"Enable TLS for the connection to the store. Only applies when store type 'nats-js-kv' is configured." introductionVersion:"7.3.0"`
 	TLSInsecure          bool     `yaml:"tls_insecure" env:"OC_INSECURE;OC_PERSISTENT_STORE_TLS_INSECURE;GRAPH_STORE_TLS_INSECURE" desc:"Whether to verify the server TLS certificates." introductionVersion:"7.3.0"`
 	TLSRootCACertificate string   `yaml:"tls_root_ca_certificate" env:"OC_PERSISTENT_STORE_TLS_ROOT_CA_CERTIFICATE;GRAPH_STORE_TLS_ROOT_CA_CERTIFICATE" desc:"The root CA certificate used to validate the server's TLS certificate. If provided GRAPH_STORE_TLS_INSECURE will be seen as false." introductionVersion:"7.3.0"`
+}
+
+// Thumbnails is what this service announces a preview for. The names match the
+// ones the webdav service uses for the same list.
+type Thumbnails struct {
+	SourceTypes []string `yaml:"source_types" env:"OC_THUMBNAILS_SOURCE_TYPES;GRAPH_THUMBNAILS_SOURCE_TYPES" desc:"Additional mime types a preview is announced for, the same list the webdav service attempts previews for. The types the build ships are included; this only adds to them." introductionVersion:"%%NEXT%%"`
 }
