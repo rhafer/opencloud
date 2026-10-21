@@ -3456,7 +3456,8 @@ def imagorServices():
         "VIPS_MAX_WIDTH": 7680,
         "VIPS_MAX_HEIGHT": 7680,
         "VIPS_MAX_ANIMATION_FRAMES": 100,
-        "UPLOAD_LOADER_MAX_ALLOWED_SIZE": 50000000,
+        # quoted: a number this large reaches the container as 5e+07, which imagor cannot parse
+        "UPLOAD_LOADER_MAX_ALLOWED_SIZE": "50000000",
         "IMAGOR_PROCESS_CONCURRENCY": -1,
     }
 
