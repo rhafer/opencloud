@@ -38,10 +38,19 @@ The thumbnail cache has to be reachable by the webdav container after the move.
 
 ### Settings that are gone
 
-`THUMBNAILS_DATA_ENDPOINT`, `THUMBNAILS_TRANSFER_TOKEN` and
-`THUMBNAILS_WEBDAVSOURCE_INSECURE` configured the pipeline that fetched the file
-itself. The generator is handed the image now, so there is nothing to point them
-at.
+`THUMBNAILS_DATA_ENDPOINT`, `THUMBNAILS_TRANSFER_TOKEN`,
+`THUMBNAILS_WEBDAVSOURCE_INSECURE` and `THUMBNAILS_CS3SOURCE_INSECURE`
+configured the pipeline that fetched the file itself. The generator is handed the
+image now, so there is nothing to point them at, and nothing it has to
+authenticate against: `OC_REVA_GATEWAY` and `OC_INSECURE` no longer reach this
+service either. Both are read by others and stay where they are.
+
+`THUMBNAILS_GRPC_ADDR` went with the gRPC API, the service is only reached over
+HTTP now, and `THUMBNAILS_HTTP_ROOT` with it, because the endpoint sits where a
+generator's does, at `/unsafe/...`.
+
+Setting one of these is not an error, it just does nothing, so they can be
+dropped from a deployment whenever it is convenient.
 
 ### A yaml configuration has to move
 
