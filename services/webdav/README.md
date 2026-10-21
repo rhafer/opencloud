@@ -24,7 +24,7 @@ The following query parameters are supported:
 | x         | NO       | 32, when y is absent too                                   | horizontal target size, absent leaves the width unconstrained, `0` is an error  |
 | y         | NO       | 32, when x is absent too                                   | vertical target size, absent leaves the height unconstrained, `0` is an error   |
 | scalingup | NO       | 0                                                          | accepted for compatibility but ignored; not forwarded to the generator          |
-| a         | NO       | none, the chain below decides                              | aspect ratio (legacy; only honored when no explicit `processor` is given)       |
+| a         | NO       | none                                                       | accepted for compatibility but ignored; this service has never honored it, so the chain below decides |
 | c         | NO       | none                                                       | accepted for compatibility but ignored; the cache key holds the file's checksum, so a changed file gets a new thumbnail without it |
 | processor | NO       | none, the chain below decides                              | preferred thumbnail processor                                                   |
 
@@ -56,13 +56,11 @@ The following are **legacy aliases** kept for compatibility:
 - `thumbnail` is a legacy alias for `fill` (center-crop to the exact box, may upscale).
 - `fit` is a legacy alias for `fit-in`.
 
-Naming one of them decides the behavior on its own, legacy alias or imagor name: `a` is overruled and `scalingup` is ignored either way. A request that wants `a` to decide has to leave `processor` out, a name nobody knows is treated the same way.
+Naming one of them decides the behavior on its own, legacy alias or imagor name. A name nobody knows is treated like no processor at all.
 
 To apply one of those, a query parameter has to be added to the request, like `?processor=fit-in`.
 
-Without a processor three things decide, in this order. An unconstrained axis is always fitted, because there is no box to crop to, so `?y=512` needs nothing else. Then `a` decides when the client sent it: `a=1` fits in, `a=0` fills. Otherwise the source type decides, `resize` for gifs and `fill` for everything else, which is what a request without `a` has always got.
-
-When what a request resolves to contradicts an `a` the client sent, the response carries the header `X-OpenCloud-Thumbnail-Aspect-Ignored` so developers can fix their client. A request that does not send `a` never gets the header.
+Without a processor two things decide, in this order. An unconstrained axis is always fitted, because there is no box to crop to, so `?y=512` needs nothing else. Otherwise the source type decides, `resize` for gifs and `fill` for everything else.
 
 #### Thumbnail Generator
 

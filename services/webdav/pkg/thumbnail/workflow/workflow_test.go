@@ -29,7 +29,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
-	"github.com/opencloud-eu/opencloud/pkg/conversions"
 	"github.com/opencloud-eu/opencloud/pkg/log"
 	"github.com/opencloud-eu/opencloud/services/webdav/pkg/constants"
 	"github.com/opencloud-eu/opencloud/services/webdav/pkg/dav/requests"
@@ -60,92 +59,51 @@ var _ = Describe("matchOperation", func() {
 	w := &ThumbnailWorkflow{}
 
 	It("stretches for the resize processor and allows upscaling", func() {
-		op, noUpscale, aIgnored := w.matchOperation(&requests.ThumbnailRequest{Processor: "resize"}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Processor: "resize"}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpStretch))
 		Expect(noUpscale).To(BeFalse())
-		Expect(aIgnored).To(BeFalse())
 	})
 
 	It("fills for the fill processor and allows upscaling", func() {
-		op, noUpscale, _ := w.matchOperation(&requests.ThumbnailRequest{Processor: "fill"}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Processor: "fill"}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpFill))
 		Expect(noUpscale).To(BeFalse())
 	})
 
 	It("treats the thumbnail processor as fill (square tiles) and allows upscaling", func() {
-		op, noUpscale, _ := w.matchOperation(&requests.ThumbnailRequest{Processor: "thumbnail"}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Processor: "thumbnail"}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpFill))
 		Expect(noUpscale).To(BeFalse())
 	})
 
 	It("fits in for the fit processor and suppresses upscaling", func() {
-		op, noUpscale, _ := w.matchOperation(&requests.ThumbnailRequest{Processor: "fit"}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Processor: "fit"}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpFitIn))
 		Expect(noUpscale).To(BeTrue())
 	})
 
 	It("fits in for the fit-in processor and suppresses upscaling", func() {
-		op, noUpscale, _ := w.matchOperation(&requests.ThumbnailRequest{Processor: "fit-in"}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Processor: "fit-in"}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpFitIn))
 		Expect(noUpscale).To(BeTrue())
 	})
 
 	It("defaults to fill for non-gif sources without a processor and allows upscaling", func() {
-		op, noUpscale, aIgnored := w.matchOperation(&requests.ThumbnailRequest{Width: 64, Height: 64}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Width: 64, Height: 64}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpFill))
 		Expect(noUpscale).To(BeFalse())
-		Expect(aIgnored).To(BeFalse())
 	})
 
 	It("stretches gifs by default (resize for gifs) and allows upscaling", func() {
-		op, noUpscale, _ := w.matchOperation(&requests.ThumbnailRequest{Width: 64, Height: 64}, "image/gif")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Width: 64, Height: 64}, "image/gif")
 		Expect(op).To(Equal(generator.OpStretch))
 		Expect(noUpscale).To(BeFalse())
 	})
 
 	It("fits in when an axis is unconstrained, there is nothing to crop to", func() {
-		op, noUpscale, _ := w.matchOperation(&requests.ThumbnailRequest{Width: 0, Height: 512}, "image/jpeg")
+		op, noUpscale := w.matchOperation(&requests.ThumbnailRequest{Width: 0, Height: 512}, "image/jpeg")
 		Expect(op).To(Equal(generator.OpFitIn))
 		Expect(noUpscale).To(BeTrue())
-	})
-
-	DescribeTable("honours a when the client sent it and no processor",
-		func(aspect bool, want string) {
-			op, _, aIgnored := w.matchOperation(
-				&requests.ThumbnailRequest{Width: 64, Height: 64, Aspect: &aspect}, "image/jpeg")
-			Expect(op).To(Equal(want))
-			Expect(aIgnored).To(BeFalse(), "nothing contradicted a")
-		},
-		Entry("a=1 preserves the aspect ratio", true, generator.OpFitIn),
-		Entry("a=0 fills the box", false, generator.OpFill),
-	)
-
-	It("reports aIgnored when an unconstrained axis overrules a=0", func() {
-		op, _, aIgnored := w.matchOperation(
-			&requests.ThumbnailRequest{Width: 0, Height: 512, Aspect: conversions.ToPointer(false)}, "image/jpeg")
-		Expect(op).To(Equal(generator.OpFitIn))
-		Expect(aIgnored).To(BeTrue())
-	})
-
-	It("reports aIgnored when an explicit processor overrides the legacy a flag", func() {
-		// a=0 (Aspect=false) wants fill; fit processor overrides it with fit-in.
-		op, _, aIgnored := w.matchOperation(&requests.ThumbnailRequest{Processor: "fit", Aspect: conversions.ToPointer(false)}, "image/jpeg")
-		Expect(op).To(Equal(generator.OpFitIn))
-		Expect(aIgnored).To(BeTrue())
-
-		// a=1 (Aspect=true) wants fit-in; fill processor overrides it with fill.
-		op, _, aIgnored = w.matchOperation(&requests.ThumbnailRequest{Processor: "fill", Aspect: conversions.ToPointer(true)}, "image/jpeg")
-		Expect(op).To(Equal(generator.OpFill))
-		Expect(aIgnored).To(BeTrue())
-
-		// a=0 wants fill; thumbnail processor implies fill -> no contradiction.
-		op, _, aIgnored = w.matchOperation(&requests.ThumbnailRequest{Processor: "thumbnail", Aspect: conversions.ToPointer(false)}, "image/jpeg")
-		Expect(op).To(Equal(generator.OpFill))
-		Expect(aIgnored).To(BeFalse())
-
-		// resize is neutral: never reports a contradiction.
-		_, _, aIgnored = w.matchOperation(&requests.ThumbnailRequest{Processor: "resize", Aspect: conversions.ToPointer(false)}, "image/jpeg")
-		Expect(aIgnored).To(BeFalse())
 	})
 })
 

@@ -53,8 +53,8 @@ image). Adding the `no_upscale()` filter caps the result at the source size
 instead (the same request returns 100x100). The `fit-in` route never upscales,
 imagor would with the `upscale()` filter, this service ignores it.
 
-Which route a preview request ends up on, and the `processor` and `a`
-parameters that decide it, are the webdav service's business and documented in
+Which route a preview request ends up on, and the `processor` parameter that
+decides it, are the webdav service's business and documented in
 [its README](../webdav/README.md).
 
 The request body is a `multipart/form-data` upload with a single file field

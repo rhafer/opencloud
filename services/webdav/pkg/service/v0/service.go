@@ -342,7 +342,6 @@ func (g Webdav) writeThumbnail(w http.ResponseWriter, r *http.Request, tr *reque
 		return
 	}
 
-	setAspectIgnoredHeader(w, thumb.AspectIgnored)
 	generator.WriteThumbnailResponse(w, thumb.Data, thumb.ContentType)
 }
 
@@ -406,18 +405,6 @@ func (g Webdav) PublicThumbnailHead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-}
-
-// aspectIgnoredHeader is set on thumbnail responses when what the request
-// resolved to contradicts the legacy "a" flag, so developers can tell their
-// client to send a consistent request (see the thumbnail docs).
-const aspectIgnoredHeader = "X-OpenCloud-Thumbnail-Aspect-Ignored"
-
-func setAspectIgnoredHeader(w http.ResponseWriter, ignored bool) {
-	if !ignored {
-		return
-	}
-	w.Header().Set(aspectIgnoredHeader, "1; the processor or the requested box overruled the legacy 'a' flag, see the thumbnail docs")
 }
 
 // handleWorkflowError maps a workflow error onto the response. step names what

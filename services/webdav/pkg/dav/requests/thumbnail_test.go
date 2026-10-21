@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/opencloud-eu/opencloud/pkg/conversions"
 	"github.com/opencloud-eu/opencloud/services/webdav/pkg/constants"
 	"github.com/opencloud-eu/opencloud/services/webdav/pkg/dav/requests"
 )
@@ -20,22 +19,6 @@ func thumbnailRequest(rawQuery string) *http.Request {
 }
 
 var _ = Describe("ParseThumbnailRequest", func() {
-	DescribeTable("the legacy a flag",
-		func(query string, want *bool) {
-			tr, err := requests.ParseThumbnailRequest(thumbnailRequest(query))
-			Expect(err).ToNot(HaveOccurred())
-			if want == nil {
-				Expect(tr.Aspect).To(BeNil())
-
-				return
-			}
-			Expect(tr.Aspect).To(HaveValue(Equal(*want)))
-		},
-		Entry("stays unset when the client does not send it", "x=1024&y=1024", nil),
-		Entry("preserves the aspect ratio with a=1", "x=1024&y=1024&a=1", conversions.ToPointer(true)),
-		Entry("fills the box with a=0", "x=1024&y=1024&a=0", conversions.ToPointer(false)),
-	)
-
 	It("keeps the processor and both dimensions", func() {
 		tr, err := requests.ParseThumbnailRequest(thumbnailRequest("x=320&y=320&processor=fit"))
 		Expect(err).ToNot(HaveOccurred())

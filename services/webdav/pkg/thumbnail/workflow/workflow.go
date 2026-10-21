@@ -266,12 +266,10 @@ func WithUserResolver(r UserResolver) Option {
 	return func(w *ThumbnailWorkflow) { w.userResolver = r }
 }
 
-// Thumbnail is what a request produces: the image, the type it is returned in,
-// and whether an explicit processor overrode a contradicting legacy "a" flag.
+// Thumbnail is what a request produces: the image and the type it is returned in.
 type Thumbnail struct {
-	Data          []byte
-	ContentType   string
-	AspectIgnored bool
+	Data        []byte
+	ContentType string
 }
 
 // Execute handles a user thumbnail request (GET).
@@ -437,10 +435,8 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 	// The operation is resolved up front so it can be part of the cache key: a
 	// fill and a fit-in request with the same dimensions produce different images
 	// and must not share a cache entry. noUpscale reports whether the generator
-	// must not enlarge the source (fit-in only); aIgnored reports whether the
-	// legacy "a" flag was overridden by an explicit processor, so the client can
-	// be told.
-	operation, noUpscale, aIgnored := w.matchOperation(tr, mimeType)
+	// must not enlarge the source (fit-in only).
+	operation, noUpscale := w.matchOperation(tr, mimeType)
 
 	// webdav is the sizing brain: it snaps each axis of the requested size onto
 	// the configured ladder. It never inspects the image bytes; the generator is
@@ -460,7 +456,7 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 		cached, err := w.cache.Get(cacheKey)
 		switch {
 		case err == nil:
-			return Thumbnail{Data: cached, ContentType: outputType, AspectIgnored: aIgnored}, nil
+			return Thumbnail{Data: cached, ContentType: outputType}, nil
 		case !errors.Is(err, cache.ErrCacheMiss):
 			// a miss is the normal answer; anything else is the cache itself
 			// failing, and the thumbnail is made again without a word otherwise
@@ -506,7 +502,7 @@ func (w *ThumbnailWorkflow) generate(ctx context.Context, ref *providerv1beta1.R
 		}
 	}
 
-	return Thumbnail{Data: thumbBytes, ContentType: outputType, AspectIgnored: aIgnored}, nil
+	return Thumbnail{Data: thumbBytes, ContentType: outputType}, nil
 }
 
 // sourceImage returns a reader over the source image to send to the generator,
@@ -555,10 +551,10 @@ func (w *ThumbnailWorkflow) sourceImage(ctx context.Context, ref *providerv1beta
 
 // matchOperation picks how to fit within the box webdav already snapped. A
 // processor the client named wins, "thumbnail" and "fit" being legacy aliases for
-// fill and fit-in; without one, an unconstrained axis, then "a", then the source
-// type decide, and "scalingup" is ignored throughout. Only fit-in never enlarges
-// its source, so it is the one operation that suppresses upscaling.
-func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeType string) (operation string, noUpscale, aIgnored bool) {
+// fill and fit-in; without one, an unconstrained axis, then the source type
+// decide, and "scalingup" is ignored throughout. Only fit-in never enlarges its
+// source, so it is the one operation that suppresses upscaling.
+func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeType string) (operation string, noUpscale bool) {
 	proc := strings.ToLower(strings.TrimSpace(tr.Processor))
 
 	switch proc {
@@ -568,14 +564,10 @@ func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeTy
 		operation = generator.OpFill
 	case "fit", "fit-in":
 		operation = generator.OpFitIn
-	default: // no processor: a free axis, then "a", then the source type decide
+	default: // no processor: a free axis, then the source type decide
 		switch {
 		case tr.Width == 0 || tr.Height == 0:
 			operation = generator.OpFitIn
-		case tr.Aspect != nil && *tr.Aspect:
-			operation = generator.OpFitIn
-		case tr.Aspect != nil:
-			operation = generator.OpFill
 		case strings.HasPrefix(mimeType, "image/gif"):
 			operation = generator.OpStretch
 		default:
@@ -585,17 +577,7 @@ func (w *ThumbnailWorkflow) matchOperation(tr *requests.ThumbnailRequest, mimeTy
 
 	noUpscale = operation == generator.OpFitIn
 
-	// stretch distorts either way, so "a" never counts as ignored for it
-	if tr.Aspect != nil {
-		switch operation {
-		case generator.OpFill:
-			aIgnored = *tr.Aspect // a asked for fit-in but we fill
-		case generator.OpFitIn:
-			aIgnored = !*tr.Aspect // a asked for fill but we fit in
-		}
-	}
-
-	return operation, noUpscale, aIgnored
+	return operation, noUpscale
 }
 
 // quoteEscaper matches the escaping mime/multipart applies to part filenames.

@@ -59,9 +59,7 @@ Feature: sizing of previews of files downloaded through the webdav API
     #
     # The OpenCloud web client always sends a processor: list view requests
     # processor=thumbnail at 64x64, tiles view requests processor=fit at a dynamic
-    # square between 320 and 768. It currently also sends the legacy a=1 flag on
-    # every request; that is redundant now that an explicit processor takes
-    # precedence over a, so web should stop sending it.
+    # square between 320 and 768.
     Examples:
       | request-width | request-height | processor | return-width | return-height | dav-path-version |
       | 1             | 1              | fit       | 16           | 12            | spaces           |
