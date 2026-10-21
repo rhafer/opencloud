@@ -12,6 +12,7 @@ import (
 	"io"
 
 	"github.com/kovidgoyal/imaging"
+	"github.com/kovidgoyal/imaging/prism/meta/autometa"
 )
 
 // The backend this build resizes with. The implementations keep their own names
@@ -75,16 +76,51 @@ func extForSourceFormatImaging(src *imagingSource) string {
 // every frame in memory to return the first, and the frame guard only sees a
 // gif. The stdlib decoders read the first frame alone: gif.Decode stops after
 // it, png.Decode reads IDAT and ignores an animation's later fdAT chunks. The
-// rest keeps the imaging path, which is also what reads a JPEG's orientation.
+// rest keeps the imaging path, which is also what reads a JPEG's orientation
+// and its color profile.
 func decodeStill(src *imagingSource) (image.Image, error) {
 	switch src.format {
 	case "gif":
-		return gif.Decode(bytes.NewReader(src.data))
+		img, err := gif.Decode(bytes.NewReader(src.data))
+		if err != nil {
+			return nil, err
+		}
+
+		return toSRGB(src.data, img), nil
 	case "png":
-		return png.Decode(bytes.NewReader(src.data))
+		img, err := png.Decode(bytes.NewReader(src.data))
+		if err != nil {
+			return nil, err
+		}
+
+		return toSRGB(src.data, img), nil
 	}
 
 	return imaging.Decode(bytes.NewReader(src.data), imaging.AutoOrientation(true))
+}
+
+// toSRGB converts the colors through an embedded ICC profile, which the stdlib
+// decoders above hand back untouched: a wide gamut source would be read as sRGB
+// and come out oversaturated. imaging.Decode does this for the formats it
+// reads, with the same intent and blackpoint setting. A profile that cannot be
+// read leaves the colors alone, an uncorrected thumbnail beats none.
+func toSRGB(data []byte, img image.Image) image.Image {
+	md, _, err := autometa.Load(bytes.NewReader(data))
+	if err != nil || md == nil {
+		return img
+	}
+
+	profile, err := md.ICCProfile()
+	if err != nil || profile == nil {
+		return img
+	}
+
+	converted, err := imaging.ConvertToSRGB(profile, imaging.Relative, true, img)
+	if err != nil {
+		return img
+	}
+
+	return converted
 }
 
 // resizeSourceImaging resizes with the imaging backend. The operation selects the
