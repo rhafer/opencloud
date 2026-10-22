@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////
 
 AST <-
-    _ n:Nodes _ EOF {
+    n:Nodes _ EOF {
         return buildAST(n, c.text, c.pos)
     }
 

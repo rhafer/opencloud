@@ -3,6 +3,7 @@ package config
 import "time"
 
 const (
+	QueryPlaceholder             = "{{.QUERY}}"
 	PersonalSpaceRootPlaceholder = "{{.SPACE_ROOT_PERSONAL}}"
 	ProjectSpaceRootPlaceholder  = "{{.SPACE_ROOT_PROJECT}}"
 	NoResourceID                 = "none$none!none"

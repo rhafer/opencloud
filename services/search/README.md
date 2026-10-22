@@ -80,24 +80,18 @@ Not all parts are supported, the following list gives an overview of parts that 
 
 In [this ADR](https://github.com/owncloud/ocis/blob/docs/ocis/adr/0020-file-search-query-language.md) you can read why KQL was chosen.
 
-## Query filter
+## Query template
 
-`SEARCH_QUERY_FILTER` is a KQL expression ANDed to every search. It applies on every engine, works on existing
-indexes without reindexing, and keeps paging and totals right. Default:
+`SEARCH_QUERY_TEMPLATE` is a KQL template every search runs through. Default:
 
 ```
-NOT path:"./.space" AND NOT id:{{.SPACE_ROOT_PERSONAL}}
+({{.QUERY}}) AND (NOT path:"./.space" AND NOT id:{{.SPACE_ROOT_PERSONAL}})
 ```
 
-This leaves out `./.space` (the space image and readme) and the personal space root (named after its owner). Two
-placeholders become the searched space's root id, or an id that matches nothing in other space types:
+*   `({{.QUERY}})` the user's search. Keep the parentheses.
+*   `{{.SPACE_ROOT_PERSONAL}}` / `{{.SPACE_ROOT_PROJECT}}` become the current space root, else a non-matching id.
 
-*   `{{.SPACE_ROOT_PERSONAL}}` for personal spaces.
-*   `{{.SPACE_ROOT_PROJECT}}` for project spaces. Not in the default, so a project space stays findable by name; add
-    `AND NOT id:{{.SPACE_ROOT_PROJECT}}` to drop it too.
-
-Quote the value in a shell or compose env, the braces are a template token. An empty value turns the filter off. The
-service validates the filter at startup and does not start if it cannot parse it.
+Empty turns it off. The service checks the template at startup.
 
 ## Content analysis / Extraction
 

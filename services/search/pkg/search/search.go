@@ -249,6 +249,10 @@ func PinnedRootID(query string) string {
 	if err != nil {
 		return ""
 	}
+	return pinnedRootID(a)
+}
+
+func pinnedRootID(a *ast.Ast) string {
 	pinned := ""
 	negated := false
 	for _, n := range a.Nodes {

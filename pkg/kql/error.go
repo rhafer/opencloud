@@ -16,13 +16,17 @@ func (e DanglingOperatorError) Error() string {
 	return "the operator '" + e.Node.Value + "' is missing an operand"
 }
 
-// SyntaxError records an error and the query that caused it.
+// SyntaxError records an error and the position that caused it.
 type SyntaxError struct {
-	Inner error
+	line, col int
+	Inner     error
 }
 
 func (e SyntaxError) Error() string {
-	return "invalid query syntax: " + e.Inner.Error()
+	if e.line == 0 {
+		return "invalid query syntax"
+	}
+	return fmt.Sprintf("invalid query syntax at %d:%d", e.line, e.col)
 }
 
 func (e SyntaxError) Unwrap() error {

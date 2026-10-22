@@ -2,22 +2,26 @@ package parser
 
 import "testing"
 
-func TestValidateQueryFilter(t *testing.T) {
-	for query, valid := range map[string]bool{
-		"": true,
-		`NOT path:"./.space" AND NOT id:{{.SPACE_ROOT_PERSONAL}}`:            true,
-		`NOT id:{{.SPACE_ROOT_PERSONAL}} AND NOT id:{{.SPACE_ROOT_PROJECT}}`: true,
-		`NOT mediatype:folder`:           true,
-		`NOT name:"a(b"`:                 true,
-		`NOT id:{{.SPACE_ROOT_GRANT}}`:   false,
-		`NOT id:{{.SPACE_ROOT_PERSONAL}`: false,
-		`(NOT path:x`:                    false,
-		`NOT path:x) OR (name:y`:         false,
-		`AND AND`:                        false,
-		`NOT`:                            false,
+func TestValidateQueryTemplate(t *testing.T) {
+	for template, valid := range map[string]bool{
+		"":             true,
+		`({{.QUERY}})`: true,
+		`({{.QUERY}}) AND (NOT path:"./.space" AND NOT id:{{.SPACE_ROOT_PERSONAL}})`: true,
+		`({{.QUERY}}) OR mediatype:document`:                                         true,
+		`({{.QUERY}}) AND NOT name:"a(b"`:                                            true,
+		`{{.QUERY}}`:                                                                 false,
+		`{{.QUERY}} AND NOT mediatype:folder`:                                        false,
+		`({{.QUERY}}) OR ({{.QUERY}})`:                                               false,
+		`({{.QUERY}}) AND {{.QUERY}}`:                                                false,
+		`NOT mediatype:folder`:                                                       false,
+		`({{.QUERY}}) AND NOT id:{{.SPACE_ROOT_GRANT}}`:                              false,
+		`({{.QUERY}}) AND NOT id:{{.SPACE_ROOT_PERSONAL}`:                            false,
+		`(({{.QUERY}})`:                                                              false,
+		`({{.QUERY}}) AND AND`:                                                       false,
+		`({{.QUERY}}) AND`:                                                           false,
 	} {
-		if err := validateQueryFilter(query); (err == nil) != valid {
-			t.Errorf("validateQueryFilter(%q) = %v, want valid %v", query, err, valid)
+		if err := validateQueryTemplate(template); (err == nil) != valid {
+			t.Errorf("validateQueryTemplate(%q) = %v, want valid %v", template, err, valid)
 		}
 	}
 }

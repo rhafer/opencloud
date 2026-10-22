@@ -27,11 +27,21 @@ func (b Builder) Build(q string) (*ast.Ast, error) {
 	if err != nil {
 		var list errList
 		if errors.As(err, &list) {
+			var pos position
+			havePos := false
 			for _, listError := range list {
 				var parserError *parserError
-				if errors.As(listError, &parserError) && isGrammarActionError(parserError.Inner) {
-					return nil, parserError.Inner
+				if errors.As(listError, &parserError) {
+					if isGrammarActionError(parserError.Inner) {
+						return nil, parserError.Inner
+					}
+					if !havePos {
+						pos, havePos = parserError.pos, true
+					}
 				}
+			}
+			if havePos {
+				return nil, &SyntaxError{line: pos.line, col: pos.col, Inner: err}
 			}
 		}
 

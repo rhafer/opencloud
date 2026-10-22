@@ -348,7 +348,7 @@ Feature: Search
     And user "Alice" has uploaded file with content "test file" to "testFile.txt"
     When user "Alice" searches for 'AND mediatype:document' using the WebDAV API
     Then the HTTP status code should be "400"
-    And the value of the item "/d:error/s:message" in the response should be "error: bad request: the expression can't begin from a binary operator: 'AND'"
+    And the value of the item "/d:error/s:message" in the response should be "error: bad request: the operator 'AND' is missing an operand"
 
   @issue-10329
   Scenario Outline: search a file globally (in all spaces)

@@ -77,7 +77,7 @@ type Service struct {
 
 	batchSize int
 
-	queryFilter string
+	queryTemplate string
 }
 
 var errSkipSpace error
@@ -96,23 +96,18 @@ func NewService(gatewaySelector pool.Selectable[gateway.GatewayAPIClient], eng E
 
 		batchSize: cfg.BatchSize,
 
-		queryFilter: cfg.QueryFilter,
+		queryTemplate: cfg.QueryTemplate,
 	}
 
 	return s
 }
 
-// withQueryFilter adds the query filter to the engine query, so paging and totals stay right
-func (s *Service) withQueryFilter(query string, space *provider.StorageSpace) string {
-	if s.queryFilter == "" {
+// ExpandQueryTemplate fills {{.QUERY}} with the user query and the space-root placeholders per space.
+func ExpandQueryTemplate(template, query string, space *provider.StorageSpace) string {
+	if template == "" {
 		return query
 	}
 
-	return "(" + query + ") AND (" + ExpandQueryFilter(s.queryFilter, space) + ")"
-}
-
-// ExpandQueryFilter fills the query filter placeholders for the given space.
-func ExpandQueryFilter(query string, space *provider.StorageSpace) string {
 	rootID := func(spaceType string) string {
 		if space.GetSpaceType() == spaceType {
 			return `"` + storagespace.FormatResourceID(space.GetRoot()) + `"`
@@ -121,9 +116,10 @@ func ExpandQueryFilter(query string, space *provider.StorageSpace) string {
 	}
 
 	return strings.NewReplacer(
+		config.QueryPlaceholder, query,
 		config.PersonalSpaceRootPlaceholder, rootID(_spaceTypePersonal),
 		config.ProjectSpaceRootPlaceholder, rootID(_spaceTypeProject),
-	).Replace(query)
+	).Replace(template)
 }
 
 // Search processes a search request and passes it down to the engine.
@@ -165,7 +161,8 @@ func (s *Service) Search(ctx context.Context, req *searchsvc.SearchRequest) (*se
 	if query == "" {
 		return nil, errtypes.BadRequest("empty query provided")
 	}
-	if _, err := (kql.Builder{}).Build(query); err != nil {
+	queryAst, err := kql.Builder{}.Build(query)
+	if err != nil {
 		if kql.IsValidationError(err) {
 			return nil, errtypes.BadRequest(err.Error())
 		}
@@ -209,7 +206,7 @@ func (s *Service) Search(ctx context.Context, req *searchsvc.SearchRequest) (*se
 	// stays in the query, mountpoints are kept for path mapping
 	var pinnedRoot *provider.ResourceId
 	if req.Ref == nil {
-		if pinned := PinnedRootID(req.Query); pinned != "" {
+		if pinned := pinnedRootID(queryAst); pinned != "" {
 			if rid, err := storagespace.ParseID(pinned); err == nil {
 				pinnedRoot = &rid
 			}
@@ -448,7 +445,7 @@ func (s *Service) searchIndex(ctx context.Context, req *searchsvc.SearchRequest,
 	}
 
 	searchRequest := &searchsvc.SearchIndexRequest{
-		Query: s.withQueryFilter(req.Query, space),
+		Query: ExpandQueryTemplate(s.queryTemplate, req.Query, space),
 		Ref: &searchmsg.Reference{
 			ResourceId: searchRootID,
 			Path:       searchPathPrefix,
