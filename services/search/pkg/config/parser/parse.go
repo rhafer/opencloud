@@ -2,8 +2,11 @@ package parser
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
 	occfg "github.com/opencloud-eu/opencloud/pkg/config"
+	"github.com/opencloud-eu/opencloud/pkg/kql"
 	"github.com/opencloud-eu/opencloud/pkg/shared"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/config"
 	"github.com/opencloud-eu/opencloud/services/search/pkg/config/defaults"
@@ -47,6 +50,27 @@ func Validate(cfg *config.Config) error {
 	}
 	if cfg.ServiceAccount.ServiceAccountSecret == "" {
 		return shared.MissingServiceAccountSecret(cfg.Service.Name)
+	}
+
+	return validateQueryFilter(cfg.QueryFilter)
+}
+
+func validateQueryFilter(query string) error {
+	if query == "" {
+		return nil
+	}
+
+	expanded := strings.NewReplacer(
+		config.PersonalSpaceRootPlaceholder, `"`+config.NoResourceID+`"`,
+		config.ProjectSpaceRootPlaceholder, `"`+config.NoResourceID+`"`,
+	).Replace(query)
+
+	if strings.Contains(expanded, "{{") || strings.Contains(expanded, "}}") {
+		return errors.New("search query filter: unknown placeholder")
+	}
+
+	if _, err := (kql.Builder{}).Build(expanded); err != nil {
+		return fmt.Errorf("search query filter: %w", err)
 	}
 
 	return nil

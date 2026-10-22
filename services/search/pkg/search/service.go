@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"github.com/opencloud-eu/opencloud/pkg/kql"
 	"github.com/opencloud-eu/opencloud/pkg/log"
 	searchmsg "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/messages/search/v0"
 	searchsvc "github.com/opencloud-eu/opencloud/protogen/gen/opencloud/services/search/v0"
@@ -75,6 +76,8 @@ type Service struct {
 	serviceAccountSecret string
 
 	batchSize int
+
+	queryFilter string
 }
 
 var errSkipSpace error
@@ -92,9 +95,35 @@ func NewService(gatewaySelector pool.Selectable[gateway.GatewayAPIClient], eng E
 		serviceAccountSecret: cfg.ServiceAccount.ServiceAccountSecret,
 
 		batchSize: cfg.BatchSize,
+
+		queryFilter: cfg.QueryFilter,
 	}
 
 	return s
+}
+
+// withQueryFilter adds the query filter to the engine query, so paging and totals stay right
+func (s *Service) withQueryFilter(query string, space *provider.StorageSpace) string {
+	if s.queryFilter == "" {
+		return query
+	}
+
+	return "(" + query + ") AND (" + ExpandQueryFilter(s.queryFilter, space) + ")"
+}
+
+// ExpandQueryFilter fills the query filter placeholders for the given space.
+func ExpandQueryFilter(query string, space *provider.StorageSpace) string {
+	rootID := func(spaceType string) string {
+		if space.GetSpaceType() == spaceType {
+			return `"` + storagespace.FormatResourceID(space.GetRoot()) + `"`
+		}
+		return `"` + config.NoResourceID + `"`
+	}
+
+	return strings.NewReplacer(
+		config.PersonalSpaceRootPlaceholder, rootID(_spaceTypePersonal),
+		config.ProjectSpaceRootPlaceholder, rootID(_spaceTypeProject),
+	).Replace(query)
 }
 
 // Search processes a search request and passes it down to the engine.
@@ -135,6 +164,12 @@ func (s *Service) Search(ctx context.Context, req *searchsvc.SearchRequest) (*se
 	query, scope := ParseScope(query)
 	if query == "" {
 		return nil, errtypes.BadRequest("empty query provided")
+	}
+	if _, err := (kql.Builder{}).Build(query); err != nil {
+		if kql.IsValidationError(err) {
+			return nil, errtypes.BadRequest(err.Error())
+		}
+		return nil, err
 	}
 	req.Query = query
 	if len(scope) > 0 {
@@ -413,7 +448,7 @@ func (s *Service) searchIndex(ctx context.Context, req *searchsvc.SearchRequest,
 	}
 
 	searchRequest := &searchsvc.SearchIndexRequest{
-		Query: req.Query,
+		Query: s.withQueryFilter(req.Query, space),
 		Ref: &searchmsg.Reference{
 			ResourceId: searchRootID,
 			Path:       searchPathPrefix,

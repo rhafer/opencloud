@@ -26,19 +26,16 @@ func (b Builder) Build(q string) (*ast.Ast, error) {
 	f, err := Parse("", []byte(q))
 	if err != nil {
 		var list errList
-		errors.As(err, &list)
-
-		for _, listError := range list {
-			var parserError *parserError
-			switch {
-			case errors.As(listError, &parserError):
-				if parserError.Inner != nil {
+		if errors.As(err, &list) {
+			for _, listError := range list {
+				var parserError *parserError
+				if errors.As(listError, &parserError) && isGrammarActionError(parserError.Inner) {
 					return nil, parserError.Inner
 				}
-
-				return nil, listError
 			}
 		}
+
+		return nil, &SyntaxError{Inner: err}
 	}
 
 	return f.(*ast.Ast), nil

@@ -100,17 +100,39 @@ Feature: Search
   @issue-10329
   Scenario Outline: user can search hidden files
     Given using <dav-path-version> DAV path
-    And user "Alice" has created a folder ".space" in space "project101"
-    When user "Alice" searches for "*.sp*" using the WebDAV API
+    And user "Alice" has created a folder ".hidden" in space "project101"
+    When user "Alice" searches for "*.hid*" using the WebDAV API
     Then the HTTP status code should be "207"
     And the search result should contain "1" entries
     And the search result of user "Alice" should contain these entries:
-      | /.space |
+      | /.hidden |
     Examples:
       | dav-path-version |
       | old              |
       | new              |
       | spaces           |
+
+
+  Scenario Outline: user cannot search the .space folder of a space
+    Given using <dav-path-version> DAV path
+    And user "Alice" has created a folder ".space" in space "project101"
+    When user "Alice" searches for "*.sp*" using the WebDAV API
+    Then the HTTP status code should be "207"
+    And the search result should contain "0" entries
+    Examples:
+      | dav-path-version |
+      | old              |
+      | new              |
+      | spaces           |
+
+
+  Scenario: user cannot search files inside the .space folder of a space
+    Given using spaces DAV path
+    And user "Alice" has created a folder ".space" in space "project101"
+    And user "Alice" has uploaded a file inside space "project101" with content "hidden content" to ".space/spaceInternal.txt"
+    When user "Alice" searches for "*spaceInternal*" using the WebDAV API
+    Then the HTTP status code should be "207"
+    And the search result should contain "0" entries
 
 
   Scenario Outline: user cannot search pending share
