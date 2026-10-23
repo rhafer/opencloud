@@ -38,7 +38,7 @@ type Config struct {
 type Thumbnails struct {
 	GeneratorURL     string `yaml:"generator_url" env:"WEBDAV_THUMBNAILS_GENERATOR_URL" desc:"Base URL of the thumbnail generator service, e.g. http://thumbnails:9186" introductionVersion:"%%NEXT%%"`
 	GeneratorTimeout string `yaml:"generator_timeout" env:"WEBDAV_THUMBNAILS_GENERATOR_TIMEOUT" desc:"HTTP timeout for requests to the thumbnail generator, e.g. 30s" introductionVersion:"%%NEXT%%"`
-	MaxInputFileSize string `yaml:"max_input_image_file_size" env:"THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE;OC_THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE;WEBDAV_THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE" desc:"Maximum file size of an input image a thumbnail is made of. The generator refuses a larger body, so both read the same name by default. Usable common abbreviations: [KB, KiB, MB, MiB, GB, GiB], example: 50MB" introductionVersion:"%%NEXT%%"`
+	MaxInputFileSize string `yaml:"max_input_image_file_size" env:"OC_THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE;THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE;WEBDAV_THUMBNAILS_MAX_INPUT_IMAGE_FILE_SIZE" desc:"Maximum file size of an input image a thumbnail is made of. The generator refuses a larger body, so both read the same name by default. Usable common abbreviations: [KB, KiB, MB, MiB, GB, GiB], example: 50MB" introductionVersion:"%%NEXT%%"`
 
 	CacheBackend string `yaml:"cache_backend" env:"WEBDAV_THUMBNAILS_CACHE_BACKEND" desc:"Cache backend for imagor thumbnails: 'none', 'memory', 'file', or 's3'. Default: file." introductionVersion:"%%NEXT%%"`
 	CacheDir     string `yaml:"cache_dir" env:"WEBDAV_THUMBNAILS_CACHE_DIR" desc:"Directory for file-based thumbnail cache (Default: $OC_BASE_DATA_PATH/thumbnails/files). Only used when WEBDAV_THUMBNAILS_CACHE_BACKEND is 'file'." introductionVersion:"%%NEXT%%"`
