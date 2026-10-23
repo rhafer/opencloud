@@ -86,7 +86,11 @@ thumbnails:
 The resolutions are edge lengths now, and each axis of a request is rounded up on
 its own, so a preview is no longer returned in a different orientation than it was
 asked for. The default ladder ends at 2048, where it used to reach 8K, so a client
-that asks for more gets 2048.
+that asks for more gets 2048. A legacy `WidthxHeight` entry still counts with both
+of its sides, each capped at 2048, which is the largest box the built-in generator
+accepts by default. A larger length has to be written as a plain length, and the
+generator's `THUMBNAILS_MAX_OUTPUT_WIDTH` and `THUMBNAILS_MAX_OUTPUT_HEIGHT`
+raised to match it.
 
 A source smaller than the box is enlarged to fill it for the cropping operations,
 the way imagor's default resize does, where the previous service returned the

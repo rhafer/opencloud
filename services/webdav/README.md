@@ -37,7 +37,7 @@ Example with the default ladder (16, 32, 64, 128, 192, 256, 320, 384, 448, 512, 
 Requested: 18x12\
 Returned: 32x16
 
-Entries written as `WidthxHeight` are still accepted and contribute both of their sides to the ladder, so a configuration written for the old box list keeps working.
+Entries written as `WidthxHeight` are still accepted and contribute both of their sides to the ladder, each capped at 2048, the largest box the built-in generator accepts by default. A configuration written for the old box list, which reached 7680x4320, keeps working that way. A larger length has to be a plain one, with the generator's `THUMBNAILS_MAX_OUTPUT_WIDTH` and `THUMBNAILS_MAX_OUTPUT_HEIGHT` raised to match.
 
 Rounding onto the ladder is also what the cache is keyed on, so requests that produce the same image share one entry.
 
