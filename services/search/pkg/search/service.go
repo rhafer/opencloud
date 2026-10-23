@@ -147,14 +147,8 @@ func (s *Service) Search(ctx context.Context, req *searchsvc.SearchRequest) (*se
 	}
 	currentUser := revactx.ContextMustGetUser(ctx)
 
-	// Handle flags
-	query, flags := ParseFlags(req.Query)
-	for _, flag := range flags {
-		switch flag {
-		case "is:favorite":
-			query += " Favorites:\"" + currentUser.GetId().GetOpaqueId() + "\""
-		}
-	}
+	// is:favorite expands in place to the user's favorites field, so it keeps its position and joining operator
+	query := strings.ReplaceAll(req.Query, "is:favorite", `Favorites:"`+currentUser.GetId().GetOpaqueId()+`"`)
 
 	// Extract scope from query if set
 	query, scope := ParseScope(query)
