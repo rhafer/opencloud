@@ -71,7 +71,7 @@ func NewService(opts ...Option) (Service, error) {
 		),
 	)
 
-	sourceTypes := thumbnail.NewSourceTypes(conf.Thumbnails.SourceTypes)
+	sourceTypes := thumbnail.NewSourceTypes(conf.Thumbnails.AdditionalSourceTypes)
 
 	tm, err := pool.StringToTLSMode(conf.GRPCClientTLS.Mode)
 	if err != nil {
@@ -181,8 +181,8 @@ func newThumbnailWorkflow(conf *config.Config, sourceTypes thumbnail.SourceTypes
 		return nil, fmt.Errorf("parse max input file size: %w", err)
 	}
 
-	typeMapping := thumbnail.NewTypeMapping(conf.Thumbnails.TypeMapping)
-	formats := generator.NewFormats(conf.Thumbnails.GeneratorFormats)
+	typeMapping := thumbnail.NewTypeMapping(conf.Thumbnails.AdditionalOutputTypes)
+	formats := generator.NewFormats(conf.Thumbnails.AdditionalGeneratorFormats)
 
 	s3cfg := cache.BuildS3CacheConfig(
 		conf.Thumbnails.CacheS3Bucket,

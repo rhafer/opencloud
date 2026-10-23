@@ -97,5 +97,5 @@ file's type, so the cache is cold after the update and fills again as previews a
 requested. Nothing has to be deleted.
 
 Which types a preview is announced and attempted for is one list for webdav, graph
-and the PROPFIND property, set through `OC_THUMBNAILS_SOURCE_TYPES`. A type the
+and the PROPFIND property, set through `OC_THUMBNAILS_ADDITIONAL_SOURCE_TYPES`. A type the
 running generator cannot read answers `404`.

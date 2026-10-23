@@ -213,5 +213,5 @@ type Store struct {
 // Thumbnails is what this service announces a preview for. The names match the
 // ones the webdav service uses for the same list.
 type Thumbnails struct {
-	SourceTypes []string `yaml:"source_types" env:"OC_THUMBNAILS_SOURCE_TYPES;GRAPH_THUMBNAILS_SOURCE_TYPES" desc:"Additional mime types a preview is announced for, the same list the webdav service attempts previews for. The types the build ships are included; this only adds to them." introductionVersion:"%%NEXT%%"`
+	AdditionalSourceTypes []string `yaml:"additional_source_types" env:"OC_THUMBNAILS_ADDITIONAL_SOURCE_TYPES;GRAPH_THUMBNAILS_ADDITIONAL_SOURCE_TYPES" desc:"Additional mime types a preview is announced for, the same list the webdav service attempts previews for. The types the build ships are included; this only adds to them." introductionVersion:"%%NEXT%%"`
 }
