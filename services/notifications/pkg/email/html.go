@@ -53,7 +53,7 @@ func newMessageHTML(mt MessageTemplate, locale, defaultLocale, translationPath s
 		return htmlContent{}, err
 	}
 	t := l10n.NewTranslatorFromCommonConfig(defaultLocale, _domain, translationPath, _translationFS, "l10n/locale").Locale(locale)
-	body, err := composeMessage(t.Get(mt.MessageBody, []any{}...), escaped)
+	body, err := composeMessage(translate(t, mt.MessageBody), escaped)
 	if err != nil {
 		return htmlContent{}, err
 	}
@@ -75,8 +75,8 @@ func newMessageHTML(mt MessageTemplate, locale, defaultLocale, translationPath s
 		if err != nil {
 			return htmlContent{}, err
 		}
-		content.ActionLabel = t.Get(mt.ActionLabel, []any{}...)
-		content.FallbackLinkLabel = t.Get(_fallbackLinkLabel, []any{}...)
+		content.ActionLabel = translate(t, mt.ActionLabel)
+		content.FallbackLinkLabel = translate(t, _fallbackLinkLabel)
 	}
 	return content, nil
 }
@@ -102,7 +102,7 @@ func newDigestHTML(gmt GroupedMessageTemplate, vars map[string]string, locale, d
 		if err != nil {
 			return htmlContent{}, err
 		}
-		body, err := composeMessage(t.Get(mt.MessageBody, []any{}...), entryVars)
+		body, err := composeMessage(translate(t, mt.MessageBody), entryVars)
 		if err != nil {
 			return htmlContent{}, err
 		}
