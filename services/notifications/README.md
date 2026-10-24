@@ -21,22 +21,42 @@ final output
 
 The html emails are built from a parent template and two child templates:
 
--   `layout.html.tmpl` holds everything all emails share: the logo, the heading, the card around the content, the footer and the styles for dark mode. The children fill its `content` block.
--   `message.html.tmpl` is the content of all emails about a single event.
--   `digest.html.tmpl` is the content of the grouped daily and weekly emails, a timeline of the events.
+- `layout.html.tmpl` holds everything all emails share: the logo, the heading,
+  the card around the content, the footer and the styles for dark mode. The
+  children fill its `content` block.
+- `message.html.tmpl` is the content of all emails about a single event.
+- `digest.html.tmpl` is the content of the grouped daily and weekly emails, a
+  timeline of the events.
 
 The html templates get these values:
 
 | Value | Content |
-|---|---|
+| --- | --- |
 | `{{ .Subject }}` | The translated subject, shown as the heading. |
 | `{{ .Greeting }}` | The translated greeting. |
-| `{{ .Paragraphs }}` | The paragraphs of the message shown before the button. Each has a `.Kind` (`text`, `hint` or `code`) and a `.Text`; a `code` paragraph has a `.Label` and a `.Value` instead, such as the PIN of a guest link. |
+| `{{ .Paragraphs }}` | The paragraphs of the message shown before the button. Each has a `.Kind` (`text`, `hint` or `code`) and its `.Lines`; a `code` paragraph has a `.Label` and a `.Value` instead, such as the PIN of a guest link. |
 | `{{ .ActionLabel }}`, `{{ .ActionLink }}` | The label and the link of the button, empty if the email has no button. |
 | `{{ .FallbackLinkLabel }}` | The text in front of the plain link below the button. |
 | `{{ .Notes }}` | The paragraphs shown in small print below the button. |
 | `{{ .Entries }}` | The events of a grouped email, each with a `.Time` in UTC, its `.Paragraphs` and `.Last` for the last event. In the paragraphs, the name of the shared resource or space is a link to it. |
-| `{{ .MessageBody }}`, `{{ .CallToAction }}` | The whole message and the call to action, as used by the text template. In a grouped email, `{{ .MessageBody }}` holds all events, each with its call to action. |
+| `{{ .MessageBody }}`, `{{ .CallToAction }}` | Only for custom folders with the legacy `email.html.tmpl`: the whole message and the call to action as html. In a grouped email, `{{ .MessageBody }}` holds all events, each with its call to action. |
+
+All values are plain text, `html/template` escapes them. A paragraph is a
+list of lines, and a line is a list of segments with a `.Text` and, for a
+link, a `.Href`. Both child templates define a `lines` template that renders
+them, with a `<br>` between the lines. A custom child template needs to
+define it as well:
+
+```text
+{{ define "lines" }}
+{{- range $i, $line := . }}{{ if $i }}<br>{{ end }}
+{{- range $line }}
+{{- if .Href }}<a href="{{ .Href }}">{{ .Text }}</a>
+{{- else }}{{ .Text }}{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}
+```
 
 The emails show the OpenCloud logo as an inline image, `opencloud-logo.png` in the light and `opencloud-logo-dark.png` in the dark mode of mail clients that support it.
 

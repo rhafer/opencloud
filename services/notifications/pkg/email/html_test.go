@@ -10,7 +10,7 @@ import (
 
 func TestLayoutParagraphs(t *testing.T) {
 	body := "A new link has been requested.\n\nYour PIN: 482193\n\nDo not forward it.\n\nOnly valid for 30 minutes."
-	got := layoutParagraphs(body, []paragraphRole{paragraphText, paragraphCode, paragraphText, paragraphNote})
+	got := layoutParagraphs(body, []paragraphRole{paragraphText, paragraphCode, paragraphText, paragraphNote}, nil)
 
 	wantKinds := []string{"text", "code", "text", "note"}
 	if len(got) != len(wantKinds) {
@@ -28,7 +28,7 @@ func TestLayoutParagraphs(t *testing.T) {
 
 func TestLayoutParagraphsIgnoresLayoutOfOtherLength(t *testing.T) {
 	// a translation that merged two paragraphs must not shift the roles
-	got := layoutParagraphs("Merged first and second.\n\nThird.", []paragraphRole{paragraphText, paragraphCode, paragraphNote})
+	got := layoutParagraphs("Merged first and second.\n\nThird.", []paragraphRole{paragraphText, paragraphCode, paragraphNote}, nil)
 	for i, p := range got {
 		if p.Kind != "text" {
 			t.Errorf("paragraph %d: got kind %q, want text", i, p.Kind)
@@ -49,7 +49,7 @@ func TestRenderEmailTemplateHTML(t *testing.T) {
 
 	for _, want := range []string{
 		`<h1 class="oc-text"`,
-		"Your new link to 'Q3 Report'",
+		"Your new link to &#39;Q3 Report&#39;",
 		"Anna &lt;b&gt;Lindqvist&lt;/b&gt;",
 		`>Your PIN</div>`,
 		`>482193</div>`,
@@ -138,8 +138,8 @@ func TestRenderGroupedEmailTemplateTimeline(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		`Anna has shared "<a class="oc-link" href="https://cloud.example.com/files/shares/with-me" style="color: #00677f; text-decoration: none;">Q3 Report</a>" with you.`,
-		`Jonas has removed you from "<a class="oc-link" href="https://cloud.example.com/f/spaceid" style="color: #00677f; text-decoration: none;">Nostromo</a>".`,
+		`Anna has shared &#34;<a class="oc-link" href="https://cloud.example.com/files/shares/with-me" style="color: #00677f; text-decoration: none;">Q3 Report</a>&#34; with you.`,
+		`Jonas has removed you from &#34;<a class="oc-link" href="https://cloud.example.com/f/spaceid" style="color: #00677f; text-decoration: none;">Nostromo</a>&#34;.`,
 	} {
 		if !strings.Contains(msg.HTMLBody, want) {
 			t.Errorf("html body is missing the linked resource name %q", want)
@@ -156,5 +156,22 @@ func TestRenderGroupedEmailTemplateTimeline(t *testing.T) {
 	// only the line between the two entries is drawn
 	if n := strings.Count(msg.HTMLBody, `class="oc-line"`); n != 1 {
 		t.Errorf("got %d timeline line segments, want 1", n)
+	}
+}
+
+func TestDigestLinkIsEscaped(t *testing.T) {
+	msg, err := RenderGroupedEmailTemplate(GroupedDaily, map[string]string{"DisplayName": "Ben"}, "en", "en", "", "",
+		[]MessageTemplate{ShareCreated},
+		[]map[string]string{{"ShareSharer": "Anna", "ShareFolder": "<img src=x onerror=alert(1)>", "ShareLink": "javascript:alert(1)"}},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(msg.HTMLBody, "<img src=x") || strings.Contains(msg.HTMLBody, `href="javascript:`) {
+		t.Errorf("digest html contains unescaped input:\n%s", msg.HTMLBody)
+	}
+	if !strings.Contains(msg.HTMLBody, "&lt;img src=x onerror=alert(1)&gt;</a>") {
+		t.Error("digest html does not show the escaped resource name as link text")
 	}
 }

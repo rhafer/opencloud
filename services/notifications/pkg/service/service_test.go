@@ -286,7 +286,7 @@ https://opencloud.eu
 `,
 			expectedHTMLParts: []string{
 				`<p style="margin: 0;">Hello,</p>`,
-				`<p style="margin: 12px 0 0;">Dr. S. Harer has shared "guest folder" with you.</p>`,
+				`<p style="margin: 12px 0 0;">Dr. S. Harer has shared &#34;guest folder&#34; with you.</p>`,
 				`<p style="margin: 12px 0 0;">The link below is personal and can only be used once. Please do not forward it.</p>`,
 				`>Open link</a>`,
 				`The link is only valid for 30 minutes.</td>`,
@@ -473,7 +473,7 @@ https://opencloud.eu
 `,
 			expectedHTMLParts: []string{
 				`<p style="margin: 0;">Hello &lt;script&gt;alert(&#39;Eric Expireling&#39;);&lt;/script&gt;</p>`,
-				`<p style="margin: 12px 0 0;">Dr. O&#39;reilly has shared "&lt;script&gt;alert(&#39;secrets of the board&#39;);&lt;/script&gt;" with you.</p>`,
+				`<p style="margin: 12px 0 0;">Dr. O&#39;reilly has shared &#34;&lt;script&gt;alert(&#39;secrets of the board&#39;);&lt;/script&gt;&#34; with you.</p>`,
 				`>View shares</a>`,
 			},
 			expectedSender: sharer.GetDisplayName(),
@@ -506,7 +506,7 @@ https://opencloud.eu
 			expectedSender: sharer.GetDisplayName(),
 			expectedHTMLParts: []string{
 				`<p style="margin: 0;">Hello &lt;script&gt;alert(&#39;Eric Expireling&#39;);&lt;/script&gt;,</p>`,
-				`<p style="margin: 12px 0 0;">Dr. O&#39;reilly has invited you to join "&lt;script&gt;alert(&#39;secret space&#39;);&lt;/script&gt;".</p>`,
+				`<p style="margin: 12px 0 0;">Dr. O&#39;reilly has invited you to join &#34;&lt;script&gt;alert(&#39;secret space&#39;);&lt;/script&gt;&#34;.</p>`,
 				`>Open space</a>`,
 			},
 			expectedLink: testOpenCloudURL + "/f/spaceid",
