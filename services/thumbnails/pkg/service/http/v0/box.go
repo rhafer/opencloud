@@ -39,10 +39,11 @@ var errBoxTooLarge = errors.New("the resolved box exceeds the maximum thumbnail 
 // freeAxis is autoAxis for the request, held to the maximum thumbnail size. The
 // box the request names was checked before anything was read, but a side the
 // aspect ratio decides is only known once the image is: 0x2048 on a 7680x1
-// source is a box of 15728640x2048.
+// source is a box of 15728640x2048. 0x0 leaves both sides to the source, so the
+// source size is held to it too, even though nothing is resized.
 func (r resizeRequest) freeAxis(srcW, srcH int) (int, int, bool, error) {
 	w, h, resize := autoAxis(srcW, srcH, r.Width, r.Height)
-	if resize && ((r.MaxOutWidth > 0 && w > r.MaxOutWidth) || (r.MaxOutHeight > 0 && h > r.MaxOutHeight)) {
+	if (r.MaxOutWidth > 0 && w > r.MaxOutWidth) || (r.MaxOutHeight > 0 && h > r.MaxOutHeight) {
 		return 0, 0, false, errBoxTooLarge
 	}
 
