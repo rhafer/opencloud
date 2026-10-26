@@ -100,7 +100,10 @@ The cache key covers the snapped box, the operation, the output format and the
 file's type, so the cache is cold after the update and fills again as previews are
 requested. It is kept in `$OC_BASE_DATA_PATH/thumbnails/cache` now. The thumbnails
 the previous version wrote to `$OC_BASE_DATA_PATH/thumbnails/files` are never read
-again, so that directory can be deleted.
+again, so that directory can be deleted. Where a volume is mounted at
+`thumbnails/files` itself rather than at its parent, `WEBDAV_THUMBNAILS_CACHE_DIR`
+has to point at that mount, or the cache is written next to the volume instead of
+onto it.
 
 Which types a preview is announced and attempted for is one list for webdav, graph
 and the PROPFIND property, set through `OC_THUMBNAILS_ADDITIONAL_SOURCE_TYPES`. A type the
