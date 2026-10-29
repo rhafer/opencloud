@@ -82,7 +82,8 @@ func ListUploadSessions(cfg *config.Config) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			f, ok := registry.NewFuncs[cfg.Driver]
+			driver := opencloudstorage.EffectiveDriver(cfg.Driver)
+			f, ok := registry.NewFuncs[driver]
 			if !ok {
 				fmt.Fprintf(os.Stderr, "Unknown filesystem driver '%s'\n", cfg.Driver)
 				os.Exit(1)
@@ -107,7 +108,7 @@ func ListUploadSessions(cfg *config.Config) *cobra.Command {
 				}
 			}
 
-			fs, err := f(drivers[cfg.Driver].(map[string]any), fsStream, nil)
+			fs, err := f(drivers[driver].(map[string]any), fsStream, nil)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to initialize filesystem driver '%s'\n", cfg.Driver)
 				return err
